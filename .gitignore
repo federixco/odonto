@@ -11,7 +11,7 @@ venv/
 .env
 
 # Django
-db.sqlite3
+db.sqlite3*
 media/*
 !media/.gitkeep
 staticfiles/
@@ -25,4 +25,3 @@ Thumbs.db
 # Registros
 logs/*
 !logs/.gitkeep
-
