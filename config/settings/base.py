@@ -97,3 +97,27 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "usuarios.Usuario"
 SESSION_COOKIE_HTTPONLY = True
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+
+# --- Autenticación y Correos (Etapa 2) ---
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "redireccion_roles"
+LOGOUT_REDIRECT_URL = "login"
+PASSWORD_RESET_TIMEOUT = 60 * 60

@@ -6,7 +6,31 @@
     <title>{% block title %}SISETMA{% endblock %}</title>
 </head>
 <body>
-    {% block content %}{% endblock %}
+    <nav style="background: #f4f4f4; padding: 10px; margin-bottom: 20px;">
+        <a href="{% url 'redireccion_roles' %}"><strong>SISETMA</strong></a> |
+        {% if user.is_authenticated %}
+            Hola, {{ user.username }} (Rol: {{ user.rol }}) |
+
+            {% if user.rol == "ADMINISTRADOR" %}
+                <a href="{% url 'dashboard_admin' %}">Panel Admin</a> |
+            {% elif user.rol == "ODONTOLOGO" %}
+                <a href="{% url 'dashboard_odontologo' %}">Mis Consultorios</a> |
+            {% elif user.rol == "PACIENTE" %}
+                <a href="{% url 'dashboard_paciente' %}">Mis Estudios</a> |
+            {% endif %}
+
+            <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Cerrar Sesión</button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}">Iniciar Sesión</a>
+        {% endif %}
+    </nav>
+    <main style="padding: 20px;">
+        {% block content %}{% endblock %}
+    </main>
 </body>
 </html>
+
 
