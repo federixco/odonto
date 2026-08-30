@@ -5,12 +5,6 @@
 {% block content %}
 <h2>{{ odontologo.apellido }}, {{ odontologo.nombre }}</h2>
 
-{% if messages %}
-    {% for message in messages %}
-        <p style="color: green; font-weight: bold;">{{ message }}</p>
-    {% endfor %}
-{% endif %}
-
 <table border="1" cellpadding="8" cellspacing="0">
     <tr><th>Matrícula</th><td>{{ odontologo.matricula }}</td></tr>
     <tr><th>Email</th><td>{{ odontologo.usuario.email }}</td></tr>

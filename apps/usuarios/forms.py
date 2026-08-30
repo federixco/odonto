@@ -38,6 +38,13 @@ class OdontologoCreacionAdminForm(forms.Form):
             raise forms.ValidationError("Ya existe un odontólogo con esa matrícula.")
         return matricula
 
+    def clean_telefono(self):
+        """Evita que dos cuentas compartan un teléfono definido como único."""
+        telefono = self.cleaned_data.get("telefono", "").strip()
+        if telefono and Usuario.objects.filter(telefono=telefono).exists():
+            raise forms.ValidationError("Ya existe un usuario con ese teléfono.")
+        return telefono
+
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
@@ -138,6 +145,16 @@ class OdontologoEdicionForm(forms.Form):
         if qs.exists():
             raise forms.ValidationError("Ya existe un odontólogo con esa matrícula.")
         return matricula
+
+    def clean_telefono(self):
+        """Valida la unicidad sin considerar la cuenta que se está editando."""
+        telefono = self.cleaned_data.get("telefono", "").strip()
+        qs = Usuario.objects.filter(telefono=telefono)
+        if self.odontologo:
+            qs = qs.exclude(pk=self.odontologo.usuario_id)
+        if telefono and qs.exists():
+            raise forms.ValidationError("Ya existe un usuario con ese teléfono.")
+        return telefono
 
     @transaction.atomic
     def save(self):
