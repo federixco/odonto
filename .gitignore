@@ -9,12 +9,17 @@ htmlcov/
 .venv/
 venv/
 .env
+.env.*
+!.env.example
 
 # Django
 db.sqlite3*
 media/*
 !media/.gitkeep
 staticfiles/
+
+# Backups locales de bases de datos
+*.sql
 
 # Editores y sistema operativo
 .idea/
