@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Registro de Odontólogo - SISETMA{% endblock %}
+
+{% block content %}
+<h2>Registro de Odontólogo</h2>
+<p>Completá tus datos profesionales. Tu cuenta quedará <strong>pendiente de habilitación</strong> por un administrador del centro.</p>
+
+{% if messages %}
+    {% for message in messages %}
+        <p style="color: green; font-weight: bold;">{{ message }}</p>
+    {% endfor %}
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Registrarme</button>
+    <a href="{% url 'login' %}">Ya tengo cuenta</a>
+</form>
+{% endblock %}
