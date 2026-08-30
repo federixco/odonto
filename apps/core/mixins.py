@@ -3,8 +3,7 @@
 from django.contrib.auth.mixins import AccessMixin
 from django.core.exceptions import PermissionDenied
 
-from apps.core.enums import RolUsuario
-from apps.estudios.models import Estudio
+from apps.core.enums import EstadoAcceso, EstadoEstudio, RolUsuario
 
 
 class RolRequeridoMixin(AccessMixin):
@@ -15,10 +14,10 @@ class RolRequeridoMixin(AccessMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-            
+
         if self.rol_requerido and request.user.rol != self.rol_requerido:
             raise PermissionDenied("No tienes permisos para acceder a esta vista.")
-            
+
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -34,8 +33,14 @@ class PacienteRequeridoMixin(RolRequeridoMixin):
     rol_requerido = RolUsuario.PACIENTE
 
 
-class EstudioAccesoMixin:
+class EstudioAccesoMixin(AccessMixin):
     """Verifica que el usuario tenga permiso explícito sobre el estudio solicitado."""
+
+    def dispatch(self, request, *args, **kwargs):
+        """Exige autenticación antes de consultar el objeto solicitado."""
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
         """Sobrescribe la obtención del objeto para inyectar validación."""
@@ -43,23 +48,25 @@ class EstudioAccesoMixin:
         user = self.request.user
 
         if user.rol == RolUsuario.ADMINISTRADOR:
-            # Administrador tiene acceso a todo
+            # El administrador gestiona también borradores, correcciones y bajas.
             return obj
-            
+
         if user.rol == RolUsuario.ODONTOLOGO:
-            from apps.core.enums import EstadoAcceso, EstadoEstudio
-            
             autorizado_vigente = obj.autorizaciones.filter(
                 odontologo__usuario=user,
-                estado_acceso=EstadoAcceso.VIGENTE
+                estado_acceso=EstadoAcceso.VIGENTE,
             ).exists()
-            
-            if autorizado_vigente and obj.estado != EstadoEstudio.ELIMINADO:
+
+            if autorizado_vigente and obj.estado == EstadoEstudio.PUBLICADO:
                 return obj
-            
+
         if user.rol == RolUsuario.PACIENTE:
-            # El paciente solo ve estudios de su propio perfil de paciente
-            if hasattr(user, "paciente") and obj.paciente == user.paciente:
+            # El paciente solo ve estudios publicados de su propio perfil.
+            if (
+                hasattr(user, "paciente")
+                and obj.paciente_id == user.paciente.id
+                and obj.estado == EstadoEstudio.PUBLICADO
+            ):
                 return obj
 
         # Si llega acá, el usuario no tiene acceso válido.

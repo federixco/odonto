@@ -1,6 +1,5 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
-from django.urls import path
 from django.views.generic import TemplateView
 
 from apps.core.enums import RolUsuario
@@ -13,9 +12,9 @@ def redireccion_roles_view(request):
     rol = request.user.rol
     if rol == RolUsuario.ADMINISTRADOR:
         return redirect("dashboard_admin")
-    elif rol == RolUsuario.ODONTOLOGO:
+    if rol == RolUsuario.ODONTOLOGO:
         return redirect("dashboard_odontologo")
-    elif rol == RolUsuario.PACIENTE:
+    if rol == RolUsuario.PACIENTE:
         return redirect("dashboard_paciente")
     return redirect("login")
 
