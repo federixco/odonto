@@ -55,6 +55,7 @@ class FormatoArchivo(models.TextChoices):
 
 
 class TipoEvento(models.TextChoices):
+    INICIO_SESION = "INICIO_SESION", "Inicio de sesión"
     CARGA = "CARGA", "Carga"
     PUBLICACION = "PUBLICACION", "Publicación"
     VISUALIZACION = "VISUALIZACION", "Visualización"
@@ -62,3 +63,5 @@ class TipoEvento(models.TextChoices):
     REVOCACION = "REVOCACION", "Revocación"
     CORRECCION = "CORRECCION", "Corrección"
     ELIMINACION = "ELIMINACION", "Eliminación"
+    NOTIFICACION = "NOTIFICACION", "Notificación"
+    MODIFICACION_USUARIO = "MODIFICACION_USUARIO", "Modificación de usuario"
