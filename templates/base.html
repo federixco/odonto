@@ -13,6 +13,7 @@
 
             {% if user.rol == "ADMINISTRADOR" %}
                 <a href="{% url 'dashboard_admin' %}">Panel Admin</a> |
+                <a href="{% url 'odontologo_lista' %}">Gestionar odontólogos</a> |
             {% elif user.rol == "ODONTOLOGO" %}
                 <a href="{% url 'dashboard_odontologo' %}">Mis Consultorios</a> |
             {% elif user.rol == "PACIENTE" %}
@@ -28,6 +29,15 @@
         {% endif %}
     </nav>
     <main style="padding: 20px;">
+        {% if messages %}
+            <div aria-label="Mensajes del sistema">
+                {% for message in messages %}
+                    <p{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+                        {{ message }}
+                    </p>
+                {% endfor %}
+            </div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 </body>

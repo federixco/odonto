@@ -71,6 +71,39 @@ class GestionOdontologosTestCase(TestCase):
         self.assertEqual(nuevo.usuario.estado, EstadoCuenta.PENDIENTE)
         self.assertFalse(nuevo.usuario.is_active)
 
+    def test_autoregistro_informa_que_la_cuenta_queda_pendiente(self):
+        response = self.client.post(reverse("odontologo_autoregistro"), {
+            "username": "auto_mensaje",
+            "email": "mensaje@test.com",
+            "password": self.password,
+            "password_confirm": self.password,
+            "nombre": "Laura",
+            "apellido": "Mendez",
+            "matricula": "MAT-010",
+        }, follow=True)
+
+        self.assertRedirects(response, reverse("login"))
+        self.assertContains(response, "Un administrador debe habilitarla")
+
+    def test_autoregistro_rechaza_telefono_duplicado(self):
+        self.odon_user.telefono = "3704000000"
+        self.odon_user.save(update_fields=["telefono", "updated_at"])
+
+        response = self.client.post(reverse("odontologo_autoregistro"), {
+            "username": "telefono_repetido",
+            "email": "telefono@test.com",
+            "telefono": "3704000000",
+            "password": self.password,
+            "password_confirm": self.password,
+            "nombre": "Lucia",
+            "apellido": "Sosa",
+            "matricula": "MAT-011",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ya existe un usuario con ese teléfono")
+        self.assertFalse(User.objects.filter(username="telefono_repetido").exists())
+
     # --- Test: Cuenta PENDIENTE no puede loguearse ---
 
     def test_cuenta_pendiente_no_puede_loguearse(self):
@@ -133,6 +166,34 @@ class GestionOdontologosTestCase(TestCase):
         login_ok = self.client.login(username="odon_existente", password=self.password)
         self.assertFalse(login_ok)
 
+    def test_admin_edita_odontologo_y_rechaza_telefono_duplicado(self):
+        otro_usuario = User.objects.create_user(
+            username="otro_odon", password=self.password,
+            email="otro@test.com", telefono="3704111111",
+            rol=RolUsuario.ODONTOLOGO, estado=EstadoCuenta.HABILITADA,
+        )
+        Odontologo.objects.create(
+            usuario=otro_usuario, nombre="Rosa", apellido="Benitez",
+            matricula="MAT-012",
+        )
+        self.client.login(username="admin_test", password=self.password)
+
+        response = self.client.post(
+            reverse("odontologo_editar", args=[self.odontologo.pk]),
+            {
+                "nombre": "Juan",
+                "apellido": "Perez",
+                "matricula": "MAT-001",
+                "email": "odon@test.com",
+                "telefono": "3704111111",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ya existe un usuario con ese teléfono")
+        self.odon_user.refresh_from_db()
+        self.assertIsNone(self.odon_user.telefono)
+
     # --- Test: Odontólogo NO accede a vistas de admin ---
 
     def test_odontologo_no_accede_a_gestion(self):
@@ -155,3 +216,11 @@ class GestionOdontologosTestCase(TestCase):
 
         response = self.client.get(reverse("odontologo_lista"), {"q": "inexistente"})
         self.assertNotContains(response, "Perez")
+
+    def test_navegacion_expone_autoregistro_y_gestion(self):
+        response = self.client.get(reverse("login"))
+        self.assertContains(response, reverse("odontologo_autoregistro"))
+
+        self.client.login(username="admin_test", password=self.password)
+        response = self.client.get(reverse("dashboard_admin"))
+        self.assertContains(response, reverse("odontologo_lista"))
