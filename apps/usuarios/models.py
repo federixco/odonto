@@ -1,19 +1,23 @@
 """Cuenta de usuario y perfil profesional del odontólogo."""
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.core.enums import EstadoCuenta, RolUsuario
 
 
-# Cuenta central de autenticación: el rol define si pertenece al centro,
-# a un odontólogo derivante o a un paciente con acceso excepcional.
 class Usuario(AbstractUser):
-    """Cuenta autenticable con uno de los tres roles del sistema."""
+    """Cuenta autenticable con uno de los tres roles del sistema.
+
+    Una cuenta puede utilizar correo electrónico, teléfono o ambos como medio
+    de contacto. El estado funcional se sincroniza con ``is_active``, utilizado
+    internamente por Django para permitir o rechazar la autenticación.
+    """
 
     username = models.CharField("nombre de usuario", max_length=50, unique=True)
-    email = models.EmailField("correo electrónico", unique=True)
-    telefono = models.CharField("teléfono", max_length=30, blank=True)
+    email = models.EmailField("correo electrónico", unique=True, null=True, blank=True)
+    telefono = models.CharField("teléfono", max_length=30, unique=True, null=True, blank=True)
     rol = models.CharField(max_length=20, choices=RolUsuario.choices, default=RolUsuario.PACIENTE)
     estado = models.CharField(max_length=20, choices=EstadoCuenta.choices, default=EstadoCuenta.PENDIENTE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -23,16 +27,78 @@ class Usuario(AbstractUser):
         db_table = "usuario"
         verbose_name = "usuario"
         verbose_name_plural = "usuarios"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(email__isnull=False) & ~models.Q(email=""))
+                    | (models.Q(telefono__isnull=False) & ~models.Q(telefono=""))
+                ),
+                name="ck_usuario_medio_contacto",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(rol__in=RolUsuario.values),
+                name="ck_usuario_rol_valido",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(estado__in=EstadoCuenta.values),
+                name="ck_usuario_estado_valido",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        estado=EstadoCuenta.HABILITADA,
+                        is_active=True,
+                    )
+                    | models.Q(
+                        estado__in=[
+                            EstadoCuenta.PENDIENTE,
+                            EstadoCuenta.DESHABILITADA,
+                        ],
+                        is_active=False,
+                    )
+                ),
+                name="ck_usuario_estado_autenticacion",
+            ),
+        ]
 
     def __str__(self):
         return self.get_full_name() or self.username
 
-    def save(self, *args, **kwargs):
-        """Alinea el superusuario de Django con el administrador del centro."""
+    def _sincronizar_estado_autenticacion(self):
+        """Mantiene coherentes el estado del dominio y los flags de Django."""
         if self.is_superuser:
             self.is_staff = True
             self.rol = RolUsuario.ADMINISTRADOR
             self.estado = EstadoCuenta.HABILITADA
+            self.is_active = True
+        else:
+            self.is_active = self.estado == EstadoCuenta.HABILITADA
+
+    def clean(self):
+        """Normaliza y valida los medios de contacto de la cuenta."""
+        self._sincronizar_estado_autenticacion()
+        super().clean()
+        self.email = self.email.strip().lower() if self.email else None
+        self.telefono = self.telefono.strip() if self.telefono else None
+
+        if not self.email and not self.telefono:
+            raise ValidationError(
+                "El usuario debe tener un correo electrónico o un teléfono."
+            )
+
+    def save(self, *args, **kwargs):
+        """Sincroniza el estado funcional con la autenticación de Django."""
+        campos_sincronizados = {"is_active"}
+
+        self._sincronizar_estado_autenticacion()
+
+        if self.is_superuser:
+            campos_sincronizados.update({"is_staff", "rol", "estado"})
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | campos_sincronizados
+
         super().save(*args, **kwargs)
 
 
