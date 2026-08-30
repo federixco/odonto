@@ -97,3 +97,11 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "usuarios.Usuario"
 SESSION_COOKIE_HTTPONLY = True
+
+# --- Autenticación y Correos (Etapa 2) ---
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "redireccion_roles"
+LOGOUT_REDIRECT_URL = "login"
+
+# Durante desarrollo local, los correos de recuperación se imprimirán en consola.
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
