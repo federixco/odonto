@@ -3,10 +3,35 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(BASE_DIR / ".env", override=False)
+
+
+def _env_bool(name, default=False):
+    """Lee un booleano desde el entorno sin reemplazar valores ya exportados."""
+
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _database_name(engine):
+    """Resuelve rutas relativas de SQLite y conserva nombres de MySQL."""
+
+    default = str(BASE_DIR / "db.sqlite3") if engine.endswith("sqlite3") else "sisetma"
+    name = os.getenv("DB_NAME", default)
+    if engine.endswith("sqlite3") and name != ":memory:":
+        path = Path(name)
+        return str(path if path.is_absolute() else BASE_DIR / path)
+    return name
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
-DEBUG = False
+DEBUG = _env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()]
 
 INSTALLED_APPS = [
@@ -49,9 +74,11 @@ TEMPLATES = [{
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
+DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
+
 DATABASES = {"default": {
-    "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
-    "NAME": os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")),
+    "ENGINE": DB_ENGINE,
+    "NAME": _database_name(DB_ENGINE),
     "USER": os.getenv("DB_USER", ""),
     "PASSWORD": os.getenv("DB_PASSWORD", ""),
     "HOST": os.getenv("DB_HOST", ""),
