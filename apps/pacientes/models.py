@@ -27,3 +27,13 @@ class Paciente(models.Model):
 
     def __str__(self):
         return f"{self.apellido}, {self.nombre}"
+
+
+    def consultar_estudios_propios(self):
+        """Devuelve el queryset de los estudios vinculados a este paciente."""
+        pass
+
+    def visualizar_estudio(self, estudio_id):
+        """Registra la visualización del paciente a su propio estudio."""
+        pass
+

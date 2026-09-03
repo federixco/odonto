@@ -87,3 +87,21 @@ class Estudio(models.Model):
             self.save(update_fields=["estado", "updated_at"])
             return 1, {self._meta.label: 1}
         return 0, {self._meta.label: 0}
+
+
+    def validar_carga(self):
+        """Verifica que todos los archivos requeridos se hayan subido correctamente."""
+        pass
+
+    def marcar_en_revision(self):
+        """Cambia el estado del estudio si hay archivos incorrectos o dudas clínicas."""
+        pass
+
+    def reemplazar_archivo(self, archivo_viejo_id, archivo_nuevo):
+        """Asocia un archivo nuevo como reemplazo de uno incorrecto."""
+        pass
+
+    def notificar_destinatarios(self):
+        """Envía alertas (ej. email) a los odontólogos autorizados tras la publicación."""
+        pass
+
