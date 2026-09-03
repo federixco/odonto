@@ -1,0 +1,46 @@
+{% load static %}
+<!doctype html>
+<html lang="es-AR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#004b64">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% block title %}Administración | D.O.C.{% endblock %}</title>
+    <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
+    <link rel="stylesheet" href="{% static 'core/css/public.css' %}">
+    <link rel="stylesheet" href="{% static 'core/css/admin.css' %}">
+    <script src="{% static 'core/js/public.js' %}" defer></script>
+</head>
+<body class="admin-page">
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <header class="admin-header">
+        <div class="admin-container admin-header-inner">
+            <div class="admin-brand-group">
+                {% include 'core/includes/brand.html' %}
+                <span class="admin-header-caption">Plataforma de estudios<br><strong>Administración del centro</strong></span>
+            </div>
+            <div class="admin-account">
+                <div class="admin-account-name"><span class="account-avatar" aria-hidden="true">A</span><span><strong>{{ user.username }}</strong><small>Administrador</small></span></div>
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button class="button button-secondary button-small" type="submit">{% include 'core/includes/icon.html' with name='logout' %} Cerrar sesión</button>
+                </form>
+            </div>
+        </div>
+        <nav class="admin-container admin-nav" aria-label="Administración del centro">
+            <a href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name == 'odontologo_lista' %}aria-current="page"{% else %}aria-current="location"{% endif %}>{% include 'core/includes/icon.html' with name='people' %} Odontólogos</a>
+            <a class="admin-site-link" href="{% url 'core:landing' %}">Ver sitio <span aria-hidden="true">↗</span></a>
+        </nav>
+    </header>
+    <main id="contenido" class="admin-container admin-main" tabindex="-1">
+        {% if messages %}
+        <div class="admin-messages" aria-label="Mensajes del sistema" aria-live="polite">
+            {% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="admin-container admin-footer"><span>D.O.C. · Diagnóstico Odontológico Computado</span><span>{% include 'core/includes/icon.html' with name='lock' %} Espacio de administración</span></footer>
+</body>
+</html>

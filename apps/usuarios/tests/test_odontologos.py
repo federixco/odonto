@@ -222,5 +222,5 @@ class GestionOdontologosTestCase(TestCase):
         self.assertContains(response, reverse("odontologo_autoregistro"))
 
         self.client.login(username="admin_test", password=self.password)
-        response = self.client.get(reverse("dashboard_admin"))
+        response = self.client.get(reverse("dashboard_admin"), follow=True)
         self.assertContains(response, reverse("odontologo_lista"))

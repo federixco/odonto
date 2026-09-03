@@ -1,0 +1,37 @@
+{# Campos originales de Django: conserva validación, valores, errores y CSRF. #}
+<form method="post" class="registration-form admin-form">
+    {% csrf_token %}
+    {% if form.errors %}<div class="form-errors" role="alert"><p>Revisá los campos indicados para continuar.</p>{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset>
+        <legend><span>01</span> Datos del profesional</legend>
+        <p class="fieldset-description">Información para identificar y contactar al odontólogo derivante.</p>
+        <div class="form-grid">
+            {% include 'core/includes/form_field.html' with field=form.nombre %}
+            {% include 'core/includes/form_field.html' with field=form.apellido %}
+            {% include 'core/includes/form_field.html' with field=form.matricula %}
+            {% include 'core/includes/form_field.html' with field=form.telefono %}
+            {% include 'core/includes/form_field.html' with field=form.email full_width=True %}
+        </div>
+    </fieldset>
+    {% if form.username %}
+    <fieldset>
+        <legend><span>02</span> Acceso a la plataforma</legend>
+        <p class="fieldset-description">Definí las credenciales con las que el profesional podrá ingresar.</p>
+        <div class="form-grid">
+            {% include 'core/includes/form_field.html' with field=form.username full_width=True %}
+            {% include 'core/includes/form_field.html' with field=form.password password=True separate_help=True %}
+            {% include 'core/includes/form_field.html' with field=form.password_confirm password=True %}
+        </div>
+        {% if form.password.help_text %}
+        <details class="password-guidance">
+            <summary>Requisitos de la contraseña {% include 'core/includes/icon.html' with name='plus' %}</summary>
+            <div id="{{ form.password.auto_id }}_helptext" class="field-help">{{ form.password.help_text }}</div>
+        </details>
+        {% endif %}
+    </fieldset>
+    {% endif %}
+    <div class="admin-form-actions">
+        <button class="button" type="submit">{% include 'core/includes/icon.html' with name='check' %} {{ submit_label }}</button>
+        <a class="button button-secondary" href="{{ cancel_url }}">Cancelar</a>
+    </div>
+</form>

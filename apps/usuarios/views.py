@@ -19,10 +19,10 @@ from apps.usuarios.models import Odontologo
 
 @login_required
 def redireccion_roles_view(request):
-    """Enruta al usuario a su dashboard principal luego de iniciar sesión."""
+    """Enruta al usuario a su pantalla principal luego de iniciar sesión."""
     rol = request.user.rol
     if rol == RolUsuario.ADMINISTRADOR:
-        return redirect("dashboard_admin")
+        return redirect("odontologo_lista")
     if rol == RolUsuario.ODONTOLOGO:
         return redirect("dashboard_odontologo")
     if rol == RolUsuario.PACIENTE:
@@ -32,8 +32,11 @@ def redireccion_roles_view(request):
 
 # --- Dashboards por rol ---
 
-class DashboardAdminView(AdminRequeridoMixin, TemplateView):
-    template_name = "usuarios/dashboard_admin.html"
+class DashboardAdminView(AdminRequeridoMixin, View):
+    """Conserva la URL anterior sin mostrar una pantalla intermedia."""
+
+    def get(self, request, *args, **kwargs):
+        return redirect("odontologo_lista")
 
 
 class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):

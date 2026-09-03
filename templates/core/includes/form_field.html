@@ -1,0 +1,14 @@
+{# BoundField conserva atributos accesibles, valores y errores generados por Django. #}
+<div class="form-field{% if full_width %} form-field-wide{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}{% if not field.field.required %} <span class="optional-label">(opcional)</span>{% endif %}</label>
+    {% if password %}
+    <div class="password-field">
+        {{ field }}
+        <button type="button" class="password-toggle" data-password-toggle data-password-label="{{ field.label|lower }}" aria-label="Mostrar {{ field.label|lower }}" aria-controls="{{ field.id_for_label }}" aria-pressed="false" hidden>Mostrar</button>
+    </div>
+    {% else %}
+        {{ field }}
+    {% endif %}
+    {{ field.errors }}
+    {% if field.help_text and not separate_help %}<div class="field-help" id="{{ field.auto_id }}_helptext">{% if help_override %}{{ help_override }}{% else %}{{ field.help_text }}{% endif %}</div>{% endif %}
+</div>
