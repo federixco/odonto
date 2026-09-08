@@ -12,7 +12,6 @@
             Hola, {{ user.username }} (Rol: {{ user.rol }}) |
 
             {% if user.rol == "ADMINISTRADOR" %}
-                <a href="{% url 'dashboard_admin' %}">Panel Admin</a> |
                 <a href="{% url 'odontologo_lista' %}">Gestionar odontólogos</a> |
             {% elif user.rol == "ODONTOLOGO" %}
                 <a href="{% url 'dashboard_odontologo' %}">Mis Consultorios</a> |

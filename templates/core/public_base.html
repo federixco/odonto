@@ -1,0 +1,69 @@
+{% load static %}
+<!doctype html>
+<html lang="es-AR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#004b64">
+    <meta name="description" content="D.O.C. Diagnóstico Odontológico Computado en Formosa. Radiografías digitales, tomografía 3D y estudios para la planificación odontológica.">
+    <title>{% block title %}D.O.C. | Diagnóstico odontológico en Formosa{% endblock %}</title>
+    {% block robots %}{% endblock %}
+    <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
+    <link rel="stylesheet" href="{% static 'core/css/public.css' %}">
+    <script src="{% static 'core/js/public.js' %}" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <div class="contact-strip">
+        <div class="container strip-inner">
+            <span>{% include 'core/includes/icon.html' with name='pin' %} Mitre 479 · Formosa, Argentina</span>
+            <a href="tel:+543704422272">{% include 'core/includes/icon.html' with name='phone' %} 0370 442-2272 <span class="extension">· int. 2</span></a>
+        </div>
+    </div>
+    <header class="site-header">
+        <div class="container header-inner">
+            {% include 'core/includes/brand.html' %}
+            <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navegacion" hidden>
+                <span class="menu-lines" aria-hidden="true"></span><span>Menú</span>
+            </button>
+            <nav class="site-nav" id="navegacion" aria-label="Navegación principal">
+                <a href="{% url 'core:landing' %}#servicios">Servicios</a>
+                <a href="{% url 'core:landing' %}#nosotros">Nosotros</a>
+                <a href="{% url 'core:landing' %}#contacto">Contacto</a>
+                {% if user.is_authenticated %}
+                    <a class="button button-small" href="{% url 'redireccion_roles' %}">{% include 'core/includes/icon.html' with name='lock' %} Ir a mi cuenta</a>
+                {% else %}
+                    <a class="button button-small" href="{% url 'login' %}">{% include 'core/includes/icon.html' with name='lock' %} Acceder a estudios</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+    <main id="contenido" tabindex="-1">
+        {% if messages %}
+            <div class="container system-messages" aria-label="Mensajes del sistema" aria-live="polite">
+                {% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+        <div class="container footer-main">
+            <div>{% include 'core/includes/brand.html' %}<p>El punto de partida para<br>un tratamiento exitoso.</p></div>
+            <nav aria-label="Navegación del pie de página">
+                <strong>Conocé D.O.C.</strong>
+                <a href="{% url 'core:landing' %}#servicios">Nuestros servicios</a>
+                <a href="{% url 'core:landing' %}#nosotros">El centro</a>
+                <a href="{% url 'core:landing' %}#contacto">Dónde encontrarnos</a>
+            </nav>
+            <nav aria-label="Accesos a la plataforma">
+                <strong>Plataforma de estudios</strong>
+                <a href="{% url 'redireccion_roles' %}">Ingresar a mi cuenta</a>
+                <a href="{% url 'odontologo_autoregistro' %}">Registro de odontólogos</a>
+                <a href="{% url 'password_reset' %}">Recuperar contraseña</a>
+            </nav>
+            <div class="footer-contact"><strong>Estamos para ayudarte</strong><a href="tel:+543704422272">0370 442-2272 · int. 2</a><a href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a><span>Mitre 479, Formosa</span></div>
+        </div>
+        <div class="container footer-bottom"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span><span>Formosa, Argentina</span></div>
+    </footer>
+</body>
+</html>

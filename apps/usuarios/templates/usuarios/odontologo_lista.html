@@ -1,49 +1,43 @@
-{% extends "base.html" %}
-
-{% block title %}Odontólogos - SISETMA{% endblock %}
-
+{% extends 'core/admin_base.html' %}
+{% block title %}Odontólogos derivantes | D.O.C.{% endblock %}
 {% block content %}
-<h2>Odontólogos Registrados</h2>
-
-<form method="get" style="margin-bottom: 20px;">
-    <input type="text" name="q" value="{{ busqueda }}" placeholder="Buscar por nombre, apellido o matrícula...">
-    <button type="submit">Buscar</button>
-    {% if busqueda %}
-        <a href="{% url 'odontologo_lista' %}">Limpiar</a>
+<div class="admin-page-heading">
+    <div><p class="eyebrow">GESTIÓN DE PROFESIONALES</p><h1>Odontólogos <span>derivantes.</span></h1><p>Los profesionales que se conectan con el centro, en un solo lugar.</p></div>
+    <a class="button" href="{% url 'odontologo_crear' %}">{% include 'core/includes/icon.html' with name='plus' %} Registrar odontólogo</a>
+</div>
+<section class="admin-card directory-card" aria-labelledby="listado-title">
+    <div class="directory-heading"><div><h2 id="listado-title">{% if busqueda %}Resultados de búsqueda{% else %}Profesionales registrados{% endif %}</h2><p>Consultá su información y administrá sus cuentas.</p></div><span class="directory-count">{{ odontologos|length }} resultado{{ odontologos|length|pluralize }}</span></div>
+    <form method="get" class="directory-search" role="search" aria-label="Buscar odontólogos">
+        <div class="search-field"><label for="buscar-odontologo">Buscar un profesional</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-odontologo" type="search" name="q" value="{{ busqueda }}" placeholder="Nombre, apellido, matrícula o correo"></div></div>
+        <button class="button button-small" type="submit">Buscar</button>
+        {% if busqueda %}<a class="text-link" href="{% url 'odontologo_lista' %}">Limpiar búsqueda</a>{% endif %}
+    </form>
+    {% if odontologos %}
+    <div class="directory-table-wrap">
+        <table class="directory-table" role="table">
+            <caption class="visually-hidden">Odontólogos derivantes: datos profesionales, estado de la cuenta y acciones.</caption>
+            <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Profesional</th><th scope="col" role="columnheader">Matrícula</th><th scope="col" role="columnheader">Contacto</th><th scope="col" role="columnheader">Estado</th><th scope="col" role="columnheader">Acciones</th></tr></thead>
+            <tbody role="rowgroup">
+                {% for odontologo in odontologos %}
+                <tr role="row">
+                    <th scope="row" role="rowheader" class="professional-cell"><div class="professional-identity"><span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span><span><strong>{{ odontologo.apellido }}, {{ odontologo.nombre }}</strong><small>@{{ odontologo.usuario.username }}</small></span></div></th>
+                    <td role="cell" data-label="Matrícula" class="matricula-cell">{{ odontologo.matricula }}</td>
+                    <td role="cell" data-label="Contacto" class="contact-cell"><span>{{ odontologo.usuario.email|default:"Sin correo registrado" }}</span>{% if odontologo.usuario.telefono %}<small>{{ odontologo.usuario.telefono }}</small>{% endif %}</td>
+                    <td role="cell" data-label="Estado" class="status-cell">{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}</td>
+                    <td role="cell" class="row-actions"><a class="text-link" href="{% url 'odontologo_detalle' odontologo.pk %}" aria-label="Ver ficha de {{ odontologo }}">Ver ficha <span aria-hidden="true">↗</span></a><a class="edit-link" href="{% url 'odontologo_editar' odontologo.pk %}" aria-label="Editar a {{ odontologo }}">{% include 'core/includes/icon.html' with name='edit' %} Editar</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="directory-empty">
+        <span class="panel-icon">{% include 'core/includes/icon.html' with name='search' %}</span>
+        <h3>{% if busqueda %}No encontramos coincidencias{% else %}Todavía no hay odontólogos registrados{% endif %}</h3>
+        <p>{% if busqueda %}No se encontraron odontólogos para “{{ busqueda }}”. Probá con otro nombre, matrícula o correo.{% else %}Registrá al primer profesional para comenzar a gestionar su cuenta.{% endif %}</p>
+        {% if busqueda %}<a class="text-link" href="{% url 'odontologo_lista' %}">Ver todos los odontólogos {% include 'core/includes/icon.html' with name='arrow' %}</a>{% else %}<a class="button button-small" href="{% url 'odontologo_crear' %}">Registrar odontólogo</a>{% endif %}
+    </div>
     {% endif %}
-</form>
-
-<a href="{% url 'odontologo_crear' %}" style="margin-bottom: 15px; display: inline-block;">+ Crear Odontólogo</a>
-
-{% if odontologos %}
-<table border="1" cellpadding="8" cellspacing="0">
-    <thead>
-        <tr>
-            <th>Apellido</th>
-            <th>Nombre</th>
-            <th>Matrícula</th>
-            <th>Email</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for odontologo in odontologos %}
-        <tr>
-            <td>{{ odontologo.apellido }}</td>
-            <td>{{ odontologo.nombre }}</td>
-            <td>{{ odontologo.matricula }}</td>
-            <td>{{ odontologo.usuario.email }}</td>
-            <td>{{ odontologo.usuario.get_estado_display }}</td>
-            <td>
-                <a href="{% url 'odontologo_detalle' odontologo.pk %}">Ver</a> |
-                <a href="{% url 'odontologo_editar' odontologo.pk %}">Editar</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-    <p>No se encontraron odontólogos{% if busqueda %} para "{{ busqueda }}"{% endif %}.</p>
-{% endif %}
+    <div class="directory-note">{% include 'core/includes/icon.html' with name='lock' %}<p>Una cuenta pendiente necesita la habilitación del centro para iniciar sesión.</p></div>
+</section>
 {% endblock %}
