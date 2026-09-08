@@ -43,11 +43,29 @@ class AccesosRolesTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith(reverse("login")))
 
-    def test_admin_accede_su_dashboard(self):
+    def test_acceso_anterior_del_admin_redirige_al_listado(self):
         self.client.login(username="admin_test", password=self.password)
-        response = self.client.get(reverse("dashboard_admin"))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "usuarios/dashboard_admin.html")
+        response = self.client.get(reverse("dashboard_admin"), follow=True)
+        self.assertRedirects(response, reverse("odontologo_lista"))
+        self.assertTemplateUsed(response, "usuarios/odontologo_lista.html")
+
+    def test_login_admin_termina_en_odontologos_sin_inicio_intermedio(self):
+        response = self.client.post(reverse("login"), {
+            "username": "admin_test", "password": self.password,
+        }, follow=True)
+        self.assertEqual(response.redirect_chain, [
+            (reverse("redireccion_roles"), 302),
+            (reverse("odontologo_lista"), 302),
+        ])
+        self.assertTemplateUsed(response, "usuarios/odontologo_lista.html")
+
+    def test_login_admin_con_next_anterior_tambien_abre_odontologos(self):
+        response = self.client.post(reverse("login"), {
+            "username": "admin_test", "password": self.password,
+            "next": reverse("dashboard_admin"),
+        }, follow=True)
+        self.assertRedirects(response, reverse("odontologo_lista"))
+        self.assertTemplateUsed(response, "usuarios/odontologo_lista.html")
 
     def test_admin_rechazado_en_dashboard_odontologo(self):
         """El administrador no debería acceder a vistas exclusivas de odontólogo."""

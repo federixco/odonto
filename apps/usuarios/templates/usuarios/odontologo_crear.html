@@ -1,13 +1,19 @@
-{% extends "base.html" %}
-
-{% block title %}Crear Odontólogo - SISETMA{% endblock %}
-
+{% extends 'core/admin_base.html' %}
+{% block title %}Registrar odontólogo | D.O.C.{% endblock %}
 {% block content %}
-<h2>Alta de Odontólogo</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Crear Odontólogo</button>
-    <a href="{% url 'odontologo_lista' %}">Cancelar</a>
-</form>
+<a class="admin-back-link text-link" href="{% url 'odontologo_lista' %}"><span aria-hidden="true">←</span> Volver a odontólogos</a>
+<div class="admin-page-heading"><div><p class="eyebrow">GESTIÓN DE PROFESIONALES</p><h1>Un nuevo <span>profesional.</span></h1><p>Registrá al odontólogo y creá su acceso a la plataforma.</p></div></div>
+<div class="admin-form-layout">
+    <section class="admin-card form-card" aria-labelledby="form-title">
+        <h2 id="form-title">Registrar odontólogo</h2>
+        {% url 'odontologo_lista' as cancel_url %}
+        {% include 'usuarios/includes/odontologo_form.html' with submit_label='Crear odontólogo' cancel_url=cancel_url %}
+    </section>
+    <aside class="admin-guide form-guide" aria-labelledby="alta-info-title">
+        <span class="panel-icon">{% include 'core/includes/icon.html' with name='check' %}</span><h2 id="alta-info-title">Listo para ingresar</h2>
+        <p>Al registrar al profesional desde el centro, su cuenta se crea <strong>habilitada</strong>.</p>
+        <div class="admin-tip"><strong>Antes de guardar</strong><p>Verificá la matrícula y el correo. El nombre de usuario, el correo y la matrícula no pueden repetirse.</p></div>
+        <div class="admin-tip"><strong>Credenciales de acceso</strong><p>Compartí el usuario y la contraseña con el profesional por un medio seguro.</p></div>
+    </aside>
+</div>
 {% endblock %}

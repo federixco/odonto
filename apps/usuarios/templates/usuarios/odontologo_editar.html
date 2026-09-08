@@ -1,13 +1,19 @@
-{% extends "base.html" %}
-
-{% block title %}Editar {{ odontologo }} - SISETMA{% endblock %}
-
+{% extends 'core/admin_base.html' %}
+{% block title %}Editar {{ odontologo }} | D.O.C.{% endblock %}
 {% block content %}
-<h2>Editar: {{ odontologo.apellido }}, {{ odontologo.nombre }}</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Guardar Cambios</button>
-    <a href="{% url 'odontologo_detalle' odontologo.pk %}">Cancelar</a>
-</form>
+<a class="admin-back-link text-link" href="{% url 'odontologo_detalle' odontologo.pk %}"><span aria-hidden="true">←</span> Volver a la ficha</a>
+<div class="admin-page-heading"><div><p class="eyebrow">GESTIÓN DE PROFESIONALES</p><h1>Actualizá <span>sus datos.</span></h1><p>Editá la información de {{ odontologo }}.</p></div></div>
+<div class="admin-form-layout">
+    <section class="admin-card form-card" aria-labelledby="form-title">
+        <h2 id="form-title">Editar odontólogo</h2>
+        {% url 'odontologo_detalle' odontologo.pk as cancel_url %}
+        {% include 'usuarios/includes/odontologo_form.html' with submit_label='Guardar cambios' cancel_url=cancel_url %}
+    </section>
+    <aside class="admin-guide form-guide" aria-labelledby="edicion-info-title">
+        <span class="panel-icon">{% include 'core/includes/icon.html' with name='people' %}</span><h2 id="edicion-info-title">Su cuenta permanece igual</h2>
+        <p>Editar estos datos no modifica la contraseña ni el estado de acceso.</p>
+        <dl class="profile-data"><div><dt>Nombre de usuario</dt><dd>{{ odontologo.usuario.username }}</dd></div><div><dt>Estado actual</dt><dd>{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}</dd></div></dl>
+        <a class="text-link" href="{% url 'odontologo_detalle' odontologo.pk %}">Gestionar acceso en la ficha <span aria-hidden="true">↗</span></a>
+    </aside>
+</div>
 {% endblock %}

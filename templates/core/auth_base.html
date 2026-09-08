@@ -1,0 +1,22 @@
+{% extends 'core/public_base.html' %}
+{% load static %}
+{# Estructura compartida del registro y de todas las etapas de recuperación. #}
+{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block body_class %}login-page{% endblock %}
+{% block content %}
+<section class="login-section auth-section container {% block auth_layout %}{% endblock %}" aria-labelledby="auth-title">
+    <div class="login-intro auth-intro">
+        <p class="eyebrow">{% block auth_eyebrow %}VOLVÉ A CONECTAR CON D.O.C.{% endblock %}</p>
+        <h1>{% block auth_heading %}Recuperá tu acceso,<br><span>sin complicaciones.</span>{% endblock %}</h1>
+        <p>{% block auth_description %}Te acompañamos para que puedas volver a ingresar a tu espacio de estudios.{% endblock %}</p>
+        {% block auth_aside %}
+        <div class="login-emblem" aria-hidden="true"><img src="{% static 'core/images/doc-isotipo.svg' %}" width="140" height="140" alt=""></div>
+        {% endblock %}
+        <a class="text-link" href="{% url 'login' %}"><span aria-hidden="true">←</span> Volver al inicio de sesión</a>
+    </div>
+    <div class="login-card auth-card">
+        <span class="login-icon">{% block auth_icon %}{% include 'core/includes/icon.html' with name='lock' %}{% endblock %}</span>
+        {% block auth_card %}{% endblock %}
+    </div>
+</section>
+{% endblock %}
