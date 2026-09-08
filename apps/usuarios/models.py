@@ -118,3 +118,21 @@ class Odontologo(models.Model):
 
     def __str__(self):
         return f"{self.apellido}, {self.nombre}"
+
+
+    def consultar_pacientes_autorizados(self):
+        """Devuelve la lista de pacientes que han autorizado a este odontólogo."""
+        pass
+
+    def consultar_estudio(self, estudio_id):
+        """Devuelve un estudio específico si el odontólogo tiene autorización."""
+        pass
+
+    def visualizar_estudio(self, estudio_id):
+        """Registra la visualización y devuelve la URL del visor para el estudio."""
+        pass
+
+    def descargar_estudio(self, estudio_id):
+        """Registra la descarga y devuelve el archivo comprimido del estudio."""
+        pass
+

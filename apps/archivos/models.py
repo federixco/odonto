@@ -41,3 +41,9 @@ class Archivo(models.Model):
 
     def __str__(self):
         return self.nombre_archivo
+
+
+    def verificar_integridad(self):
+        """Comprueba que el hash SHA-256 del archivo físico coincida con la base de datos."""
+        pass
+

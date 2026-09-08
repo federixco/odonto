@@ -38,3 +38,12 @@ class Paciente(models.Model):
             raise ValidationError({
                 "usuario": "Solo se puede vincular una cuenta con rol Paciente."
             })
+
+    def consultar_estudios_propios(self):
+        """Devuelve el queryset de los estudios vinculados a este paciente."""
+        pass
+
+    def visualizar_estudio(self, estudio_id):
+        """Registra la visualización del paciente a su propio estudio."""
+        pass
+
