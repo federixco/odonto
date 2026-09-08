@@ -1,0 +1,7 @@
+{% extends 'core/admin_base.html' %}
+{% block title %}Crear acceso para {{ paciente }} | D.O.C.{% endblock %}
+{% block content %}
+<a class="admin-back-link text-link" href="{% url 'paciente_detalle' paciente.pk %}"><span aria-hidden="true">←</span> Volver a la ficha</a>
+<div class="admin-page-heading"><div><p class="eyebrow">ACCESO EXCEPCIONAL</p><h1>Cuenta para <span>{{ paciente.nombre }}.</span></h1><p>Creá un acceso personal para que consulte únicamente sus estudios publicados.</p></div></div>
+<div class="admin-form-layout"><section class="admin-card form-card" aria-labelledby="form-title"><h2 id="form-title">Crear cuenta del paciente</h2>{% include 'pacientes/includes/paciente_acceso_form.html' %}</section><aside class="admin-guide form-guide" aria-labelledby="acceso-info-title"><span class="panel-icon">{% include 'core/includes/icon.html' with name='lock' %}</span><h2 id="acceso-info-title">Alcance limitado</h2><p>Esta cuenta solo permite ver los estudios <strong>publicados</strong> de {{ paciente }}.</p><div class="admin-tip"><strong>Sin descargas</strong><p>El paciente no recibe enlaces para descargar archivos clínicos.</p></div><div class="admin-tip"><strong>Compartí con cuidado</strong><p>Entregá el usuario y la contraseña por un canal seguro.</p></div></aside></div>
+{% endblock %}

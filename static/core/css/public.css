@@ -410,6 +410,26 @@ details[open] summary > span, .faq details[open] summary > .icon { transform: ro
     *, *::before, *::after { transition: none !important; animation: none !important; }
 }
 
+/* Portal limitado de pacientes: consulta de estudios publicados, sin descargas. */
+.patient-portal { background: var(--paper); min-height: 58vh; }
+.patient-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 36px; }
+.patient-heading h1 { font-size: clamp(2.15rem, 4vw, 3.3rem); letter-spacing: -.045em; }
+.patient-heading h1 span { color: var(--teal); }
+.patient-heading p:not(.eyebrow) { max-width: 560px; color: var(--muted); margin-top: 13px; }
+.patient-heading .button-secondary { background: white; color: var(--navy); border-color: #cbdcde; }
+.patient-study-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.patient-study-card { position: relative; min-height: 205px; padding: 27px; background: white; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 8px 28px #133f4b08; }
+.patient-study-date { color: var(--teal); font-size: .73rem; font-weight: 650; }
+.patient-study-card h2 { margin-top: 13px; font-size: 1.25rem; }
+.patient-study-card p { color: var(--muted); font-size: .85rem; line-height: 1.7; margin-top: 10px; }
+.patient-study-status { position: absolute; left: 27px; bottom: 24px; color: #23624e; background: #eaf6f1; border: 1px solid #badcce; border-radius: 20px; padding: 5px 10px; font-size: .68rem; font-weight: 650; }
+.patient-empty { padding: 58px 28px; text-align: center; background: white; border: 1px solid var(--line); border-radius: 17px; }
+.patient-empty .panel-icon { margin-inline: auto; }
+.patient-empty h2 { margin-top: 18px; font-size: 1.5rem; }
+.patient-empty p { max-width: 480px; margin: 12px auto 0; color: var(--muted); font-size: .88rem; }
+.patient-footnote { margin-top: 27px; color: var(--muted); font-size: .78rem; }
+@media (max-width: 760px) { .patient-heading { align-items: flex-start; flex-direction: column; } .patient-study-grid { grid-template-columns: 1fr; } }
+
 /* Ajustes de los formularios públicos, sin afectar el panel del centro. */
 @media (max-width: 1100px) {
     .registration-layout { gap: 36px; }

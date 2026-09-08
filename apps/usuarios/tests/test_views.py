@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.core.enums import EstadoCuenta, RolUsuario
+from apps.pacientes.models import Paciente
 
 
 User = get_user_model()
@@ -35,6 +36,12 @@ class AccesosRolesTestCase(TestCase):
             email="pac@test.com",
             rol=RolUsuario.PACIENTE,
             estado=EstadoCuenta.HABILITADA,
+        )
+        Paciente.objects.create(
+            usuario=self.pac_user,
+            nombre="Paciente",
+            apellido="De prueba",
+            dni="39000000",
         )
 
     def test_acceso_anonimo_denegado(self):

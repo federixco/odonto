@@ -1,0 +1,7 @@
+{% extends 'core/admin_base.html' %}
+{% block title %}Registrar paciente | D.O.C.{% endblock %}
+{% block content %}
+<a class="admin-back-link text-link" href="{% url 'paciente_lista' %}"><span aria-hidden="true">←</span> Volver a pacientes</a>
+<div class="admin-page-heading"><div><p class="eyebrow">FICHA CLÍNICA</p><h1>Un nuevo <span>paciente.</span></h1><p>Registrá sus datos clínicos; el acceso web puede definirse más adelante.</p></div></div>
+<div class="admin-form-layout"><section class="admin-card form-card" aria-labelledby="form-title"><h2 id="form-title">Registrar paciente</h2>{% url 'paciente_lista' as cancel_url %}{% include 'pacientes/includes/paciente_form.html' with submit_label='Crear ficha clínica' cancel_url=cancel_url %}</section><aside class="admin-guide form-guide" aria-labelledby="alta-info-title"><span class="panel-icon">{% include 'core/includes/icon.html' with name='check' %}</span><h2 id="alta-info-title">La ficha es independiente</h2><p>El paciente puede tener estudios registrados sin usar nunca la plataforma.</p><div class="admin-tip"><strong>Acceso solo si es necesario</strong><p>Podés vincular una cuenta existente o crear una desde la ficha cuando el paciente solicite consultar sus estudios.</p></div><div class="admin-tip"><strong>Dato obligatorio</strong><p>El DNI identifica de manera única la ficha del paciente.</p></div></aside></div>
+{% endblock %}

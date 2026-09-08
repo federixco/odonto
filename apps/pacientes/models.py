@@ -1,7 +1,10 @@
 """Paciente clínico, con cuenta web opcional."""
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from apps.core.enums import RolUsuario
 
 
 # Registro clínico del paciente; puede existir sin cuenta web.
@@ -28,6 +31,13 @@ class Paciente(models.Model):
     def __str__(self):
         return f"{self.apellido}, {self.nombre}"
 
+    def clean(self):
+        """La cuenta opcional siempre debe representar al mismo tipo de actor."""
+        super().clean()
+        if self.usuario and self.usuario.rol != RolUsuario.PACIENTE:
+            raise ValidationError({
+                "usuario": "Solo se puede vincular una cuenta con rol Paciente."
+            })
 
     def consultar_estudios_propios(self):
         """Devuelve el queryset de los estudios vinculados a este paciente."""

@@ -2,13 +2,16 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
-from apps.core.enums import EstadoCuenta, RolUsuario
+from apps.core.enums import EstadoCuenta, EstadoEstudio, RolUsuario
 from apps.core.mixins import AdminRequeridoMixin, OdontologoRequeridoMixin, PacienteRequeridoMixin
+from apps.estudios.models import Estudio
+from apps.pacientes.models import Paciente
 from apps.usuarios.forms import (
     OdontologoAutoregistroForm,
     OdontologoCreacionAdminForm,
@@ -45,6 +48,19 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
 
 class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
     template_name = "usuarios/dashboard_paciente.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            paciente = self.request.user.paciente
+        except Paciente.DoesNotExist:
+            raise PermissionDenied("La cuenta no está vinculada a una ficha clínica.")
+        context["paciente"] = paciente
+        context["estudios"] = Estudio.objects.filter(
+            paciente=paciente,
+            estado=EstadoEstudio.PUBLICADO,
+        ).order_by("-fecha_estudio", "-created_at")
+        return context
 
 
 # --- Gestión de odontólogos (Admin) ---
