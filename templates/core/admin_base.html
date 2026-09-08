@@ -29,7 +29,8 @@
             </div>
         </div>
         <nav class="admin-container admin-nav" aria-label="Administración del centro">
-            <a href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name == 'odontologo_lista' %}aria-current="page"{% else %}aria-current="location"{% endif %}>{% include 'core/includes/icon.html' with name='people' %} Odontólogos</a>
+            <a href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}aria-current="page"{% endif %}>{% include 'core/includes/icon.html' with name='people' %} Odontólogos</a>
+            <a href="{% url 'paciente_lista' %}" {% if request.resolver_match.url_name|slice:':8' == 'paciente' %}aria-current="page"{% endif %}>{% include 'core/includes/icon.html' with name='people' %} Pacientes</a>
             <a class="admin-site-link" href="{% url 'core:landing' %}">Ver sitio <span aria-hidden="true">↗</span></a>
         </nav>
     </header>

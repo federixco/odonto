@@ -91,6 +91,13 @@
 .row-actions .edit-link { color: var(--muted); text-decoration: none; font-size: .73rem; }
 .row-actions .edit-link:hover { color: var(--teal); text-decoration: underline; }
 .row-actions .icon { width: 14px; height: 14px; }
+.patient-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.patient-actions > a { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 10px 14px; border-radius: 8px; font-size: .76rem; font-weight: 650; line-height: 1; text-decoration: none; white-space: nowrap; }
+.patient-actions .patient-view-link { background: var(--navy); color: white; border: 1px solid var(--navy); box-shadow: 0 3px 8px #004b6420; }
+.patient-actions .patient-view-link:hover { background: #006079; border-color: #006079; }
+.patient-actions .patient-edit-link { color: var(--navy); background: white; border: 1px solid #b9d0d4; }
+.patient-actions .patient-edit-link:hover { color: var(--teal); background: var(--pale); border-color: var(--teal); }
+.patient-actions .patient-edit-link .icon { width: 16px; height: 16px; }
 .directory-note { display: flex; align-items: center; gap: 10px; background: #fafcfc; padding: 17px 28px; border-top: 1px solid var(--line); border-radius: 0 0 17px 17px; color: var(--muted); font-size: .73rem; }
 .directory-note .icon { width: 15px; height: 15px; color: var(--teal); }
 .directory-empty { padding: 43px 24px 50px; text-align: center; border-top: 1px solid var(--line); }
@@ -128,6 +135,7 @@
 .admin-form fieldset + fieldset { padding-top: 28px; border-top: 1px solid var(--line); margin-top: 30px; }
 .admin-form .form-field label { font-size: .79rem; }
 .admin-form .form-field input { font-size: .88rem; }
+.admin-form .form-field select { display: block; width: 100%; min-height: 48px; padding: 10px 13px; border: 1px solid #c8d9db; border-radius: 7px; color: var(--ink); background: #fbfdfd; font-size: .88rem; }
 .admin-form .form-errors p { font-size: .83rem; }
 .admin-form-actions { display: flex; flex-wrap: wrap; gap: 13px; padding-top: 26px; margin-top: 30px; border-top: 1px solid var(--line); }
 .admin-form-actions .button { font-size: .85rem; }

@@ -1,0 +1,22 @@
+<form method="post" class="registration-form admin-form">
+    {% csrf_token %}
+    {% if form.errors %}<div class="form-errors" role="alert"><p>Revisá los campos indicados para continuar.</p>{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset>
+        <legend><span>01</span> Datos de acceso</legend>
+        <p class="fieldset-description">Esta cuenta quedará vinculada exclusivamente a la ficha de {{ paciente }}.</p>
+        <div class="form-grid">
+            {% include 'core/includes/form_field.html' with field=form.username full_width=True %}
+            {% include 'core/includes/form_field.html' with field=form.email %}
+            {% include 'core/includes/form_field.html' with field=form.telefono %}
+            {% include 'core/includes/form_field.html' with field=form.password password=True separate_help=True %}
+            {% include 'core/includes/form_field.html' with field=form.password_confirm password=True %}
+        </div>
+        {% if form.password.help_text %}
+        <details class="password-guidance"><summary>Requisitos de la contraseña {% include 'core/includes/icon.html' with name='plus' %}</summary><div id="{{ form.password.auto_id }}_helptext" class="field-help">{{ form.password.help_text }}</div></details>
+        {% endif %}
+    </fieldset>
+    <div class="admin-form-actions">
+        <button class="button" type="submit">{% include 'core/includes/icon.html' with name='check' %} Crear y vincular cuenta</button>
+        <a class="button button-secondary" href="{% url 'paciente_detalle' paciente.pk %}">Cancelar</a>
+    </div>
+</form>

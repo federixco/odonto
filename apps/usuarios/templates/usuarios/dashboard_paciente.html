@@ -1,6 +1,13 @@
-{% extends "base.html" %}
-
+{% extends 'core/public_base.html' %}
+{% block title %}Mis estudios | D.O.C.{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block body_class %}patient-page{% endblock %}
 {% block content %}
-    <h2>Dashboard Paciente</h2>
-    <p>Bienvenido. Acá solo tienen acceso los PACIENTES.</p>
+<section class="patient-portal section">
+    <div class="container">
+        <div class="patient-heading"><div><p class="eyebrow">MI ESPACIO DE ESTUDIOS</p><h1>Hola, <span>{{ paciente.nombre }}.</span></h1><p>Acá podés consultar los estudios que el centro publicó para vos.</p></div><form action="{% url 'logout' %}" method="post">{% csrf_token %}<button class="button button-secondary" type="submit">{% include 'core/includes/icon.html' with name='logout' %} Cerrar sesión</button></form></div>
+        {% if estudios %}<div class="patient-study-grid">{% for estudio in estudios %}<article class="patient-study-card"><span class="patient-study-date">{{ estudio.fecha_estudio|date:'d/m/Y' }}</span><h2>{{ estudio.tipo }}</h2><p>{{ estudio.observaciones|default:'Estudio publicado por el centro.' }}</p><span class="patient-study-status">Publicado</span></article>{% endfor %}</div>{% else %}<section class="patient-empty"><span class="panel-icon">{% include 'core/includes/icon.html' with name='check' %}</span><h2>Todavía no hay estudios disponibles</h2><p>Cuando el centro publique un estudio asociado a tu ficha, va a aparecer acá.</p></section>{% endif %}
+        <p class="patient-footnote">Por resguardo de la información clínica, este espacio no permite descargar archivos. Si necesitás ayuda, comunicate con D.O.C.</p>
+    </div>
+</section>
 {% endblock %}

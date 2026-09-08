@@ -1,0 +1,26 @@
+<form method="post" class="registration-form admin-form">
+    {% csrf_token %}
+    {% if form.errors %}<div class="form-errors" role="alert"><p>Revisá los campos indicados para continuar.</p>{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset>
+        <legend><span>01</span> Ficha clínica</legend>
+        <p class="fieldset-description">Datos identificatorios necesarios para asociar los estudios al paciente.</p>
+        <div class="form-grid">
+            {% include 'core/includes/form_field.html' with field=form.nombre %}
+            {% include 'core/includes/form_field.html' with field=form.apellido %}
+            {% include 'core/includes/form_field.html' with field=form.dni %}
+            {% include 'core/includes/form_field.html' with field=form.fecha_nacimiento %}
+            {% include 'core/includes/form_field.html' with field=form.obra_social full_width=True %}
+        </div>
+    </fieldset>
+    <fieldset>
+        <legend><span>02</span> Acceso excepcional</legend>
+        <p class="fieldset-description">La cuenta web es opcional. Vinculala solo si el paciente necesita consultar sus propios estudios.</p>
+        <div class="form-grid">
+            {% include 'core/includes/form_field.html' with field=form.usuario full_width=True %}
+        </div>
+    </fieldset>
+    <div class="admin-form-actions">
+        <button class="button" type="submit">{% include 'core/includes/icon.html' with name='check' %} {{ submit_label }}</button>
+        <a class="button button-secondary" href="{{ cancel_url }}">Cancelar</a>
+    </div>
+</form>
