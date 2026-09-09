@@ -1,106 +1,92 @@
 {% extends 'core/admin_base.html' %}
 {% load static %}
 
-{% block title %}Carga de Archivos | D.O.C.{% endblock %}
+{% block title %}Carga de archivos | D.O.C.{% endblock %}
 
 {% block content %}
-<section class="panel-section">
-    <header class="section-header">
-        <h2>Archivos del Estudio #{{ estudio.pk }}</h2>
-        <p>Paciente: {{ estudio.paciente }} - Tipo: {{ estudio.tipo }}</p>
-    </header>
+<a class="admin-back-link text-link" href="{% url 'paciente_detalle' estudio.paciente_id %}">
+    <span aria-hidden="true">←</span> Volver al paciente
+</a>
 
-    <div class="upload-area" id="drop-zone" style="border: 2px dashed #ccc; padding: 3rem; text-align: center; border-radius: 8px; margin-bottom: 2rem;">
-        {% include 'core/includes/icon.html' with name='file-up' %}
-        <h3>Arrastrá tus archivos acá</h3>
-        <p>DICOM, STL, PLY, JPG, PNG, TIFF, PDF</p>
-        <p>O si preferís...</p>
-        <input type="file" id="file-input" style="display: none;" multiple>
-        <button type="button" class="button button-small" onclick="document.getElementById('file-input').click()">Seleccionar archivos</button>
+<header class="admin-page-heading">
+    <div>
+        <p class="eyebrow">ESTUDIO EN PREPARACIÓN</p>
+        <h1>Carga de <span>archivos.</span></h1>
+        <p>{{ estudio.paciente }} · {{ estudio.tipo }} · {{ estudio.fecha_estudio|date:'d/m/Y' }}</p>
     </div>
+</header>
 
-    <div id="upload-progress-container" style="display: none;">
-        <h3>Subiendo...</h3>
-        <div class="progress-bar-wrap" style="background: #e0e0e0; border-radius: 4px; overflow: hidden; height: 10px; margin: 1rem 0;">
-            <div id="progress-bar" style="background: #008080; width: 0%; height: 100%; transition: width 0.2s;"></div>
+<div class="study-upload-layout" data-estudio-uploader data-estudio-id="{{ estudio.pk }}">
+    <section class="admin-card study-upload-card" aria-labelledby="upload-title">
+        <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
+        <div class="upload-area" id="drop-zone">
+            <span class="panel-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span>
+            <h2 id="upload-title">Seleccioná los archivos</h2>
+            <p>Podés arrastrarlos o buscarlos en el equipo del centro.</p>
+            <p class="upload-formats">DICOM · STL · PLY · JPG · PNG · TIFF · PDF</p>
+            <input
+                type="file"
+                id="file-input"
+                class="visually-hidden"
+                accept=".dcm,.dicom,.stl,.ply,.jpg,.jpeg,.png,.tif,.tiff,.pdf"
+                multiple
+            >
+            <button type="button" class="button button-small" id="file-select-button">
+                Seleccionar archivos
+            </button>
         </div>
-        <p id="progress-text">0%</p>
-    </div>
-    
-    <div id="upload-success" style="display: none; color: green; font-weight: bold; margin-top: 1rem;">
-        ¡Carga completada exitosamente!
-    </div>
-    <div id="upload-error" style="display: none; color: red; font-weight: bold; margin-top: 1rem;">
-    </div>
 
-    <!-- Lista de archivos subidos (se mostraría acá iterando estudio.archivos) -->
-</section>
+        <div id="upload-progress-container" class="upload-progress" hidden>
+            <div class="progress-copy">
+                <strong>Procesando archivos</strong>
+                <span id="progress-text" aria-live="polite">Preparando la carga…</span>
+            </div>
+            <div
+                class="progress-bar-wrap"
+                role="progressbar"
+                aria-label="Progreso de la carga"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+            >
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+        </div>
 
-<!-- Variables para JS -->
-<script>
-    const ESTUDIO_ID = {{ estudio.pk }};
-</script>
-<script src="{% static 'core/js/upload.js' %}"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const fileInput = document.getElementById("file-input");
-        const dropZone = document.getElementById("drop-zone");
-        const progressContainer = document.getElementById("upload-progress-container");
-        const progressBar = document.getElementById("progress-bar");
-        const progressText = document.getElementById("progress-text");
-        const uploadSuccess = document.getElementById("upload-success");
-        const uploadError = document.getElementById("upload-error");
+        <p id="upload-success" class="notice success" hidden aria-live="polite">
+            Los archivos se cargaron y verificaron correctamente.
+        </p>
+        <p id="upload-error" class="notice error" hidden role="alert"></p>
+    </section>
 
-        function handleFiles(files) {
-            if (files.length === 0) return;
-            
-            // Ocultar mensajes previos
-            uploadSuccess.style.display = "none";
-            uploadError.style.display = "none";
-            progressContainer.style.display = "block";
-            
-            // Subimos el primer archivo por ahora como prueba (podría extenderse a múltiples)
-            const file = files[0];
-            
-            window.UploadManager.startUpload(
-                file,
-                ESTUDIO_ID,
-                function onProgress(percent) {
-                    progressBar.style.width = percent + "%";
-                    progressText.innerText = percent + "%";
-                },
-                function onSuccess(archivoId) {
-                    progressBar.style.width = "100%";
-                    progressText.innerText = "100%";
-                    uploadSuccess.style.display = "block";
-                    // Recargar página o agregar a DOM
-                    setTimeout(() => window.location.reload(), 1500);
-                },
-                function onError(errMsg) {
-                    uploadError.innerText = "Error: " + errMsg;
-                    uploadError.style.display = "block";
-                    progressContainer.style.display = "none";
-                }
-            );
-        }
+    <aside class="admin-card study-files-card" aria-labelledby="files-title">
+        <div class="study-files-heading">
+            <div>
+                <p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p>
+                <h2 id="files-title">Archivos registrados</h2>
+            </div>
+            <span class="directory-count">{{ estudio.archivos.count }}</span>
+        </div>
+        {% if estudio.archivos.exists %}
+        <ul class="study-file-list">
+            {% for archivo in estudio.archivos.all %}
+            <li>
+                <span class="file-format">{{ archivo.formato }}</span>
+                <span class="file-description">
+                    <strong>{{ archivo.nombre_archivo }}</strong>
+                    <small>{{ archivo.tamano|filesizeformat }} · {{ archivo.get_estado_display }}</small>
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="directory-empty compact-empty">
+            <h3>Todavía no hay archivos</h3>
+            <p>El estudio permanecerá en borrador hasta completar la carga.</p>
+        </div>
+        {% endif %}
+    </aside>
+</div>
 
-        fileInput.addEventListener("change", (e) => {
-            handleFiles(e.target.files);
-        });
-
-        // Drag and drop events
-        dropZone.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            dropZone.style.borderColor = "#008080";
-        });
-        dropZone.addEventListener("dragleave", () => {
-            dropZone.style.borderColor = "#ccc";
-        });
-        dropZone.addEventListener("drop", (e) => {
-            e.preventDefault();
-            dropZone.style.borderColor = "#ccc";
-            handleFiles(e.dataTransfer.files);
-        });
-    });
-</script>
+<script src="{% static 'core/js/upload.js' %}" defer></script>
 {% endblock %}

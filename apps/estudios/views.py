@@ -1,7 +1,7 @@
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.views import View
-from django.views.generic import DetailView, ListView
+from django.views.generic import DetailView
 
 from apps.core.mixins import AdminRequeridoMixin
 from .forms import EstudioForm
@@ -22,13 +22,12 @@ class CrearEstudioView(AdminRequeridoMixin, View):
             estudio = form.save(commit=False)
             # El estado por defecto es BORRADOR
             estudio.save()
-            messages.success(request, f"Estudio creado. Por favor subí los archivos.")
-            # Redirigir a la vista de subida de archivos (detalle o carga)
+            messages.success(request, "Estudio creado. Ahora podés subir sus archivos.")
             return redirect("estudio_detalle", pk=estudio.pk)
         return render(request, "estudios/estudio_crear.html", {"form": form})
 
 class DetalleEstudioView(AdminRequeridoMixin, DetailView):
-    """Vista temporal de detalle para ver y subir archivos."""
+    """Muestra el estudio en preparación y coordina la carga de sus archivos."""
     model = Estudio
     template_name = "estudios/estudio_detalle.html"
     context_object_name = "estudio"

@@ -91,7 +91,11 @@ class Estudio(models.Model):
 
     def validar_carga(self):
         """Verifica que todos los archivos requeridos se hayan subido correctamente."""
-        pass
+        return (
+            self.pk is not None
+            and self.archivos.exists()
+            and not self.archivos.exclude(estado=EstadoArchivo.COMPLETO).exists()
+        )
 
     def marcar_en_revision(self):
         """Cambia el estado del estudio si hay archivos incorrectos o dudas clínicas."""

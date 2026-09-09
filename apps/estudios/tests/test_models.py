@@ -65,12 +65,14 @@ class EstudioModelTests(TestCase):
     def test_no_publica_archivos_incompletos(self):
         self.crear_archivo(EstadoArchivo.CARGANDO)
 
+        self.assertFalse(self.estudio.validar_carga())
         with self.assertRaises(ValidationError):
             self.estudio.publicar()
 
     def test_publica_estudio_completo_y_autorizado(self):
         self.crear_archivo(EstadoArchivo.COMPLETO)
 
+        self.assertTrue(self.estudio.validar_carga())
         self.estudio.publicar()
         self.estudio.refresh_from_db()
 

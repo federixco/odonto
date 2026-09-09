@@ -13,7 +13,8 @@ class Archivo(models.Model):
     nombre_archivo = models.CharField(max_length=255)
     formato = models.CharField(max_length=50, choices=FormatoArchivo.choices)
     categoria = models.CharField(max_length=30, choices=CategoriaArchivo.choices)
-    ruta_almacenamiento = models.CharField(max_length=255, unique=True)
+    # Guarda únicamente la clave privada del objeto, nunca una URL prefirmada.
+    ruta_almacenamiento = models.CharField(max_length=500)
     tamano = models.PositiveBigIntegerField()
     hash_sha256 = models.CharField(max_length=64, null=True, blank=True)
     upload_id = models.CharField(max_length=255, null=True, blank=True)
@@ -41,6 +42,10 @@ class Archivo(models.Model):
                 condition=models.Q(estado__in=EstadoArchivo.values),
                 name="ck_archivo_estado_valido",
             ),
+            models.CheckConstraint(
+                condition=models.Q(cantidad_partes__gte=1),
+                name="ck_archivo_cantidad_partes_positiva",
+            ),
         ]
 
     def __str__(self):
@@ -49,5 +54,10 @@ class Archivo(models.Model):
 
     def verificar_integridad(self):
         """Comprueba que el hash SHA-256 del archivo físico coincida con la base de datos."""
-        pass
+        if self.estado != EstadoArchivo.COMPLETO or not self.hash_sha256:
+            return False
+
+        from .services.storage import calcular_sha256_objeto
+
+        return calcular_sha256_objeto(self.ruta_almacenamiento) == self.hash_sha256
 

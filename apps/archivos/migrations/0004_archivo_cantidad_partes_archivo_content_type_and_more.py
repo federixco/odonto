@@ -35,9 +35,11 @@ class Migration(migrations.Migration):
             name='hash_sha256',
             field=models.CharField(blank=True, max_length=64, null=True),
         ),
-        migrations.AlterField(
+        migrations.AddConstraint(
             model_name='archivo',
-            name='ruta_almacenamiento',
-            field=models.CharField(max_length=255, unique=True),
+            constraint=models.CheckConstraint(
+                condition=models.Q(('cantidad_partes__gte', 1)),
+                name='ck_archivo_cantidad_partes_positiva',
+            ),
         ),
     ]

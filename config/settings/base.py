@@ -1,4 +1,4 @@
-﻿"""ConfiguraciÃ³n compartida por todos los entornos."""
+"""Configuración compartida por todos los entornos."""
 
 import os
 from pathlib import Path
@@ -17,6 +17,15 @@ def _env_bool(name, default=False):
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name, default):
+    """Lee un entero positivo desde el entorno y falla con un mensaje claro."""
+
+    value = int(os.getenv(name, default))
+    if value <= 0:
+        raise ValueError(f"{name} debe ser un entero positivo.")
+    return value
 
 
 def _database_name(engine):
@@ -116,17 +125,22 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# --- AutenticaciÃ³n y Correos (Etapa 2) ---
+# --- Autenticación y correos (Etapa 2) ---
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "redireccion_roles"
 LOGOUT_REDIRECT_URL = "login"
 PASSWORD_RESET_TIMEOUT = 60 * 60
 
 
-# S3 / MinIO Configuration
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'sisetma-estudios')
-AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', None)
-AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
+# --- Almacenamiento privado S3 / MinIO (Etapa 3) ---
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "sisetma-estudios")
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL") or None
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "us-east-1")
+AWS_S3_ADDRESSING_STYLE = os.getenv("AWS_S3_ADDRESSING_STYLE", "path")
+AWS_S3_PRESIGNED_EXPIRATION = _env_int("AWS_S3_PRESIGNED_EXPIRATION", 3600)
+S3_MULTIPART_PART_SIZE = _env_int("S3_MULTIPART_PART_SIZE", 10 * 1024 * 1024)
+S3_MAX_UPLOAD_SIZE = _env_int("S3_MAX_UPLOAD_SIZE", 2 * 1024 * 1024 * 1024)
+S3_HASH_CHUNK_SIZE = _env_int("S3_HASH_CHUNK_SIZE", 8 * 1024 * 1024)
 

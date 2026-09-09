@@ -1,89 +1,124 @@
-"""Servicios para interactuar con S3/MinIO mediante boto3."""
+"""Operaciones de bajo nivel sobre el almacenamiento privado S3/MinIO."""
 
-import os
-import boto3
+import hashlib
+
 from django.conf import settings
-from botocore.config import Config
-from botocore.exceptions import ClientError
+from django.core.exceptions import ImproperlyConfigured
+
 
 def get_s3_client():
-    """Devuelve un cliente boto3 configurado para S3 o MinIO."""
+    """Construye el cliente sin exponer las credenciales al navegador."""
+
+    try:
+        import boto3
+        from botocore.config import Config
+    except ImportError as error:
+        raise ImproperlyConfigured(
+            "La integración S3 requiere instalar las dependencias de requirements.txt."
+        ) from error
+
     return boto3.client(
         "s3",
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         endpoint_url=settings.AWS_S3_ENDPOINT_URL,
         region_name=settings.AWS_S3_REGION_NAME,
-        config=Config(signature_version="s3v4")
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": settings.AWS_S3_ADDRESSING_STYLE},
+        ),
     )
 
+
 def iniciar_multipart_upload(clave_objeto, content_type="application/octet-stream"):
-    """Inicia una carga multipartes en S3 y devuelve el upload_id."""
-    s3 = get_s3_client()
-    respuesta = s3.create_multipart_upload(
+    """Inicia una carga multipartes y devuelve su identificador interno."""
+
+    respuesta = get_s3_client().create_multipart_upload(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=clave_objeto,
-        ContentType=content_type
+        ContentType=content_type,
     )
     return respuesta["UploadId"]
 
-def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes, expiracion=3600):
-    """Genera las URLs prefirmadas para cada parte de la carga."""
+
+def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
+    """Genera permisos temporales de escritura para las partes esperadas."""
+
     s3 = get_s3_client()
-    urls = []
-    for parte_numero in range(1, cantidad_partes + 1):
-        url = s3.generate_presigned_url(
-            ClientMethod="upload_part",
-            Params={
-                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                "Key": clave_objeto,
-                "UploadId": upload_id,
-                "PartNumber": parte_numero,
-            },
-            ExpiresIn=expiracion
-        )
-        urls.append({
-            "part_number": parte_numero,
-            "url": url
-        })
-    return urls
+    return [
+        {
+            "part_number": numero,
+            "url": s3.generate_presigned_url(
+                ClientMethod="upload_part",
+                Params={
+                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                    "Key": clave_objeto,
+                    "UploadId": upload_id,
+                    "PartNumber": numero,
+                },
+                ExpiresIn=settings.AWS_S3_PRESIGNED_EXPIRATION,
+            ),
+        }
+        for numero in range(1, cantidad_partes + 1)
+    ]
+
 
 def completar_multipart_upload(clave_objeto, upload_id, partes):
-    """
-    Completa la carga en S3 uniendo las partes.
-    `partes` debe ser una lista de dicts: [{'PartNumber': 1, 'ETag': '"..."'}, ...]
-    Devuelve los metadatos finales del objeto (incluyendo Size).
-    """
+    """Ensambla las partes y devuelve tamaño y ETag informativo del objeto."""
+
     s3 = get_s3_client()
-    
-    # 1. Completar la carga
     s3.complete_multipart_upload(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=clave_objeto,
         UploadId=upload_id,
-        MultipartUpload={"Parts": partes}
+        MultipartUpload={"Parts": partes},
     )
-    
-    # 2. Consultar HEAD para obtener el tamano real y el checksum/ETag final
     head = s3.head_object(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto
+        Key=clave_objeto,
     )
-    
     return {
         "tamano": head["ContentLength"],
-        "etag": head["ETag"].strip('"')
+        # En multipartes el ETag no equivale al SHA-256 del archivo completo.
+        "etag": head.get("ETag", "").strip('"'),
     }
 
-def abortar_multipart_upload(clave_objeto, upload_id):
-    """Aborta una carga multipartes incompleta, liberando espacio en S3."""
-    s3 = get_s3_client()
+
+def calcular_sha256_objeto(clave_objeto):
+    """Calcula el SHA-256 real leyendo el objeto por bloques, sin cargarlo en RAM."""
+
+    respuesta = get_s3_client().get_object(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=clave_objeto,
+    )
+    cuerpo = respuesta["Body"]
+    digest = hashlib.sha256()
     try:
-        s3.abort_multipart_upload(
+        while bloque := cuerpo.read(settings.S3_HASH_CHUNK_SIZE):
+            digest.update(bloque)
+    finally:
+        cuerpo.close()
+    return digest.hexdigest()
+
+
+def abortar_multipart_upload(clave_objeto, upload_id):
+    """Aborta una carga incompleta y devuelve si S3 confirmó la operación."""
+
+    try:
+        get_s3_client().abort_multipart_upload(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=clave_objeto,
-            UploadId=upload_id
+            UploadId=upload_id,
         )
         return True
-    except ClientError:
+    except Exception:
         return False
+
+
+def eliminar_objeto(clave_objeto):
+    """Elimina un objeto inválido que llegó a completarse físicamente."""
+
+    get_s3_client().delete_object(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=clave_objeto,
+    )
