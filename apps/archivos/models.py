@@ -13,12 +13,16 @@ class Archivo(models.Model):
     nombre_archivo = models.CharField(max_length=255)
     formato = models.CharField(max_length=50, choices=FormatoArchivo.choices)
     categoria = models.CharField(max_length=30, choices=CategoriaArchivo.choices)
-    ruta_almacenamiento = models.CharField(max_length=500)
+    ruta_almacenamiento = models.CharField(max_length=255, unique=True)
     tamano = models.PositiveBigIntegerField()
-    hash_sha256 = models.CharField(max_length=64)
+    hash_sha256 = models.CharField(max_length=64, null=True, blank=True)
+    upload_id = models.CharField(max_length=255, null=True, blank=True)
+    content_type = models.CharField(max_length=100, default="application/octet-stream")
+    cantidad_partes = models.PositiveIntegerField(default=1)
     estado = models.CharField(max_length=20, choices=EstadoArchivo.choices, default=EstadoArchivo.CARGANDO)
     archivo_reemplazado = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="reemplazos", db_column="id_archivo_reemplazado")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "archivo"

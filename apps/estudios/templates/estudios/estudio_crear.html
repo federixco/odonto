@@ -1,0 +1,29 @@
+{% extends 'core/admin_base.html' %}
+
+{% block title %}Iniciar Estudio | D.O.C.{% endblock %}
+
+{% block content %}
+<section class="panel-section">
+    <header class="section-header">
+        <h2>Iniciar Nuevo Estudio</h2>
+        <p>Seleccioná al paciente y completá la información básica antes de subir los archivos.</p>
+    </header>
+
+    <form method="post" novalidate class="form-grid">
+        {% csrf_token %}
+        
+        <fieldset class="form-fieldset">
+            <legend>Datos del Estudio</legend>
+            {% include 'core/includes/form_field.html' with field=form.paciente %}
+            {% include 'core/includes/form_field.html' with field=form.tipo %}
+            {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
+            {% include 'core/includes/form_field.html' with field=form.observaciones %}
+        </fieldset>
+
+        <div class="form-actions">
+            <button type="submit" class="button">Continuar a la carga de archivos</button>
+            <a href="javascript:history.back()" class="text-link">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,4 +1,4 @@
-"""Configuración compartida por todos los entornos."""
+﻿"""ConfiguraciÃ³n compartida por todos los entornos."""
 
 import os
 from pathlib import Path
@@ -116,8 +116,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# --- Autenticación y Correos (Etapa 2) ---
+# --- AutenticaciÃ³n y Correos (Etapa 2) ---
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "redireccion_roles"
 LOGOUT_REDIRECT_URL = "login"
 PASSWORD_RESET_TIMEOUT = 60 * 60
+
+
+# S3 / MinIO Configuration
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'sisetma-estudios')
+AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', None)
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
+
