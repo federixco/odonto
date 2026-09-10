@@ -101,6 +101,26 @@ def calcular_sha256_objeto(clave_objeto):
     return digest.hexdigest()
 
 
+def leer_objeto(clave_objeto, max_bytes):
+    """Lee una porción acotada de un objeto privado para detectar metadatos.
+
+    Los detectores solo necesitan cabeceras o DICOMDIR; este límite evita que
+    el proceso de análisis cargue tomografías completas en la memoria del servidor.
+    """
+    if max_bytes <= 0:
+        raise ValueError("max_bytes debe ser positivo.")
+    respuesta = get_s3_client().get_object(
+        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+        Key=clave_objeto,
+        Range=f"bytes=0-{max_bytes - 1}",
+    )
+    cuerpo = respuesta["Body"]
+    try:
+        return cuerpo.read(max_bytes)
+    finally:
+        cuerpo.close()
+
+
 def abortar_multipart_upload(clave_objeto, upload_id):
     """Aborta una carga incompleta y devuelve si S3 confirmó la operación."""
 
