@@ -9,7 +9,7 @@
     <title>{% block title %}Administración | D.O.C.{% endblock %}</title>
     <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
     <link rel="stylesheet" href="{% static 'core/css/public.css' %}">
-    <link rel="stylesheet" href="{% static 'core/css/admin.css' %}">
+    <link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=admin-sidebar-vertical-2">
     <script src="{% static 'core/js/public.js' %}" defer></script>
 </head>
 <body class="admin-page">
@@ -28,20 +28,49 @@
                 </form>
             </div>
         </div>
-        <nav class="admin-container admin-nav" aria-label="Administración del centro">
-            <a href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}aria-current="page"{% endif %}>{% include 'core/includes/icon.html' with name='people' %} Odontólogos</a>
-            <a href="{% url 'paciente_lista' %}" {% if request.resolver_match.url_name|slice:':8' == 'paciente' %}aria-current="page"{% endif %}>{% include 'core/includes/icon.html' with name='people' %} Pacientes</a>
-            <a class="admin-site-link" href="{% url 'core:landing' %}">Ver sitio <span aria-hidden="true">↗</span></a>
-        </nav>
     </header>
-    <main id="contenido" class="admin-container admin-main" tabindex="-1">
+    {% url 'estudio_crear' as estudio_crear_url %}
+    <div class="admin-workspace">
+        <aside class="admin-sidebar" aria-label="Módulos de administración">
+            <div class="admin-sidebar-inner">
+                <div>
+                    <p class="admin-sidebar-label">Gestión del centro</p>
+                    <nav class="admin-sidebar-nav" aria-label="Administración del centro">
+                        <a class="admin-sidebar-link" href="{% url 'paciente_lista' %}" {% if request.resolver_match.url_name|slice:':8' == 'paciente' %}aria-current="page"{% endif %}>
+                            {% include 'core/includes/icon.html' with name='people' %}
+                            <span><strong>Pacientes</strong><small>Fichas clínicas</small></span>
+                        </a>
+                        <a class="admin-sidebar-link" href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}aria-current="page"{% endif %}>
+                            {% include 'core/includes/icon.html' with name='tooth' %}
+                            <span><strong>Odontólogos derivantes</strong><small>Cuentas profesionales</small></span>
+                        </a>
+                        {% if estudio_crear_url %}
+                        <a class="admin-sidebar-link" href="{{ estudio_crear_url }}" {% if request.resolver_match.url_name|slice:':7' == 'estudio' %}aria-current="page"{% endif %}>
+                            {% include 'core/includes/icon.html' with name='scan' %}
+                            <span><strong>Cargar estudio</strong><small>Archivos del paciente</small></span>
+                        </a>
+                        {% else %}
+                        <span class="admin-sidebar-link is-disabled" aria-disabled="true" title="Disponible al integrar el módulo de carga de estudios">
+                            {% include 'core/includes/icon.html' with name='scan' %}
+                            <span><strong>Cargar estudio</strong><small>Próximamente</small></span>
+                        </span>
+                        {% endif %}
+                    </nav>
+                </div>
+                <a class="admin-site-link" href="{% url 'core:landing' %}">Ver página pública <span aria-hidden="true">↗</span></a>
+            </div>
+        </aside>
+        <div class="admin-content">
+            <main id="contenido" class="admin-container admin-main" tabindex="-1">
         {% if messages %}
         <div class="admin-messages" aria-label="Mensajes del sistema" aria-live="polite">
             {% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}
         </div>
         {% endif %}
         {% block content %}{% endblock %}
-    </main>
-    <footer class="admin-container admin-footer"><span>D.O.C. · Diagnóstico Odontológico Computado</span><span>{% include 'core/includes/icon.html' with name='lock' %} Espacio de administración</span></footer>
+            </main>
+            <footer class="admin-container admin-footer"><span>D.O.C. · Diagnóstico Odontológico Computado</span><span>{% include 'core/includes/icon.html' with name='lock' %} Espacio de administración</span></footer>
+        </div>
+    </div>
 </body>
 </html>
