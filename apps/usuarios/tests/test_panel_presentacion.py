@@ -61,10 +61,16 @@ class PanelOdontologosPresentacionTests(TestCase):
         self.assertContains(odontologos, "Odontólogos derivantes")
         self.assertContains(odontologos, "Pacientes")
         self.assertContains(odontologos, "Cargar estudio")
+        self.assertContains(
+            odontologos, f'href="{reverse("importacion_crear")}"',
+        )
         self.assertContains(odontologos, 'aria-current="page"', count=1)
 
         pacientes = self.client.get(reverse("paciente_lista"))
         self.assertContains(pacientes, 'aria-current="page"', count=1)
+
+        importacion = self.client.get(reverse("importacion_crear"))
+        self.assertContains(importacion, 'aria-current="page"', count=1)
 
     def test_listado_muestra_datos_estado_y_acciones_reales(self):
         response = self.client.get(reverse("odontologo_lista"))
