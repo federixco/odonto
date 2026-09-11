@@ -8,10 +8,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
-from django.views.generic import DetailView
+from django.views.generic import DetailView, ListView
 
 from apps.archivos.models import Archivo
 from apps.archivos.services.storage import (
@@ -23,7 +24,7 @@ from apps.archivos.services.storage import (
     iniciar_multipart_upload,
 )
 from apps.auditoria.models import LogActividad
-from apps.core.enums import CategoriaArchivo, EstadoArchivo, EstadoImportacion, FormatoArchivo, TipoEvento
+from apps.core.enums import CategoriaArchivo, EstadoArchivo, EstadoEstudio, EstadoImportacion, FormatoArchivo, TipoEvento
 from apps.core.mixins import AdminRequeridoMixin
 from .forms import (
     ConfirmarImportacionForm,
@@ -85,6 +86,38 @@ def _clasificar_importado(nombre):
         ".gwg": (FormatoArchivo.GALILEOS, CategoriaArchivo.PAQUETE_PROPIETARIO, "application/octet-stream"),
     }
     return extension, *conocidos.get(extension, (FormatoArchivo.OTRO, CategoriaArchivo.PAQUETE_PROPIETARIO, "application/octet-stream"))
+
+class ListaEstudiosView(AdminRequeridoMixin, ListView):
+    """Listado de todos los estudios con búsqueda y filtro por estado."""
+
+    model = Estudio
+    template_name = "estudios/estudio_lista.html"
+    context_object_name = "estudios"
+
+    def get_queryset(self):
+        queryset = Estudio.objects.select_related("paciente").order_by(
+            "-fecha_estudio", "-created_at"
+        )
+        busqueda = self.request.GET.get("q", "").strip()
+        if busqueda:
+            queryset = queryset.filter(
+                Q(paciente__nombre__icontains=busqueda)
+                | Q(paciente__apellido__icontains=busqueda)
+                | Q(paciente__dni__icontains=busqueda)
+                | Q(tipo__icontains=busqueda)
+            )
+        estado = self.request.GET.get("estado", "").strip()
+        if estado and estado in EstadoEstudio.values:
+            queryset = queryset.filter(estado=estado)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        contexto["busqueda"] = self.request.GET.get("q", "")
+        contexto["estado_filtro"] = self.request.GET.get("estado", "")
+        contexto["estados"] = EstadoEstudio.choices
+        return contexto
+
 
 class CrearEstudioView(AdminRequeridoMixin, View):
     """
