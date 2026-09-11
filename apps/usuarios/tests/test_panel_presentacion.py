@@ -55,6 +55,17 @@ class PanelOdontologosPresentacionTests(TestCase):
                 self.assertNotContains(response, f'href="{reverse("dashboard_admin")}"')
                 self.assertNotContains(response, "> Inicio</a>")
 
+    def test_barra_lateral_destaca_el_modulo_actual(self):
+        odontologos = self.client.get(reverse("odontologo_lista"))
+        self.assertContains(odontologos, 'class="admin-sidebar"')
+        self.assertContains(odontologos, "Odontólogos derivantes")
+        self.assertContains(odontologos, "Pacientes")
+        self.assertContains(odontologos, "Cargar estudio")
+        self.assertContains(odontologos, 'aria-current="page"', count=1)
+
+        pacientes = self.client.get(reverse("paciente_lista"))
+        self.assertContains(pacientes, 'aria-current="page"', count=1)
+
     def test_listado_muestra_datos_estado_y_acciones_reales(self):
         response = self.client.get(reverse("odontologo_lista"))
         for text in ("Prueba, Lucía", "QA-100", "profesional@example.com", "Pendiente", "1 resultado"):
