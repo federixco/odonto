@@ -54,6 +54,17 @@ class FormatoArchivo(models.TextChoices):
     OTRO = "OTRO", "Otro"
 
 
+class EstadoImportacion(models.TextChoices):
+    """Etapas persistentes del procesamiento de una carpeta de estudio."""
+
+    CARGANDO = "CARGANDO", "Cargando"
+    PROCESANDO = "PROCESANDO", "Procesando"
+    PENDIENTE_CONFIRMACION = "PENDIENTE_CONFIRMACION", "Pendiente de confirmación"
+    CONFIRMADA = "CONFIRMADA", "Confirmada"
+    ERROR = "ERROR", "Error"
+    CANCELADA = "CANCELADA", "Cancelada"
+
+
 class TipoEvento(models.TextChoices):
     INICIO_SESION = "INICIO_SESION", "Inicio de sesión"
     CARGA = "CARGA", "Carga"
@@ -65,3 +76,6 @@ class TipoEvento(models.TextChoices):
     ELIMINACION = "ELIMINACION", "Eliminación"
     NOTIFICACION = "NOTIFICACION", "Notificación"
     MODIFICACION_USUARIO = "MODIFICACION_USUARIO", "Modificación de usuario"
+    IMPORTACION_INICIADA = "IMPORTACION_INICIADA", "Importación iniciada"
+    IMPORTACION_CONFIRMADA = "IMPORTACION_CONFIRMADA", "Importación confirmada"
+    IMPORTACION_CANCELADA = "IMPORTACION_CANCELADA", "Importación cancelada"

@@ -1,0 +1,52 @@
+{% extends 'core/admin_base.html' %}
+
+{% block title %}Revisar importación | D.O.C.{% endblock %}
+
+{% block content %}
+<a class="admin-back-link text-link" href="{% url 'importacion_crear' %}"><span aria-hidden="true">←</span> Nueva importación</a>
+<header class="admin-page-heading"><div><p class="eyebrow">IMPORTACIÓN #{{ importacion.pk }}</p><h1>Revisá la <span>detección.</span></h1><p>{{ importacion.nombre_carpeta }} · {{ importacion.cantidad_archivos }} archivos · {{ importacion.tamano_total|filesizeformat }}</p></div></header>
+<div class="admin-form-layout">
+    <section class="admin-card form-card">
+        <h2>Crear estudio desde esta carpeta</h2>
+        <p class="form-help">Los campos son sugerencias. Confirmá siempre el paciente y corregí lo que sea necesario antes de continuar.</p>
+        {% if importacion.advertencias %}<div class="notice warning"><strong>Revisión requerida</strong><ul>{% for advertencia in importacion.advertencias %}<li>{{ advertencia }}</li>{% endfor %}</ul></div>{% endif %}
+        {% if not importacion.paciente_sugerido_id %}
+            <div class="admin-tip">
+                <strong>No encontramos un paciente coincidente</strong>
+                <p>Podés seleccionar una ficha existente o registrar una nueva con los datos detectados.</p>
+                {% if not mostrar_registro_paciente %}
+                    <a class="text-link" href="{% url 'importacion_detalle' importacion.pk %}?registrar_paciente=1">Registrar paciente detectado →</a>
+                {% endif %}
+            </div>
+            {% if mostrar_registro_paciente %}
+                <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" class="admin-form" novalidate>
+                    {% csrf_token %}
+                    <h3>Registrar paciente</h3>
+                    <p class="form-help">Revisá especialmente el DNI: puede ser un identificador interno del equipo.</p>
+                    {% include 'core/includes/form_field.html' with field=paciente_form.nombre %}
+                    {% include 'core/includes/form_field.html' with field=paciente_form.apellido %}
+                    {% include 'core/includes/form_field.html' with field=paciente_form.dni %}
+                    {% include 'core/includes/form_field.html' with field=paciente_form.fecha_nacimiento %}
+                    {% include 'core/includes/form_field.html' with field=paciente_form.obra_social %}
+                    <div class="admin-form-actions"><button type="submit" class="button button-secondary">Guardar ficha y continuar</button></div>
+                </form>
+            {% endif %}
+        {% endif %}
+        <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
+            {% csrf_token %}
+            {% include 'core/includes/form_field.html' with field=form.paciente %}
+            {% include 'core/includes/form_field.html' with field=form.tipo %}
+            {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
+            {% include 'core/includes/form_field.html' with field=form.observaciones %}
+            <div class="admin-form-actions"><button type="submit" class="button">Confirmar y crear estudio</button></div>
+        </form>
+    </section>
+    <aside class="admin-card study-files-card">
+        <p class="eyebrow">RESULTADO</p><h2>{{ importacion.datos_detectados.formato|default:'Formato no identificado' }}</h2>
+        <ul class="study-file-list">
+            <li><span class="file-format">{{ importacion.archivos.count }}</span><span class="file-description"><strong>Archivos completos</strong><small>{{ importacion.datos_detectados.software_origen|default:'Software no identificado' }}</small></span></li>
+            {% if importacion.datos_detectados.nombre_paciente %}<li><span class="file-format">DICOM</span><span class="file-description"><strong>{{ importacion.datos_detectados.nombre_paciente }}</strong><small>ID detectado: {{ importacion.datos_detectados.identificador_paciente|default:'sin dato' }}</small></span></li>{% endif %}
+        </ul>
+    </aside>
+</div>
+{% endblock %}

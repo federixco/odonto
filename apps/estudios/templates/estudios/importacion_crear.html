@@ -1,0 +1,43 @@
+{% extends 'core/admin_base.html' %}
+{% load static %}
+
+{% block title %}Importar carpeta | D.O.C.{% endblock %}
+
+{% block content %}
+<header class="admin-page-heading">
+    <div>
+        <p class="eyebrow">NUEVA IMPORTACIÓN</p>
+        <h1>Traé el estudio <span>desde su carpeta.</span></h1>
+        <p>Elegí la carpeta exportada por el equipo. La plataforma conserva su estructura y propone los datos para tu revisión.</p>
+    </div>
+</header>
+
+<div class="study-upload-layout" data-importacion-uploader>
+    <section class="admin-card study-upload-card" aria-labelledby="upload-title">
+        <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
+        <div class="upload-area" id="drop-zone">
+            <span class="panel-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span>
+            <h2 id="upload-title">Seleccioná una carpeta</h2>
+            <p>Usá la carpeta original creada por GALILEOS, SIDEXIS, 3Shape u otro equipo. No la comprimas.</p>
+            <p class="upload-formats">DICOM / SIDEXIS · GALILEOS · STL / PLY · RADIOGRAFÍAS</p>
+            <input type="file" id="folder-input" class="visually-hidden" webkitdirectory directory multiple>
+            <button type="button" class="button button-small" id="folder-select-button">Seleccionar carpeta</button>
+        </div>
+        <div id="upload-progress-container" class="upload-progress" hidden>
+            <div class="progress-copy"><strong>Importando carpeta</strong><span id="progress-text" aria-live="polite">Preparando…</span></div>
+            <div class="progress-bar-wrap" role="progressbar" aria-label="Progreso de importación" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar" class="progress-bar"></div></div>
+        </div>
+        <p id="upload-error" class="notice error" hidden role="alert"></p>
+    </section>
+    <aside class="admin-card study-files-card">
+        <p class="eyebrow">CARGA SEGURA</p>
+        <h2>Antes de confirmar</h2>
+        <ul class="study-file-list">
+            <li><span class="file-format">1</span><span class="file-description"><strong>Se preservan las rutas</strong><small>Especialmente necesarias para paquetes GALILEOS.</small></span></li>
+            <li><span class="file-format">2</span><span class="file-description"><strong>Se detectan metadatos</strong><small>DICOM puede sugerir paciente, fecha y tipo.</small></span></li>
+            <li><span class="file-format">3</span><span class="file-description"><strong>Vos confirmás</strong><small>Ningún dato clínico se crea automáticamente.</small></span></li>
+        </ul>
+    </aside>
+</div>
+<script src="{% static 'core/js/importacion.js' %}" defer></script>
+{% endblock %}

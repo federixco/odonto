@@ -29,7 +29,6 @@
             </div>
         </div>
     </header>
-    {% url 'estudio_crear' as estudio_crear_url %}
     <div class="admin-workspace">
         <aside class="admin-sidebar" aria-label="Módulos de administración">
             <div class="admin-sidebar-inner">
@@ -44,17 +43,10 @@
                             {% include 'core/includes/icon.html' with name='tooth' %}
                             <span><strong>Odontólogos derivantes</strong><small>Cuentas profesionales</small></span>
                         </a>
-                        {% if estudio_crear_url %}
-                        <a class="admin-sidebar-link" href="{{ estudio_crear_url }}" {% if request.resolver_match.url_name|slice:':7' == 'estudio' %}aria-current="page"{% endif %}>
+                        <a class="admin-sidebar-link" href="{% url 'importacion_crear' %}" {% if request.resolver_match.url_name|slice:':11' == 'importacion' or request.resolver_match.url_name|slice:':7' == 'estudio' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='scan' %}
-                            <span><strong>Cargar estudio</strong><small>Archivos del paciente</small></span>
+                            <span><strong>Cargar estudio</strong><small>Importar carpeta clínica</small></span>
                         </a>
-                        {% else %}
-                        <span class="admin-sidebar-link is-disabled" aria-disabled="true" title="Disponible al integrar el módulo de carga de estudios">
-                            {% include 'core/includes/icon.html' with name='scan' %}
-                            <span><strong>Cargar estudio</strong><small>Próximamente</small></span>
-                        </span>
-                        {% endif %}
                     </nav>
                 </div>
                 <a class="admin-site-link" href="{% url 'core:landing' %}">Ver página pública <span aria-hidden="true">↗</span></a>

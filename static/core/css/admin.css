@@ -256,3 +256,41 @@
     .profile-data-wide { grid-column: auto; }
     .admin-form-actions { flex-direction: column; }
 }
+
+/* Carga de estudios y archivos. */
+.study-upload-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 24px; align-items: start; }
+.study-upload-card, .study-files-card { padding: 30px; }
+.csrf-token-source { display: none; }
+.upload-area { border: 2px dashed #bfd5d8; border-radius: 14px; padding: 42px 28px; text-align: center; background: #fbfdfd; transition: border-color .18s ease, background .18s ease; }
+.upload-area.is-dragging { border-color: var(--turquoise); background: var(--pale); }
+.upload-area .panel-icon { margin-inline: auto; }
+.upload-area h2 { margin-top: 18px; }
+.upload-area > p { color: var(--muted); font-size: .86rem; margin-top: 8px; }
+.upload-area .upload-formats { margin: 18px 0; color: var(--teal); font-size: .7rem; font-weight: 700; letter-spacing: .08em; }
+.upload-progress { margin-top: 24px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--pale); }
+.progress-copy { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 12px; font-size: .78rem; }
+.progress-copy span { color: var(--muted); overflow-wrap: anywhere; text-align: right; }
+.progress-bar-wrap { height: 10px; overflow: hidden; border-radius: 999px; background: #d8e7e8; }
+.progress-bar { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--teal), var(--turquoise)); transition: width .12s linear; }
+.study-upload-card > .notice { margin-top: 20px; }
+.study-files-heading { display: flex; justify-content: space-between; gap: 20px; align-items: start; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.study-files-heading .eyebrow { margin-bottom: 8px; font-size: .61rem; }
+.study-file-list { list-style: none; padding: 0; margin: 0; }
+.study-file-list li { display: flex; align-items: center; gap: 13px; padding: 17px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.file-format { flex: 0 0 54px; padding: 7px 5px; border-radius: 7px; background: var(--pale); color: var(--teal); font-size: .62rem; font-weight: 750; text-align: center; }
+.file-description { min-width: 0; }
+.file-description strong, .file-description small { display: block; overflow-wrap: anywhere; }
+.file-description strong { font-size: .82rem; }
+.file-description small { margin-top: 4px; color: var(--muted); font-size: .68rem; }
+.compact-empty { padding: 35px 10px 20px; }
+
+@media (max-width: 840px) {
+    .study-upload-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+    .study-upload-card, .study-files-card { padding: 22px 18px; }
+    .upload-area { padding: 32px 17px; }
+    .progress-copy { flex-direction: column; gap: 5px; }
+    .progress-copy span { text-align: left; }
+}
