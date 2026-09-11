@@ -42,13 +42,11 @@
         </form>
     </section>
     <aside class="admin-card study-files-card">
-        <p class="eyebrow">RESULTADO</p><h2>{{ importacion.get_formato_detectado_display }}</h2>
+        <p class="eyebrow">RESULTADO</p><h2>{{ importacion.datos_detectados.formato|default:'Formato no identificado' }}</h2>
         <ul class="study-file-list">
-            <li><span class="file-format">{{ importacion.get_nivel_confianza_display|default:'—' }}</span><span class="file-description"><strong>Nivel de confianza</strong><small>La detección no sustituye la revisión administrativa.</small></span></li>
-            <li><span class="file-format">{{ importacion.archivos.count }}</span><span class="file-description"><strong>Archivos completos</strong><small>{{ importacion.software_origen|default:'Software no identificado' }}</small></span></li>
-            {% if importacion.nombre_paciente_detectado %}<li><span class="file-format">DICOM</span><span class="file-description"><strong>{{ importacion.nombre_paciente_detectado }}</strong><small>ID detectado: {{ importacion.identificador_paciente_detectado|default:'sin dato' }}</small></span></li>{% endif %}
+            <li><span class="file-format">{{ importacion.archivos.count }}</span><span class="file-description"><strong>Archivos completos</strong><small>{{ importacion.datos_detectados.software_origen|default:'Software no identificado' }}</small></span></li>
+            {% if importacion.datos_detectados.nombre_paciente %}<li><span class="file-format">DICOM</span><span class="file-description"><strong>{{ importacion.datos_detectados.nombre_paciente }}</strong><small>ID detectado: {{ importacion.datos_detectados.identificador_paciente|default:'sin dato' }}</small></span></li>{% endif %}
         </ul>
-        {% if importacion.series_dicom.exists %}<p class="eyebrow">SERIES DICOM</p><ul class="study-file-list">{% for serie in importacion.series_dicom.all %}<li><span class="file-format">{{ serie.modalidad|default:'DICOM' }}</span><span class="file-description"><strong>{{ serie.descripcion|default:'Serie sin descripción' }}</strong><small>{{ serie.cantidad_archivos }} instancias</small></span></li>{% endfor %}</ul>{% endif %}
     </aside>
 </div>
 {% endblock %}

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Estudio, ImportacionEstudio, SerieDicom
+from .models import Estudio, ImportacionEstudio
 
 
 @admin.register(Estudio)
@@ -21,31 +21,14 @@ class ImportacionEstudioAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "nombre_carpeta",
-        "formato_detectado",
         "estado",
         "cantidad_archivos",
         "created_at",
     )
-    list_filter = ("formato_detectado", "estado", "nivel_confianza")
+    list_filter = ("estado",)
     search_fields = (
         "nombre_carpeta",
-        "identificador_paciente_detectado",
-        "study_instance_uid",
+        "datos_detectados",
     )
     autocomplete_fields = ("estudio", "iniciada_por", "paciente_sugerido")
-    readonly_fields = ("created_at", "updated_at", "finalizada_at")
-
-
-@admin.register(SerieDicom)
-class SerieDicomAdmin(admin.ModelAdmin):
-    """Consulta de las series descubiertas dentro de una importación DICOM."""
-
-    list_display = (
-        "id",
-        "importacion",
-        "modalidad",
-        "numero_serie",
-        "cantidad_archivos",
-    )
-    search_fields = ("series_instance_uid", "descripcion")
-    autocomplete_fields = ("importacion",)
+    readonly_fields = ("created_at", "updated_at")

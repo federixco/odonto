@@ -1,6 +1,7 @@
 """Pruebas de publicación y eliminación lógica de estudios."""
 
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.test import TestCase
 
 from apps.accesos.models import Autorizacion
@@ -11,14 +12,13 @@ from apps.core.enums import (
     EstadoCuenta,
     EstadoEstudio,
     EstadoImportacion,
-    FormatoImportacion,
     FormatoArchivo,
     RolUsuario,
 )
 from apps.pacientes.models import Paciente
 from apps.usuarios.models import Odontologo, Usuario
 
-from apps.estudios.models import Estudio, ImportacionEstudio, SerieDicom
+from apps.estudios.models import Estudio, ImportacionEstudio
 
 
 class EstudioModelTests(TestCase):
@@ -113,9 +113,9 @@ class ImportacionEstudioModelTests(TestCase):
             iniciada_por=self.administrador,
             paciente_sugerido=self.paciente,
             nombre_carpeta="exportacion_estudio",
-            formato_detectado=FormatoImportacion.DICOM,
             cantidad_archivos=1,
             tamano_total=1024,
+            datos_detectados={"formato": "DICOM"},
         )
 
     def crear_archivo(self, estado=EstadoArchivo.COMPLETO, **datos):
@@ -148,7 +148,6 @@ class ImportacionEstudioModelTests(TestCase):
         self.assertEqual(resultado, self.estudio)
         self.assertEqual(self.importacion.estudio, self.estudio)
         self.assertEqual(self.importacion.estado, EstadoImportacion.CONFIRMADA)
-        self.assertIsNotNone(self.importacion.finalizada_at)
         self.assertEqual(resultado.archivos.count(), 1)
 
     def test_no_procesa_importacion_con_archivos_incompletos(self):
@@ -199,19 +198,8 @@ class ImportacionEstudioModelTests(TestCase):
         with self.assertRaises(ValidationError):
             archivo.save()
 
-    def test_archivo_y_serie_deben_pertenecer_a_la_misma_importacion(self):
-        otra_importacion = ImportacionEstudio.objects.create(
-            iniciada_por=self.administrador,
-            nombre_carpeta="otra_exportacion",
-        )
-        serie = SerieDicom.objects.create(
-            importacion=otra_importacion,
-            series_instance_uid="1.2.840.10008.1",
-        )
-        archivo = self.crear_archivo(
-            ruta_relativa="DICOMRM/CT3/002",
-            serie_dicom=serie,
-        )
+    def test_ruta_relativa_es_unica_dentro_de_la_importacion(self):
+        self.crear_archivo()
 
-        with self.assertRaises(ValidationError):
-            archivo.full_clean()
+        with self.assertRaises(IntegrityError):
+            self.crear_archivo()

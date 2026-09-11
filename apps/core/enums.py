@@ -54,16 +54,6 @@ class FormatoArchivo(models.TextChoices):
     OTRO = "OTRO", "Otro"
 
 
-class FormatoImportacion(models.TextChoices):
-    """Formato global detectado al analizar una carpeta exportada."""
-
-    DICOM = "DICOM", "DICOM"
-    GALILEOS = "GALILEOS", "Galileos"
-    STL = "STL", "STL"
-    RADIOGRAFIA = "RADIOGRAFIA", "Radiografía"
-    DESCONOCIDO = "DESCONOCIDO", "Desconocido"
-
-
 class EstadoImportacion(models.TextChoices):
     """Etapas persistentes del procesamiento de una carpeta de estudio."""
 
@@ -73,14 +63,6 @@ class EstadoImportacion(models.TextChoices):
     CONFIRMADA = "CONFIRMADA", "Confirmada"
     ERROR = "ERROR", "Error"
     CANCELADA = "CANCELADA", "Cancelada"
-
-
-class NivelConfianza(models.TextChoices):
-    """Confianza de una sugerencia automática; nunca sustituye la confirmación."""
-
-    ALTA = "ALTA", "Alta"
-    MEDIA = "MEDIA", "Media"
-    BAJA = "BAJA", "Baja"
 
 
 class TipoEvento(models.TextChoices):
@@ -95,7 +77,5 @@ class TipoEvento(models.TextChoices):
     NOTIFICACION = "NOTIFICACION", "Notificación"
     MODIFICACION_USUARIO = "MODIFICACION_USUARIO", "Modificación de usuario"
     IMPORTACION_INICIADA = "IMPORTACION_INICIADA", "Importación iniciada"
-    DETECCION_COMPLETADA = "DETECCION_COMPLETADA", "Detección completada"
     IMPORTACION_CONFIRMADA = "IMPORTACION_CONFIRMADA", "Importación confirmada"
     IMPORTACION_CANCELADA = "IMPORTACION_CANCELADA", "Importación cancelada"
-    ERROR_PROCESAMIENTO = "ERROR_PROCESAMIENTO", "Error de procesamiento"

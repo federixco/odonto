@@ -31,7 +31,7 @@ from .forms import (
     RegistrarPacienteDetectadoForm,
 )
 from .models import Estudio, ImportacionEstudio
-from .services.detectores import detectar_importacion, guardar_resultado
+from .services.importador import analizar_importacion
 
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def _partes_validas(partes, cantidad):
 
 
 def _ruta_importada_valida(ruta):
-    if not isinstance(ruta, str) or not ruta.strip() or len(ruta) > 1000 or any(ord(c) < 32 for c in ruta):
+    if not isinstance(ruta, str) or not ruta.strip() or len(ruta) > 500 or any(ord(c) < 32 for c in ruta):
         return None
     normalizada = ruta.replace("\\", "/")
     parsed = PurePosixPath(normalizada)
@@ -191,8 +191,7 @@ class AnalizarImportacionView(AdminRequeridoMixin, View):
         lote = get_object_or_404(ImportacionEstudio, pk=importacion_id, iniciada_por=request.user)
         try:
             lote.marcar_procesando()
-            lote = guardar_resultado(lote, detectar_importacion(lote))
-            LogActividad.objects.create(usuario=request.user, tipo_evento=TipoEvento.DETECCION_COMPLETADA, resultado="Detección completada", detalles=f"Importación {lote.pk}: {lote.formato_detectado}.")
+            lote = analizar_importacion(lote)
             return JsonResponse({"status": "ok", "detalle_url": f"/estudios/importaciones/{lote.pk}/"})
         except Exception as error:
             logger.exception("No se pudo analizar importación %s.", lote.pk)

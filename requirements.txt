@@ -3,5 +3,6 @@ boto3==1.43.90
 Django==6.1
 mysqlclient==2.2.8
 python-dotenv==1.2.3
+pydicom==3.0.2
 sqlparse==0.6.0
 tzdata==2026.3

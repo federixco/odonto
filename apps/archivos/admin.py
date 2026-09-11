@@ -22,13 +22,12 @@ class ArchivoAdmin(admin.ModelAdmin):
         "nombre_archivo",
         "ruta_relativa",
         "hash_sha256",
-        "sop_instance_uid",
+        "series_instance_uid",
         "estudio__paciente__dni",
     )
     autocomplete_fields = (
         "estudio",
         "importacion",
-        "serie_dicom",
         "archivo_reemplazado",
     )
     readonly_fields = ("created_at", "updated_at")

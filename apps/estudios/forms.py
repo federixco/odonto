@@ -18,12 +18,13 @@ class ConfirmarImportacionForm(EstudioForm):
     def __init__(self, *args, importacion=None, **kwargs):
         super().__init__(*args, **kwargs)
         if importacion and not self.is_bound:
+            datos = importacion.datos_detectados or {}
             self.initial.update(
                 {
                     "paciente": importacion.paciente_sugerido_id,
-                    "tipo": importacion.get_formato_detectado_display(),
-                    "fecha_estudio": importacion.fecha_estudio_detectada,
-                    "observaciones": importacion.descripcion_detectada,
+                    "tipo": datos.get("formato", ""),
+                    "fecha_estudio": datos.get("fecha_estudio", ""),
+                    "observaciones": datos.get("descripcion", ""),
                 }
             )
 
@@ -43,7 +44,8 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
     def __init__(self, *args, importacion=None, **kwargs):
         super().__init__(*args, **kwargs)
         if importacion and not self.is_bound:
-            partes = importacion.nombre_paciente_detectado.strip().split()
+            datos = importacion.datos_detectados or {}
+            partes = datos.get("nombre_paciente", "").strip().split()
             # DICOM suele expresar el nombre como APELLIDO^NOMBRE. Si el origen
             # no respeta esa convención, el administrador puede corregirlo.
             apellido = partes[0] if len(partes) > 1 else ""
@@ -52,8 +54,8 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
                 {
                     "nombre": nombre,
                     "apellido": apellido,
-                    "dni": importacion.identificador_paciente_detectado,
-                    "fecha_nacimiento": importacion.fecha_nacimiento_detectada,
+                    "dni": datos.get("identificador_paciente", ""),
+                    "fecha_nacimiento": datos.get("fecha_nacimiento", ""),
                 }
             )
         self.fields["dni"].help_text = "Dato sugerido por el archivo. Verificá que sea el DNI real antes de guardar."

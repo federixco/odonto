@@ -10,8 +10,6 @@ from apps.core.enums import (
     EstadoArchivo,
     EstadoEstudio,
     EstadoImportacion,
-    FormatoImportacion,
-    NivelConfianza,
     RolUsuario,
 )
 
@@ -131,7 +129,7 @@ class ImportacionEstudio(models.Model):
         Estudio,
         null=True,
         blank=True,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name="importaciones",
         db_column="id_estudio",
     )
@@ -145,45 +143,22 @@ class ImportacionEstudio(models.Model):
         "pacientes.Paciente",
         null=True,
         blank=True,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name="importaciones_sugeridas",
         db_column="id_paciente_sugerido",
     )
     nombre_carpeta = models.CharField(max_length=255)
-    formato_detectado = models.CharField(
-        max_length=30,
-        choices=FormatoImportacion.choices,
-        default=FormatoImportacion.DESCONOCIDO,
-    )
-    software_origen = models.CharField(max_length=100, blank=True)
     estado = models.CharField(
         max_length=30,
         choices=EstadoImportacion.choices,
         default=EstadoImportacion.CARGANDO,
     )
-    nivel_confianza = models.CharField(
-        max_length=10,
-        choices=NivelConfianza.choices,
-        null=True,
-        blank=True,
-    )
-    nombre_paciente_detectado = models.CharField(max_length=200, blank=True)
-    identificador_paciente_detectado = models.CharField(max_length=100, blank=True)
-    fecha_nacimiento_detectada = models.DateField(null=True, blank=True)
-    fecha_estudio_detectada = models.DateField(null=True, blank=True)
-    descripcion_detectada = models.CharField(max_length=255, blank=True)
-    study_instance_uid = models.CharField(
-        max_length=64,
-        null=True,
-        blank=True,
-        db_index=True,
-    )
     cantidad_archivos = models.PositiveIntegerField(default=0)
     tamano_total = models.PositiveBigIntegerField(default=0)
-    advertencias = models.JSONField(default=list, blank=True)
+    # Resultado variable de detectar un paquete; siempre es una sugerencia.
+    datos_detectados = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    finalizada_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "importacion_estudio"
@@ -196,41 +171,21 @@ class ImportacionEstudio(models.Model):
                 name="ck_importacion_estado_valido",
             ),
             models.CheckConstraint(
-                condition=models.Q(formato_detectado__in=FormatoImportacion.values),
-                name="ck_importacion_formato_valido",
-            ),
-            models.CheckConstraint(
-                condition=(
-                    models.Q(nivel_confianza__isnull=True)
-                    | models.Q(nivel_confianza__in=NivelConfianza.values)
-                ),
-                name="ck_importacion_confianza_valida",
-            ),
-            models.CheckConstraint(
                 condition=(
                     ~models.Q(estado=EstadoImportacion.CONFIRMADA)
                     | models.Q(estudio__isnull=False)
                 ),
                 name="ck_importacion_confirmada_con_estudio",
             ),
-            models.CheckConstraint(
-                condition=(
-                    ~models.Q(estado=EstadoImportacion.CONFIRMADA)
-                    | ~models.Q(formato_detectado=FormatoImportacion.DESCONOCIDO)
-                ),
-                name="ck_importacion_confirmada_con_formato",
-            ),
-            models.CheckConstraint(
-                condition=(
-                    ~models.Q(estado=EstadoImportacion.CONFIRMADA)
-                    | models.Q(finalizada_at__isnull=False)
-                ),
-                name="ck_importacion_confirmada_finalizada",
-            ),
         ]
 
     def __str__(self):
         return f"Importación {self.pk or 'nueva'} - {self.nombre_carpeta}"
+
+    @property
+    def advertencias(self):
+        """Expone las advertencias del JSON sin duplicar columnas."""
+        return (self.datos_detectados or {}).get("advertencias", [])
 
     def clean(self):
         """Garantiza que solo la cuenta administrativa origine el lote."""
@@ -296,13 +251,11 @@ class ImportacionEstudio(models.Model):
             self.archivos.update(estudio=estudio)
             self.estudio = estudio
             self.estado = EstadoImportacion.CONFIRMADA
-            self.finalizada_at = timezone.now()
             self.full_clean()
             self.save(
                 update_fields=[
                     "estudio",
                     "estado",
-                    "finalizada_at",
                     "updated_at",
                 ]
             )
@@ -312,59 +265,20 @@ class ImportacionEstudio(models.Model):
         """Finaliza una importación descartada sin borrar su trazabilidad."""
 
         self.estado = EstadoImportacion.CANCELADA
-        self.finalizada_at = timezone.now()
-        self.save(update_fields=["estado", "finalizada_at", "updated_at"])
+        self.save(update_fields=["estado", "updated_at"])
 
     def marcar_error(self, advertencia=None):
         """Registra un fallo de procesamiento conservando la importación."""
 
+        datos = self.datos_detectados or {}
         if advertencia:
-            self.advertencias = [*self.advertencias, str(advertencia)]
+            datos["advertencias"] = [*datos.get("advertencias", []), str(advertencia)]
+        self.datos_detectados = datos
         self.estado = EstadoImportacion.ERROR
-        self.finalizada_at = timezone.now()
         self.save(
             update_fields=[
-                "advertencias",
+                "datos_detectados",
                 "estado",
-                "finalizada_at",
                 "updated_at",
             ]
         )
-
-
-class SerieDicom(models.Model):
-    """Agrupación de instancias DICOM pertenecientes a una importación."""
-
-    importacion = models.ForeignKey(
-        ImportacionEstudio,
-        on_delete=models.PROTECT,
-        related_name="series_dicom",
-        db_column="id_importacion",
-    )
-    series_instance_uid = models.CharField(max_length=64)
-    modalidad = models.CharField(max_length=16, blank=True)
-    descripcion = models.CharField(max_length=255, blank=True)
-    numero_serie = models.IntegerField(null=True, blank=True)
-    cantidad_archivos = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        db_table = "serie_dicom"
-        verbose_name = "serie DICOM"
-        verbose_name_plural = "series DICOM"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["importacion", "series_instance_uid"],
-                name="uq_serie_dicom_importacion_uid",
-            ),
-        ]
-
-    def __str__(self):
-        return f"Serie {self.series_instance_uid}"
-
-    def actualizar_cantidad_archivos(self):
-        """Sincroniza el resumen con las instancias vinculadas a la serie."""
-
-        self.cantidad_archivos = self.archivos.count()
-        self.save(update_fields=["cantidad_archivos"])
-        return self.cantidad_archivos
-
