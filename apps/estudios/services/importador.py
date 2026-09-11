@@ -38,15 +38,91 @@ def _es_dicom(contenido):
 
 
 def _archivo_dicom_candidato(importacion):
-    """Prioriza DICOMDIR y luego inspecciona pocos objetos para ahorrar lecturas."""
+    """Prioriza DICOMDIR sin importar su posición dentro de la carpeta."""
 
-    archivos = list(importacion.archivos.order_by("id")[:25])
-    archivos.sort(key=lambda archivo: not archivo.ruta_relativa.upper().endswith("DICOMDIR"))
+    dicomdir = importacion.archivos.filter(
+        ruta_relativa__iendswith="DICOMDIR"
+    ).first()
+    archivos = []
+    if dicomdir:
+        archivos.append(dicomdir)
+    archivos.extend(
+        importacion.archivos.exclude(pk=getattr(dicomdir, "pk", None)).order_by("id")[:25]
+    )
     for archivo in archivos:
         contenido = leer_objeto(archivo.ruta_almacenamiento, LIMITE_LECTURA_DICOM)
         if _es_dicom(contenido):
             return archivo, contenido
     return None, None
+
+
+def _nombre_legible(valor):
+    """Convierte APELLIDO^NOMBRES de DICOM a texto legible y sin huecos."""
+
+    return " ".join(str(valor or "").replace("^", " ").split())
+
+
+def _completar_desde_dicomdir(dataset, datos):
+    """Lee paciente, estudio y series almacenados como registros de DICOMDIR."""
+
+    serie_actual = ""
+    rutas_por_serie = {}
+    for registro in getattr(dataset, "DirectoryRecordSequence", []):
+        tipo = str(getattr(registro, "DirectoryRecordType", "")).upper()
+        if tipo == "PATIENT":
+            datos["nombre_paciente"] = _nombre_legible(
+                getattr(registro, "PatientName", datos["nombre_paciente"])
+            )
+            datos["identificador_paciente"] = str(
+                getattr(registro, "PatientID", datos["identificador_paciente"])
+            ).strip()
+            datos["fecha_nacimiento"] = (
+                _fecha_iso(getattr(registro, "PatientBirthDate", None))
+                or datos["fecha_nacimiento"]
+            )
+        elif tipo == "STUDY":
+            datos["fecha_estudio"] = (
+                _fecha_iso(getattr(registro, "StudyDate", None))
+                or datos["fecha_estudio"]
+            )
+            datos["study_instance_uid"] = str(
+                getattr(registro, "StudyInstanceUID", datos["study_instance_uid"])
+            ).strip()
+            datos["descripcion"] = str(
+                getattr(registro, "StudyDescription", datos["descripcion"])
+            ).strip()[:255]
+        elif tipo == "SERIES":
+            serie_actual = str(getattr(registro, "SeriesInstanceUID", "")).strip()
+        elif tipo in {"IMAGE", "RAW DATA"} and serie_actual:
+            referencia = getattr(registro, "ReferencedFileID", None)
+            if referencia:
+                if not isinstance(referencia, (str, bytes)) and hasattr(referencia, "__iter__"):
+                    ruta = "/".join(str(parte) for parte in referencia)
+                else:
+                    ruta = str(referencia).replace("\\", "/")
+                rutas_por_serie[ruta.lower()] = serie_actual
+    return rutas_por_serie
+
+
+def _guardar_series_en_archivos(importacion, rutas_por_serie):
+    """Anota el UID de serie en cada archivo sin crear una tabla adicional."""
+
+    if not rutas_por_serie:
+        return
+    actualizados = []
+    for archivo in importacion.archivos.all():
+        ruta = archivo.ruta_relativa.lower()
+        uid = next(
+            (uid for sufijo, uid in rutas_por_serie.items() if ruta.endswith(sufijo)),
+            None,
+        )
+        if uid and archivo.series_instance_uid != uid:
+            archivo.series_instance_uid = uid
+            actualizados.append(archivo)
+    if actualizados:
+        type(actualizados[0]).objects.bulk_update(
+            actualizados, ["series_instance_uid"], batch_size=500
+        )
 
 
 def _dicom_detectado(importacion):
@@ -70,17 +146,14 @@ def _dicom_detectado(importacion):
             ],
         }
 
-    nombre = str(getattr(dataset, "PatientName", "")).replace("^", " ").strip()
+    nombre = _nombre_legible(getattr(dataset, "PatientName", ""))
     identificador = str(getattr(dataset, "PatientID", "")).strip()
-    if not nombre:
-        advertencias.append("No se encontró el nombre del paciente en los metadatos DICOM.")
-
     software = " ".join(
         str(getattr(dataset, campo, "")).strip()
         for campo in ("Manufacturer", "ManufacturerModelName", "SoftwareVersions")
         if getattr(dataset, campo, None)
     )[:100]
-    return {
+    datos = {
         "formato": "DICOM",
         "software_origen": software,
         "nombre_paciente": nombre,
@@ -91,6 +164,11 @@ def _dicom_detectado(importacion):
         "descripcion": str(getattr(dataset, "StudyDescription", "")).strip()[:255],
         "advertencias": advertencias,
     }
+    rutas_por_serie = _completar_desde_dicomdir(dataset, datos)
+    _guardar_series_en_archivos(importacion, rutas_por_serie)
+    if not datos["nombre_paciente"]:
+        advertencias.append("No se encontró el nombre del paciente en los metadatos DICOM.")
+    return datos
 
 
 def _formato_no_dicom(importacion):

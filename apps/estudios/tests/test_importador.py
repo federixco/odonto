@@ -37,6 +37,31 @@ def dicom_de_prueba():
     return buffer.getvalue()
 
 
+def dicomdir_de_prueba():
+    """Construye un DICOMDIR con los datos dentro de registros anidados."""
+
+    meta = Dataset()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    meta.MediaStorageSOPClassUID = generate_uid()
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    dataset = FileDataset("DICOMDIR", {}, file_meta=meta, preamble=b"\0" * 128)
+    paciente = Dataset()
+    paciente.DirectoryRecordType = "PATIENT"
+    paciente.PatientName = "TOMAS^SANDRA PATRICIA^^^"
+    paciente.PatientID = "20877656"
+    estudio = Dataset()
+    estudio.DirectoryRecordType = "STUDY"
+    estudio.StudyDate = "20260818"
+    estudio.StudyDescription = "Exploracion 3D"
+    estudio.StudyInstanceUID = generate_uid()
+    dataset.DirectoryRecordSequence = [paciente, estudio]
+    dataset.is_little_endian = True
+    dataset.is_implicit_VR = False
+    buffer = BytesIO()
+    pydicom.dcmwrite(buffer, dataset)
+    return buffer.getvalue()
+
+
 class ImportadorTests(TestCase):
     def setUp(self):
         self.admin = Usuario.objects.create_user(
@@ -79,3 +104,20 @@ class ImportadorTests(TestCase):
         self.assertEqual(Paciente.objects.count(), 1)
         self.assertEqual(self.importacion.datos_detectados["formato"], "DICOM")
         self.assertEqual(self.importacion.datos_detectados["nombre_paciente"], "GOMEZ ANA")
+
+    @patch("apps.estudios.services.importador.leer_objeto")
+    def test_dicomdir_lee_paciente_y_estudio_de_registros_anidados(self, leer_objeto):
+        leer_objeto.return_value = dicomdir_de_prueba()
+        archivo = self.importacion.archivos.get()
+        archivo.ruta_relativa = "paquete/DICOMDIR"
+        archivo.save(update_fields=["ruta_relativa", "updated_at"])
+        self.importacion.marcar_procesando()
+
+        analizar_importacion(self.importacion)
+        self.importacion.refresh_from_db()
+
+        datos = self.importacion.datos_detectados
+        self.assertEqual(datos["nombre_paciente"], "TOMAS SANDRA PATRICIA")
+        self.assertEqual(datos["identificador_paciente"], "20877656")
+        self.assertEqual(datos["fecha_estudio"], "2026-08-18")
+        self.assertEqual(datos["descripcion"], "Exploracion 3D")
