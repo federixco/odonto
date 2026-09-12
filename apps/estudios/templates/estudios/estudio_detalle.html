@@ -1,18 +1,18 @@
 {% extends 'core/admin_base.html' %}
 {% load static %}
 
-{% block title %}Carga de archivos | D.O.C.{% endblock %}
+{% block title %}Estudio #{{ estudio.pk }} | D.O.C.{% endblock %}
 
 {% block content %}
-<a class="admin-back-link text-link" href="{% url 'paciente_detalle' estudio.paciente_id %}">
-    <span aria-hidden="true">←</span> Volver al paciente
+<a class="admin-back-link text-link" href="{% url 'estudio_lista' %}">
+    <span aria-hidden="true">←</span> Volver a estudios
 </a>
 
 <header class="admin-page-heading">
     <div>
-        <p class="eyebrow">ESTUDIO EN PREPARACIÓN</p>
-        <h1>Carga de <span>archivos.</span></h1>
-        <p>{{ estudio.paciente }} · {{ estudio.tipo }} · {{ estudio.fecha_estudio|date:'d/m/Y' }}</p>
+        <p class="eyebrow">ESTUDIO #{{ estudio.pk }} · {{ estudio.get_estado_display|upper }}</p>
+        <h1>{{ estudio.tipo }} <span>· {{ estudio.paciente }}</span></h1>
+        <p>Fecha del estudio: {{ estudio.fecha_estudio|date:'d/m/Y' }}</p>
     </div>
 </header>
 
@@ -20,7 +20,7 @@
     <section class="admin-card study-upload-card" aria-labelledby="upload-title">
         <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
         <div class="upload-area" id="drop-zone">
-            <span class="panel-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span>
+            <span class="panel-icon">{% include 'core/includes/icon.html' with name='scan' %}</span>
             <h2 id="upload-title">Seleccioná los archivos</h2>
             <p>Podés arrastrarlos o buscarlos en el equipo del centro.</p>
             <p class="upload-formats">DICOM · STL · PLY · JPG · PNG · TIFF · PDF</p>
@@ -65,20 +65,34 @@
                 <p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p>
                 <h2 id="files-title">Archivos registrados</h2>
             </div>
-            <span class="directory-count">{{ estudio.archivos.count }}</span>
+            <span class="directory-count">{{ total_archivos }} archivo{{ total_archivos|pluralize }}</span>
         </div>
-        {% if estudio.archivos.exists %}
-        <ul class="study-file-list">
-            {% for archivo in estudio.archivos.all %}
-            <li>
-                <span class="file-format">{{ archivo.formato }}</span>
-                <span class="file-description">
-                    <strong>{{ archivo.nombre_archivo }}</strong>
-                    <small>{{ archivo.tamano|filesizeformat }} · {{ archivo.get_estado_display }}</small>
-                </span>
-            </li>
+        {% if carpetas %}
+            {% for carpeta in carpetas %}
+            <details class="folder-group" {% if carpeta.archivos|length <= 20 %}open{% endif %} style="border-top:1px solid var(--line);">
+                <summary style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 8px;cursor:pointer;font-size:.82rem;">
+                    <span style="display:flex;align-items:center;gap:10px;min-width:0;">
+                        <span style="flex-shrink:0;width:32px;height:32px;display:grid;place-items:center;background:var(--pale);color:var(--teal);border-radius:8px;font-size:.65rem;font-weight:700;">📁</span>
+                        <span style="min-width:0;">
+                            <strong style="display:block;font-size:.82rem;font-weight:650;overflow-wrap:anywhere;">{{ carpeta.nombre }}</strong>
+                            <small style="color:var(--muted);font-size:.7rem;">{{ carpeta.archivos|length }} archivo{{ carpeta.archivos|length|pluralize }} · {{ carpeta.tamano_total|filesizeformat }}</small>
+                        </span>
+                    </span>
+                    <span style="flex-shrink:0;font-size:.7rem;color:var(--muted);transition:transform .2s;" aria-hidden="true">▶</span>
+                </summary>
+                <ul class="study-file-list" style="padding:0 0 8px 18px;">
+                    {% for archivo in carpeta.archivos %}
+                    <li>
+                        <span class="file-format">{{ archivo.formato }}</span>
+                        <span class="file-description">
+                            <strong>{{ archivo.nombre_archivo }}</strong>
+                            <small>{{ archivo.tamano|filesizeformat }} · {{ archivo.get_estado_display }}</small>
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
             {% endfor %}
-        </ul>
         {% else %}
         <div class="directory-empty compact-empty">
             <h3>Todavía no hay archivos</h3>
@@ -87,6 +101,13 @@
         {% endif %}
     </aside>
 </div>
+
+<style>
+    .folder-group[open] > summary span[aria-hidden="true"]:last-child { transform: rotate(90deg); }
+    .folder-group > summary:hover { background: #f8fbfb; }
+    .folder-group > summary::marker { content: ""; }
+    .folder-group > summary::-webkit-details-marker { display: none; }
+</style>
 
 <script src="{% static 'core/js/upload.js' %}" defer></script>
 {% endblock %}

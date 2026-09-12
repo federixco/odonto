@@ -139,10 +139,36 @@ class CrearEstudioView(AdminRequeridoMixin, View):
         return render(request, "estudios/estudio_crear.html", {"form": form})
 
 class DetalleEstudioView(AdminRequeridoMixin, DetailView):
-    """Muestra el estudio en preparación y coordina la carga de sus archivos."""
+    """Muestra el estudio y sus archivos agrupados por carpeta."""
     model = Estudio
     template_name = "estudios/estudio_detalle.html"
     context_object_name = "estudio"
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        archivos = self.object.archivos.order_by("ruta_relativa", "nombre_archivo")
+
+        carpetas = {}
+        for archivo in archivos:
+            if archivo.ruta_relativa and "/" in archivo.ruta_relativa:
+                partes = archivo.ruta_relativa.split("/")
+                carpeta = "/".join(partes[:-1])
+            else:
+                carpeta = ""
+
+            if carpeta not in carpetas:
+                carpetas[carpeta] = {
+                    "nombre": carpeta or "Archivos en la raíz",
+                    "archivos": [],
+                    "tamano_total": 0,
+                }
+            carpetas[carpeta]["archivos"].append(archivo)
+            carpetas[carpeta]["tamano_total"] += archivo.tamano
+
+        carpetas_ordenadas = sorted(carpetas.values(), key=lambda c: c["nombre"])
+        contexto["carpetas"] = carpetas_ordenadas
+        contexto["total_archivos"] = archivos.count()
+        return contexto
 
 
 class CrearImportacionView(AdminRequeridoMixin, View):
