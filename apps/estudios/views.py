@@ -152,27 +152,48 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
         contexto["total_archivos"] = len(archivos)
 
         if not archivos:
-            contexto["carpetas"] = []
+            contexto["tree"] = None
             return contexto
 
-        carpetas = {}
+        # Construir árbol recursivo
+        tree = {"nombre": "Raíz", "archivos": [], "subcarpetas": {}, "tamano_total": 0, "total_archivos_recursivo": 0}
+        
         for archivo in archivos:
-            if archivo.ruta_relativa and "/" in archivo.ruta_relativa:
-                # Agrupar solo por el primer nivel (la carpeta principal que se subió)
-                carpeta_raiz = archivo.ruta_relativa.split("/")[0]
+            partes = archivo.ruta_relativa.split("/") if archivo.ruta_relativa else []
+            
+            # Si el último elemento de la ruta es igual al nombre del archivo, es el archivo mismo.
+            # En webkitdirectory, path completo incluye el archivo al final.
+            if partes and partes[-1] == archivo.nombre_archivo:
+                partes_carpeta = partes[:-1]
             else:
-                carpeta_raiz = "Archivos del estudio"
+                partes_carpeta = partes
 
-            if carpeta_raiz not in carpetas:
-                carpetas[carpeta_raiz] = {
-                    "nombre": carpeta_raiz,
-                    "archivos": [],
-                    "tamano_total": 0,
-                }
-            carpetas[carpeta_raiz]["archivos"].append(archivo)
-            carpetas[carpeta_raiz]["tamano_total"] += archivo.tamano
+            current = tree
+            current["tamano_total"] += archivo.tamano
+            current["total_archivos_recursivo"] += 1
+            
+            for parte in partes_carpeta:
+                if parte not in current["subcarpetas"]:
+                    current["subcarpetas"][parte] = {
+                        "nombre": parte, 
+                        "archivos": [], 
+                        "subcarpetas": {}, 
+                        "tamano_total": 0,
+                        "total_archivos_recursivo": 0
+                    }
+                current = current["subcarpetas"][parte]
+                current["tamano_total"] += archivo.tamano
+                current["total_archivos_recursivo"] += 1
+                
+            current["archivos"].append(archivo)
 
-        contexto["carpetas"] = sorted(carpetas.values(), key=lambda c: c["nombre"])
+        # Si el árbol tiene una sola subcarpeta en la raíz y ningún archivo suelto en la raíz, 
+        # saltamos ese nivel superior para que la raíz real sea esa carpeta principal (ej: "tOMAS sANDRA gAL")
+        while not tree["archivos"] and len(tree["subcarpetas"]) == 1:
+            unica_llave = list(tree["subcarpetas"].keys())[0]
+            tree = tree["subcarpetas"][unica_llave]
+
+        contexto["tree"] = tree
         return contexto
 
 

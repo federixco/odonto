@@ -49,32 +49,10 @@
             <span class="directory-count">{{ total_archivos }} archivo{{ total_archivos|pluralize }}</span>
         </div>
 
-        {% if carpetas %}
-            {% for carpeta in carpetas %}
-            <details class="folder-group" open>
-                <summary class="folder-summary">
-                    <span class="folder-info">
-                        <span class="folder-icon">{% include 'core/includes/icon.html' with name='cube' %}</span>
-                        <span class="folder-text" style="width:100%;">
-                            <strong>{{ carpeta.nombre }}</strong>
-                            <small>{{ carpeta.archivos|length }} archivo{{ carpeta.archivos|length|pluralize }} · {{ carpeta.tamano_total|filesizeformat }}</small>
-                        </span>
-                    </span>
-                    <span class="folder-arrow" aria-hidden="true">▸</span>
-                </summary>
-                <ul class="study-file-list folder-file-list">
-                    {% for archivo in carpeta.archivos %}
-                    <li>
-                        <span class="file-format">{{ archivo.formato }}</span>
-                        <span class="file-description">
-                            <strong title="{{ archivo.ruta_relativa }}">{{ archivo.nombre_archivo }}</strong>
-                            <small>{{ archivo.tamano|filesizeformat }} · {{ archivo.get_estado_display }}</small>
-                        </span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </details>
-            {% endfor %}
+        {% if tree %}
+            <div class="folder-root">
+                {% include 'estudios/_folder_node.html' with node=tree %}
+            </div>
         {% else %}
         <div class="directory-empty compact-empty">
             <h3>Todavía no hay archivos</h3>

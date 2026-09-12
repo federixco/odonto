@@ -288,3 +288,29 @@ class CancelarArchivoView(AdminRequeridoMixin, View):
         if not confirmado:
             logger.warning("S3 no confirmó la cancelación del archivo %s.", archivo.pk)
         return JsonResponse({"status": "cancelado", "archivo_id": archivo.pk})
+
+class EliminarArchivoView(AdminRequeridoMixin, View):
+    """Elimina un archivo del estudio y de S3/MinIO."""
+
+    def post(self, request, archivo_id):
+        archivo = get_object_or_404(Archivo, pk=archivo_id)
+        
+        # Validar estado del estudio
+        if archivo.estudio.estado not in {EstadoEstudio.BORRADOR, EstadoEstudio.EN_REVISION}:
+            return JsonResponse({"error": "No se pueden eliminar archivos de este estudio."}, status=403)
+
+        try:
+            eliminar_objeto(archivo.ruta_almacenamiento)
+        except Exception:
+            logger.exception("Error al eliminar objeto de S3.")
+            
+        archivo.delete()
+        
+        LogActividad.objects.create(
+            usuario=request.user,
+            estudio=archivo.estudio,
+            tipo_evento=TipoEvento.ELIMINACION,
+            resultado="Archivo eliminado",
+            detalles=f"Archivo {archivo.nombre_archivo} eliminado.",
+        )
+        return JsonResponse({"status": "eliminado"})
