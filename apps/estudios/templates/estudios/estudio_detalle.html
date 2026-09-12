@@ -48,13 +48,14 @@
             </div>
             <span class="directory-count">{{ total_archivos }} archivo{{ total_archivos|pluralize }}</span>
         </div>
+
         {% if carpetas %}
             {% for carpeta in carpetas %}
-            <details class="folder-group" {% if carpeta.archivos|length <= 20 %}open{% endif %}>
+            <details class="folder-group" open>
                 <summary class="folder-summary">
                     <span class="folder-info">
                         <span class="folder-icon">{% include 'core/includes/icon.html' with name='cube' %}</span>
-                        <span class="folder-text">
+                        <span class="folder-text" style="width:100%;">
                             <strong>{{ carpeta.nombre }}</strong>
                             <small>{{ carpeta.archivos|length }} archivo{{ carpeta.archivos|length|pluralize }} · {{ carpeta.tamano_total|filesizeformat }}</small>
                         </span>
@@ -66,7 +67,7 @@
                     <li>
                         <span class="file-format">{{ archivo.formato }}</span>
                         <span class="file-description">
-                            <strong>{{ archivo.nombre_archivo }}</strong>
+                            <strong title="{{ archivo.ruta_relativa }}">{{ archivo.nombre_archivo }}</strong>
                             <small>{{ archivo.tamano|filesizeformat }} · {{ archivo.get_estado_display }}</small>
                         </span>
                     </li>

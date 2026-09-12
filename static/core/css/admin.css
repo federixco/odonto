@@ -293,11 +293,16 @@
 .folder-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; background: var(--pale); color: var(--teal); border-radius: 9px; }
 .folder-icon .icon { width: 18px; height: 18px; }
 .folder-text { min-width: 0; }
-.folder-text strong { display: block; font-size: .8rem; font-weight: 650; overflow-wrap: anywhere; line-height: 1.3; }
+.folder-text strong { display: block; font-size: .8rem; font-weight: 650; overflow-wrap: anywhere; word-break: break-all; line-height: 1.3; }
 .folder-text small { display: block; margin-top: 3px; color: var(--muted); font-size: .68rem; }
-.folder-arrow { flex-shrink: 0; font-size: .7rem; color: var(--muted); transition: transform .2s ease; }
+.folder-arrow { flex-shrink: 0; font-size: .7rem; color: var(--muted); transition: transform .2s ease; display: inline-block; }
 .folder-group[open] > summary .folder-arrow { transform: rotate(90deg); }
-.folder-file-list { padding-left: 16px; padding-bottom: 6px; }
+.folder-file-list { padding-left: 32px; padding-bottom: 6px; margin-left: 17px; border-left: 2px solid #e7eeee; margin-bottom: 10px; }
+
+/* Carpeta raíz del estudio. */
+.folder-root-header { display: flex; align-items: center; padding: 18px 8px; border-top: 1px solid var(--line); }
+.folder-icon-sub { width: 28px; height: 28px; border-radius: 7px; }
+.folder-icon-sub .icon { width: 15px; height: 15px; }
 
 .compact-empty { padding: 35px 10px 20px; }
 

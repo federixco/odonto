@@ -146,28 +146,33 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        archivos = self.object.archivos.order_by("ruta_relativa", "nombre_archivo")
+        archivos = list(
+            self.object.archivos.order_by("ruta_relativa", "nombre_archivo")
+        )
+        contexto["total_archivos"] = len(archivos)
+
+        if not archivos:
+            contexto["carpetas"] = []
+            return contexto
 
         carpetas = {}
         for archivo in archivos:
             if archivo.ruta_relativa and "/" in archivo.ruta_relativa:
-                partes = archivo.ruta_relativa.split("/")
-                carpeta = "/".join(partes[:-1])
+                # Agrupar solo por el primer nivel (la carpeta principal que se subió)
+                carpeta_raiz = archivo.ruta_relativa.split("/")[0]
             else:
-                carpeta = ""
+                carpeta_raiz = "Archivos del estudio"
 
-            if carpeta not in carpetas:
-                carpetas[carpeta] = {
-                    "nombre": carpeta or "Archivos en la raíz",
+            if carpeta_raiz not in carpetas:
+                carpetas[carpeta_raiz] = {
+                    "nombre": carpeta_raiz,
                     "archivos": [],
                     "tamano_total": 0,
                 }
-            carpetas[carpeta]["archivos"].append(archivo)
-            carpetas[carpeta]["tamano_total"] += archivo.tamano
+            carpetas[carpeta_raiz]["archivos"].append(archivo)
+            carpetas[carpeta_raiz]["tamano_total"] += archivo.tamano
 
-        carpetas_ordenadas = sorted(carpetas.values(), key=lambda c: c["nombre"])
-        contexto["carpetas"] = carpetas_ordenadas
-        contexto["total_archivos"] = archivos.count()
+        contexto["carpetas"] = sorted(carpetas.values(), key=lambda c: c["nombre"])
         return contexto
 
 
