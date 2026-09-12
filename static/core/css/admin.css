@@ -293,7 +293,7 @@
 .folder-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; background: var(--pale); color: var(--teal); border-radius: 9px; }
 .folder-icon .icon { width: 18px; height: 18px; }
 .folder-text { min-width: 0; }
-.folder-text strong { display: block; font-size: .8rem; font-weight: 650; overflow-wrap: anywhere; word-break: break-all; line-height: 1.3; }
+.folder-text strong { display: block; font-size: .8rem; font-weight: 650; overflow-wrap: anywhere;  line-height: 1.3; }
 .folder-text small { display: block; margin-top: 3px; color: var(--muted); font-size: .68rem; }
 .folder-arrow { flex-shrink: 0; font-size: .7rem; color: var(--muted); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: inline-block; transform-origin: center; }
 .folder-group[open] > summary .folder-arrow { transform: rotate(90deg); }
@@ -317,11 +317,3 @@
     .progress-copy span { text-align: left; }
 }
 
-details[open] > .folder-root-children,
-details[open] > .folder-file-list {
-    animation: folderOpen 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-@keyframes folderOpen {
-    0% { opacity: 0; transform: translateY(-4px); }
-    100% { opacity: 1; transform: translateY(0); }
-}
