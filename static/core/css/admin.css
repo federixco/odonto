@@ -278,7 +278,7 @@
 .study-file-list { list-style: none; padding: 0; margin: 0; }
 .study-file-list li { display: flex; align-items: center; gap: 13px; padding: 17px 0; border-bottom: 1px solid var(--line); min-width: 0; }
 .file-format { flex: 0 0 54px; padding: 7px 5px; border-radius: 7px; background: var(--pale); color: var(--teal); font-size: .62rem; font-weight: 750; text-align: center; }
-.file-description { min-width: 0; }
+.file-description { min-width: 0; flex: 1; }
 .file-description strong, .file-description small { display: block; overflow-wrap: anywhere; }
 .file-description strong { font-size: .82rem; }
 .file-description small { margin-top: 4px; color: var(--muted); font-size: .68rem; }
@@ -292,7 +292,7 @@
 .folder-info { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .folder-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; background: var(--pale); color: var(--teal); border-radius: 9px; }
 .folder-icon .icon { width: 18px; height: 18px; }
-.folder-text { min-width: 0; }
+.folder-text { min-width: 0; flex: 1; }
 .folder-text strong { display: block; font-size: .8rem; font-weight: 650; overflow-wrap: anywhere;  line-height: 1.3; }
 .folder-text small { display: block; margin-top: 3px; color: var(--muted); font-size: .68rem; }
 .folder-arrow { flex-shrink: 0; font-size: .7rem; color: var(--muted); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: inline-block; transform-origin: center; }
@@ -319,6 +319,15 @@
 
 
 /* Sobreescribir rotacion no deseada de public.css */
-details.folder-group[open] > summary.folder-summary > span.folder-info {
-    transform: none;
+
+
+/* Override public.css details[open] rotation bug once and for all */
+.study-upload-layout details summary > span {
+    transform: none !important;
+}
+.study-upload-layout details summary > .folder-arrow {
+    transform: none; /* Just to reset before open state */
+}
+.study-upload-layout details[open] > summary > .folder-arrow {
+    transform: rotate(90deg) !important;
 }
