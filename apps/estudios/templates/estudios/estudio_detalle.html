@@ -24,38 +24,19 @@
             <h2 id="upload-title">Seleccioná los archivos</h2>
             <p>Podés arrastrarlos o buscarlos en el equipo del centro.</p>
             <p class="upload-formats">DICOM · STL · PLY · JPG · PNG · TIFF · PDF</p>
-            <input
-                type="file"
-                id="file-input"
-                class="visually-hidden"
-                accept=".dcm,.dicom,.stl,.ply,.jpg,.jpeg,.png,.tif,.tiff,.pdf"
-                multiple
-            >
-            <button type="button" class="button button-small" id="file-select-button">
-                Seleccionar archivos
-            </button>
+            <input type="file" id="file-input" class="visually-hidden" accept=".dcm,.dicom,.stl,.ply,.jpg,.jpeg,.png,.tif,.tiff,.pdf" multiple>
+            <button type="button" class="button button-small" id="file-select-button">Seleccionar archivos</button>
         </div>
-
         <div id="upload-progress-container" class="upload-progress" hidden>
             <div class="progress-copy">
                 <strong>Procesando archivos</strong>
                 <span id="progress-text" aria-live="polite">Preparando la carga…</span>
             </div>
-            <div
-                class="progress-bar-wrap"
-                role="progressbar"
-                aria-label="Progreso de la carga"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                aria-valuenow="0"
-            >
+            <div class="progress-bar-wrap" role="progressbar" aria-label="Progreso de la carga" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <div id="progress-bar" class="progress-bar"></div>
             </div>
         </div>
-
-        <p id="upload-success" class="notice success" hidden aria-live="polite">
-            Los archivos se cargaron y verificaron correctamente.
-        </p>
+        <p id="upload-success" class="notice success" hidden aria-live="polite">Los archivos se cargaron y verificaron correctamente.</p>
         <p id="upload-error" class="notice error" hidden role="alert"></p>
     </section>
 
@@ -69,18 +50,18 @@
         </div>
         {% if carpetas %}
             {% for carpeta in carpetas %}
-            <details class="folder-group" {% if carpeta.archivos|length <= 20 %}open{% endif %} style="border-top:1px solid var(--line);">
-                <summary style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 8px;cursor:pointer;font-size:.82rem;">
-                    <span style="display:flex;align-items:center;gap:10px;min-width:0;">
-                        <span style="flex-shrink:0;width:32px;height:32px;display:grid;place-items:center;background:var(--pale);color:var(--teal);border-radius:8px;font-size:.65rem;font-weight:700;">📁</span>
-                        <span style="min-width:0;">
-                            <strong style="display:block;font-size:.82rem;font-weight:650;overflow-wrap:anywhere;">{{ carpeta.nombre }}</strong>
-                            <small style="color:var(--muted);font-size:.7rem;">{{ carpeta.archivos|length }} archivo{{ carpeta.archivos|length|pluralize }} · {{ carpeta.tamano_total|filesizeformat }}</small>
+            <details class="folder-group" {% if carpeta.archivos|length <= 20 %}open{% endif %}>
+                <summary class="folder-summary">
+                    <span class="folder-info">
+                        <span class="folder-icon">{% include 'core/includes/icon.html' with name='cube' %}</span>
+                        <span class="folder-text">
+                            <strong>{{ carpeta.nombre }}</strong>
+                            <small>{{ carpeta.archivos|length }} archivo{{ carpeta.archivos|length|pluralize }} · {{ carpeta.tamano_total|filesizeformat }}</small>
                         </span>
                     </span>
-                    <span style="flex-shrink:0;font-size:.7rem;color:var(--muted);transition:transform .2s;" aria-hidden="true">▶</span>
+                    <span class="folder-arrow" aria-hidden="true">▸</span>
                 </summary>
-                <ul class="study-file-list" style="padding:0 0 8px 18px;">
+                <ul class="study-file-list folder-file-list">
                     {% for archivo in carpeta.archivos %}
                     <li>
                         <span class="file-format">{{ archivo.formato }}</span>
@@ -101,13 +82,6 @@
         {% endif %}
     </aside>
 </div>
-
-<style>
-    .folder-group[open] > summary span[aria-hidden="true"]:last-child { transform: rotate(90deg); }
-    .folder-group > summary:hover { background: #f8fbfb; }
-    .folder-group > summary::marker { content: ""; }
-    .folder-group > summary::-webkit-details-marker { display: none; }
-</style>
 
 <script src="{% static 'core/js/upload.js' %}" defer></script>
 {% endblock %}
