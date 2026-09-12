@@ -317,3 +317,8 @@
     .progress-copy span { text-align: left; }
 }
 
+
+/* Sobreescribir rotacion no deseada de public.css */
+details.folder-group[open] > summary.folder-summary > span.folder-info {
+    transform: none;
+}
