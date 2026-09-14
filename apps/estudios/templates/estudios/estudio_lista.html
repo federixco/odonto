@@ -1,0 +1,28 @@
+{% extends 'core/admin_base.html' %}
+{% block title %}Estudios | D.O.C.{% endblock %}
+{% block content %}
+<div class="admin-page-heading">
+    <div><p class="eyebrow">GESTIÓN Y PUBLICACIÓN</p><h1>Estudios <span>del centro.</span></h1><p>Consultá el estado de cada estudio, sus archivos y la asociación con pacientes.</p></div>
+    <a class="button" href="{% url 'importacion_crear' %}">{% include 'core/includes/icon.html' with name='plus' %} Cargar estudio</a>
+</div>
+<section class="admin-card directory-card" aria-labelledby="listado-title">
+    <div class="directory-heading"><div><h2 id="listado-title">{% if busqueda or estado_filtro %}Resultados filtrados{% else %}Todos los estudios{% endif %}</h2><p>Estado actual, paciente asociado y fecha del estudio.</p></div><span class="directory-count">{{ estudios|length }} resultado{{ estudios|length|pluralize }}</span></div>
+    <form method="get" class="directory-search" role="search" aria-label="Buscar estudios">
+        <div class="search-field"><label for="buscar-estudio">Buscar por paciente o tipo</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-estudio" type="search" name="q" value="{{ busqueda }}" placeholder="Nombre, apellido, DNI o tipo de estudio"></div></div>
+        <select name="estado" aria-label="Filtrar por estado" onchange="this.form.submit()" style="min-height:46px;padding:10px 13px;border:1px solid #c8d9db;border-radius:8px;font-size:.83rem;background:#fbfdfd;color:var(--ink);">
+            <option value="">Todos los estados</option>
+            {% for valor, etiqueta in estados %}
+            <option value="{{ valor }}" {% if estado_filtro == valor %}selected{% endif %}>{{ etiqueta }}</option>
+            {% endfor %}
+        </select>
+        <button class="button button-small" type="submit">Filtrar</button>
+        {% if busqueda or estado_filtro %}<a class="text-link" href="{% url 'estudio_lista' %}">Limpiar filtros</a>{% endif %}
+    </form>
+    {% if estudios %}
+    <div class="directory-table-wrap"><table class="directory-table"><caption class="visually-hidden">Estudios del centro y su estado.</caption><thead><tr><th scope="col">Paciente</th><th scope="col">Tipo</th><th scope="col">Fecha</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>
+        {% for estudio in estudios %}<tr><th scope="row" class="professional-cell"><div class="professional-identity"><span class="professional-avatar" aria-hidden="true">{{ estudio.paciente.nombre|first|upper }}{{ estudio.paciente.apellido|first|upper }}</span><span><strong>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }}</strong><small>DNI: {{ estudio.paciente.dni }}</small></span></div></th><td>{{ estudio.tipo }}</td><td>{{ estudio.fecha_estudio|date:'d/m/Y' }}</td><td><span class="account-status {% if estudio.estado == 'PUBLICADO' %}status-enabled{% elif estudio.estado == 'BORRADOR' %}status-pending{% elif estudio.estado == 'ELIMINADO' %}status-disabled{% endif %}"><span></span> {{ estudio.get_estado_display }}</span></td><td class="row-actions"><a class="text-link" href="{% url 'estudio_detalle' estudio.pk %}">Ver detalle <span aria-hidden="true">→</span></a></td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="directory-empty"><span class="panel-icon">{% include 'core/includes/icon.html' with name='cube' %}</span><h3>{% if busqueda or estado_filtro %}No encontramos coincidencias{% else %}Todavía no hay estudios cargados{% endif %}</h3><p>{% if busqueda or estado_filtro %}Probá con otro nombre o cambiá el filtro de estado.{% else %}Importá la primera carpeta clínica para comenzar.{% endif %}</p>{% if busqueda or estado_filtro %}<a class="text-link" href="{% url 'estudio_lista' %}">Ver todos los estudios {% include 'core/includes/icon.html' with name='arrow' %}</a>{% else %}<a class="button button-small" href="{% url 'importacion_crear' %}">Cargar estudio</a>{% endif %}</div>{% endif %}
+    <div class="directory-note">{% include 'core/includes/icon.html' with name='lock' %}<p>Un estudio en borrador no es visible para los odontólogos ni pacientes hasta que se publique.</p></div>
+</section>
+{% endblock %}

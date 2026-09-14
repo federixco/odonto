@@ -3,9 +3,11 @@ from .views import (AnalizarImportacionView, CompletarArchivoImportadoView,
                     ConfirmarImportacionView, CrearEstudioView,
                     CrearImportacionView, DetalleEstudioView,
                     DetalleImportacionView, IniciarArchivoImportadoView,
-                    IniciarImportacionView, RegistrarPacienteDetectadoView)
+                    IniciarImportacionView, ListaEstudiosView,
+                    RegistrarPacienteDetectadoView)
 
 urlpatterns = [
+    path("", ListaEstudiosView.as_view(), name="estudio_lista"),
     path("crear/", CrearEstudioView.as_view(), name="estudio_crear"),
     path("importar/", CrearImportacionView.as_view(), name="importacion_crear"),
     path("importaciones/iniciar/", IniciarImportacionView.as_view(), name="importacion_iniciar"),

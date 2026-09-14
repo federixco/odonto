@@ -43,7 +43,11 @@
                             {% include 'core/includes/icon.html' with name='tooth' %}
                             <span><strong>Odontólogos derivantes</strong><small>Cuentas profesionales</small></span>
                         </a>
-                        <a class="admin-sidebar-link" href="{% url 'importacion_crear' %}" {% if request.resolver_match.url_name|slice:':11' == 'importacion' or request.resolver_match.url_name|slice:':7' == 'estudio' %}aria-current="page"{% endif %}>
+                        <a class="admin-sidebar-link" href="{% url 'estudio_lista' %}" {% if request.resolver_match.url_name == 'estudio_lista' %}aria-current="page"{% endif %}>
+                            {% include 'core/includes/icon.html' with name='cube' %}
+                            <span><strong>Estudios</strong><small>Gestión y publicación</small></span>
+                        </a>
+                        <a class="admin-sidebar-link" href="{% url 'importacion_crear' %}" {% if request.resolver_match.url_name|slice:':11' == 'importacion' or request.resolver_match.url_name|slice:':7' == 'estudio' and request.resolver_match.url_name != 'estudio_lista' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='scan' %}
                             <span><strong>Cargar estudio</strong><small>Importar carpeta clínica</small></span>
                         </a>
