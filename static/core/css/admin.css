@@ -593,3 +593,7 @@
     .study-access-row form .button, .available-access-row form .button { width: 100%; }
     .access-manual-link .button { width: 100%; }
 }
+. s t u d y - u p l o a d - l a y o u t   d e t a i l s   s u m m a r y   >   . f o l d e r - a r r o w   {   t r a n s f o r m :   n o n e ;   }  
+ . s t u d y - u p l o a d - l a y o u t   d e t a i l s [ o p e n ]   >   s u m m a r y   >   . f o l d e r - a r r o w   {   t r a n s f o r m :   r o t a t e ( 9 0 d e g )   ! i m p o r t a n t ;   }  
+ . f o l d e r - t e x t ,   . f i l e - d e s c r i p t i o n   {   f l e x :   1 ;   }  
+ 

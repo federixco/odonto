@@ -26,19 +26,13 @@
             <span class="directory-count">{{ archivos_pagina.paginator.count }}</span><span class="disclosure-arrow" aria-hidden="true">⌄</span>
         </summary>
         <div class="study-section-body">
-            {% if archivos_pagina %}
-            <div class="study-file-directory">
-                <div class="study-file-directory-head" aria-hidden="true"><span>Archivo</span><span>Formato</span><span>Tamaño</span><span>Estado</span></div>
-                {% for archivo in archivos_pagina %}
-                <article class="study-file-row">
-                    <span class="file-format">{{ archivo.formato }}</span>
-                    <span class="file-description"><strong>{{ archivo.nombre_archivo }}</strong><small>{{ archivo.ruta_relativa|default:archivo.nombre_archivo }}</small>{% if archivo.hash_sha256 %}<small class="file-hash">SHA-256 · {{ archivo.hash_sha256|truncatechars:22 }}</small>{% endif %}</span>
-                    <span class="study-file-format">{{ archivo.get_categoria_display }}</span><span class="study-file-size">{{ archivo.tamano|filesizeformat }}</span>
-                    <span class="account-status {% if archivo.estado == 'COMPLETO' %}status-enabled{% elif archivo.estado == 'INCORRECTO' %}status-disabled{% else %}status-pending{% endif %}"><span></span>{{ archivo.get_estado_display }}</span>
-                </article>
-                {% endfor %}
+            {% if tree %}
+            <div class="folder-root">
+                {% include 'estudios/_folder_node.html' with node=tree %}
             </div>
-            {% if archivos_pagina.paginator.num_pages > 1 %}<nav class="study-file-pagination" aria-label="Páginas de archivos">{% if archivos_pagina.has_previous %}<a class="button button-secondary button-small" href="?archivos_pagina={{ archivos_pagina.previous_page_number }}#archivos">← Anteriores</a>{% endif %}<span>Página {{ archivos_pagina.number }} de {{ archivos_pagina.paginator.num_pages }}</span>{% if archivos_pagina.has_next %}<a class="button button-secondary button-small" href="?archivos_pagina={{ archivos_pagina.next_page_number }}#archivos">Siguientes →</a>{% endif %}</nav>{% endif %}
+            {% else %}
+            <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
+            {% endif %}<span>Página {{ archivos_pagina.number }} de {{ archivos_pagina.paginator.num_pages }}</span>{% if archivos_pagina.has_next %}<a class="button button-secondary button-small" href="?archivos_pagina={{ archivos_pagina.next_page_number }}#archivos">Siguientes →</a>{% endif %}</nav>{% endif %}
             {% else %}
             <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
             {% endif %}
