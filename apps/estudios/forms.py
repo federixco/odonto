@@ -19,7 +19,8 @@ class ConfirmarImportacionForm(EstudioForm):
     derivante = forms.ModelChoiceField(
         label="Odontólogo derivante",
         queryset=Odontologo.objects.none(),
-        empty_label=None,
+        empty_label="No asignar todavía (Guardar como borrador)",
+        required=False,
         help_text="Profesional que solicitó el estudio y podrá consultarlo.",
         widget=forms.RadioSelect,
     )

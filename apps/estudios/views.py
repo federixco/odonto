@@ -496,15 +496,16 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
         with transaction.atomic():
             estudio = form.save()
             lote.confirmar(estudio)
-            derivante = form.cleaned_data["derivante"]
-            Autorizacion.objects.create(
-                estudio=estudio,
-                odontologo=derivante,
-            )
-            try:
-                estudio.publicar()
-            except ValidationError:
-                pass
+            derivante = form.cleaned_data.get("derivante")
+            if derivante:
+                Autorizacion.objects.create(
+                    estudio=estudio,
+                    odontologo=derivante,
+                )
+                try:
+                    estudio.publicar()
+                except ValidationError:
+                    pass
             LogActividad.objects.create(usuario=request.user, estudio=estudio, tipo_evento=TipoEvento.IMPORTACION_CONFIRMADA, resultado="Estudio creado desde importación", detalles=f"Importación {lote.pk} confirmada.")
         messages.success(
             request,

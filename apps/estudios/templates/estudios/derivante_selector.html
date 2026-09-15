@@ -36,12 +36,22 @@
 
     <div class="derivante-results" role="radiogroup" aria-labelledby="derivante-title">
         {% with seleccionado=form.derivante.value|stringformat:'s' %}
-        {% for odontologo in form.fields.derivante.queryset %}
+        
+        <label class="derivante-option{% if not seleccionado %} is-selected{% endif %}" data-derivante-card data-search="" data-status="">
+            <input type="radio" name="derivante" value="" {% if not seleccionado %}checked{% endif %}>
+            <span class="professional-avatar" aria-hidden="true" style="background:#e0e6ed;color:#5a6b7c">?</span>
+            <span class="derivante-identity">
+                <strong>Asignar más tarde</strong>
+                <small>El estudio quedará como borrador y sin permisos.</small>
+            </span>
+            <span class="derivante-check" aria-hidden="true">✓</span>
+        </label>
+{% for odontologo in form.fields.derivante.queryset %}
         <label class="derivante-option{% if seleccionado == odontologo.pk|stringformat:'s' %} is-selected{% endif %}"
                data-derivante-card
                data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}"
                data-status="{{ odontologo.usuario.estado }}">
-            <input type="radio" name="derivante" value="{{ odontologo.pk }}" {% if seleccionado == odontologo.pk|stringformat:'s' %}checked{% endif %} required>
+            <input type="radio" name="derivante" value="{{ odontologo.pk }}" {% if seleccionado == odontologo.pk|stringformat:'s' %}checked{% endif %}>
             <span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
             <span class="derivante-identity">
                 <strong>{{ odontologo.apellido }}, {{ odontologo.nombre }}</strong>
