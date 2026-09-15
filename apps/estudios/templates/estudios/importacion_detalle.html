@@ -178,7 +178,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 for (let card of cards) {
                     if (card.getAttribute("data-dni") === typedDni) {
                         e.preventDefault();
-                        const nombre = card.querySelector("strong").innerText;
+                        const nombre = card.querySelector("strong").textContent.trim();
                         if (confirm(`Ya existe un paciente registrado con el DNI ${typedDni} (${nombre}).\n\n¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`)) {
                             // Marcar el radio button
                             const radio = card.querySelector('input[type="radio"]');
