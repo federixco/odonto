@@ -182,39 +182,77 @@
 {% block extra_scripts %}
 
 <script>
-(function() {
-    function initModalInterceptor() {
-        const createForm = document.getElementById("compact-patient-form");
-        if (createForm) {
-            createForm.onsubmit = function(e) {
-                const dniInput = createForm.querySelector('input[name="dni"]');
-                if (dniInput && dniInput.value.trim() !== "") {
-                    const typedDni = dniInput.value.replace(/\D/g, "");
-                    const cards = document.querySelectorAll("[data-paciente-card]");
-                    for (let card of cards) {
-                        const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
-                        if (cardDni === typedDni && typedDni.length > 0) {
-                            e.preventDefault();
-                            const nombre = card.querySelector("strong").textContent.trim();
-                            const dialog = document.getElementById("dni-confirm-dialog");
-                            document.getElementById("dni-confirm-text").innerHTML = `Ya existe un paciente con el DNI <strong>${typedDni}</strong> (${nombre}).<br><br>¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`;
-                            dialog.showModal();
-                            
-                            document.getElementById("dni-confirm-accept").onclick = function() {
-                                const radio = card.querySelector('input[type="radio"]');
-                                if(radio) radio.checked = true;
-                                card.closest("form").submit();
-                            };
-                            return false; // Stop execution
-                        }
-                    }
+document.addEventListener("DOMContentLoaded", function() {
+    const dniInput = document.querySelector('#compact-patient-form input[name="dni"]');
+    if (!dniInput) return;
+
+    function checkDniMatch() {
+        const typedDni = dniInput.value.replace(/\D/g, "");
+        if (typedDni.length === 0) return;
+
+        const cards = document.querySelectorAll("[data-paciente-card]");
+        let matchedCard = null;
+        let matchedNombre = "";
+        
+        for (let card of cards) {
+            const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
+            if (cardDni === typedDni) {
+                matchedCard = card;
+                const strongTag = card.querySelector("strong");
+                matchedNombre = strongTag ? strongTag.textContent.trim() : "Paciente existente";
+                break;
+            }
+        }
+        
+        if (matchedCard) {
+            const dialog = document.getElementById("dni-confirm-dialog");
+            const textEl = document.getElementById("dni-confirm-text");
+            const acceptBtn = document.getElementById("dni-confirm-accept");
+            
+            if (textEl) {
+                textEl.innerHTML = `Ya existe un paciente con el DNI <strong>${typedDni}</strong> (${matchedNombre}).<br><br>¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`;
+            }
+            
+            if (acceptBtn) {
+                acceptBtn.onclick = function() {
+                    const radio = matchedCard.querySelector('input[type="radio"]');
+                    if(radio) radio.checked = true;
+                    const assignForm = matchedCard.closest("form");
+                    if(assignForm) assignForm.submit();
+                };
+            }
+            
+            if (dialog && typeof dialog.showModal === "function") {
+                if (!dialog.open) {
+                    dialog.showModal();
                 }
-            };
+            } else {
+                if (confirm(`Ya existe un paciente con el DNI ${typedDni} (${matchedNombre}).\n\n¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`)) {
+                    acceptBtn.onclick();
+                }
+            }
         }
     }
-    // Ejecutar inmediatamente y tambi?n on load por si acaso
-    initModalInterceptor();
-    window.addEventListener('load', initModalInterceptor);
-})();
+
+    // Check on blur (when user leaves the DNI field)
+    dniInput.addEventListener("blur", checkDniMatch);
+    
+    // Check on submit as fallback
+    const createForm = document.getElementById("compact-patient-form");
+    if (createForm) {
+        createForm.addEventListener("submit", function(e) {
+            const typedDni = dniInput.value.replace(/\D/g, "");
+            const cards = document.querySelectorAll("[data-paciente-card]");
+            for (let card of cards) {
+                const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
+                if (cardDni === typedDni && typedDni.length > 0) {
+                    e.preventDefault();
+                    checkDniMatch();
+                    return;
+                }
+            }
+        });
+    }
+});
 </script>
 <script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}
