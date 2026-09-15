@@ -35,16 +35,6 @@
         </div>
         
         <div style="display: flex; gap: 0.5rem;">
-            <!-- Selector de Agrupación -->
-            <form method="get" id="agrupar-form" style="display: flex;">
-                <input type="hidden" name="q" value="{{ busqueda }}">
-                <input type="hidden" name="estado" value="{{ estado_filtro }}">
-                <select name="agrupar" class="button button-secondary" style="height: 100%; border-color: #dcdfe4; background: white; padding-right: 2rem;" onchange="document.getElementById('agrupar-form').submit()">
-                    <option value="" {% if not agrupar %}selected{% endif %}>Sin agrupar</option>
-                    <option value="paciente" {% if agrupar == 'paciente' %}selected{% endif %}>Agrupar por Paciente</option>
-                    <option value="odontologo" {% if agrupar == 'odontologo' %}selected{% endif %}>Agrupar por Odontólogo</option>
-                </select>
-            </form>
 
             <!-- Selector de Vista (Solo JS) -->
             <div class="view-mode-selector" style="position: relative; display: inline-block;">
@@ -59,6 +49,19 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Pestañas de Agrupación -->
+    <div style="display: flex; gap: 1.5rem; padding: 15px 28px 0; border-bottom: 1px solid #dcdfe4; margin-bottom: 5px;">
+        <a href="?agrupar={% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}" style="text-decoration: none; padding-bottom: 10px; color: {% if not agrupar %}#005a9e{% else %}#5a6b7c{% endif %}; font-weight: {% if not agrupar %}600{% else %}400{% endif %}; border-bottom: 3px solid {% if not agrupar %}#005a9e{% else %}transparent{% endif %}; font-size: 0.9rem;">
+            Todos los estudios
+        </a>
+        <a href="?agrupar=paciente{% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}" style="text-decoration: none; padding-bottom: 10px; color: {% if agrupar == 'paciente' %}#005a9e{% else %}#5a6b7c{% endif %}; font-weight: {% if agrupar == 'paciente' %}600{% else %}400{% endif %}; border-bottom: 3px solid {% if agrupar == 'paciente' %}#005a9e{% else %}transparent{% endif %}; font-size: 0.9rem;">
+            Por Paciente
+        </a>
+        <a href="?agrupar=odontologo{% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}" style="text-decoration: none; padding-bottom: 10px; color: {% if agrupar == 'odontologo' %}#005a9e{% else %}#5a6b7c{% endif %}; font-weight: {% if agrupar == 'odontologo' %}600{% else %}400{% endif %}; border-bottom: 3px solid {% if agrupar == 'odontologo' %}#005a9e{% else %}transparent{% endif %}; font-size: 0.9rem;">
+            Por Odontólogo
+        </a>
     </div>
 
     <!-- Buscador -->
