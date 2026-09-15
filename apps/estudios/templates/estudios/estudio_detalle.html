@@ -33,8 +33,22 @@
         </summary>
         <div class="study-section-body">
             {% if tree %}
-            <div class="folder-root">
-                {% include "estudios/_folder_node.html" with node=tree %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">Archivos cargados</h3>
+                <div class="view-mode-selector" style="position: relative; display: inline-block;">
+                    <button type="button" class="button button-secondary" id="view-mode-btn" aria-haspopup="true" aria-expanded="false" style="display: flex; gap: 0.5rem; align-items: center;">
+                        {% include 'core/includes/icon.html' with name='grid' %} Ver
+                    </button>
+                    <div class="view-mode-menu" id="view-mode-menu" hidden style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #dcdfe4; border-radius: 8px; margin-top: 0.5rem; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 150px;">
+                        <button type="button" class="view-option" data-view="view-list" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Lista</button>
+                        <button type="button" class="view-option" data-view="view-details" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Detalles</button>
+                        <button type="button" class="view-option is-active" data-view="view-tiles" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px; font-weight: 600;">Mosaicos</button>
+                        <button type="button" class="view-option" data-view="view-icons" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Iconos grandes</button>
+                    </div>
+                </div>
+            </div>
+            <div class="explorer-container view-tiles folder-root" id="explorer-container">
+                {% include "estudios/_folder_explorer_node.html" with node=tree %}
             </div>
             {% else %}
             <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
@@ -80,4 +94,8 @@
 </div>
 {% endblock %}
 
-{% block extra_scripts %}<script src="{% static 'core/js/upload.js' %}" defer></script><script src="{% static 'core/js/study_access.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_scripts %}
+<script src="{% static 'core/js/upload.js' %}" defer></script>
+<script src="{% static 'core/js/study_access.js' %}?v=1" defer></script>
+<script src="{% static 'core/js/file_view.js' %}" defer></script>
+{% endblock %}

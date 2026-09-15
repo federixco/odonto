@@ -597,3 +597,131 @@
  . s t u d y - u p l o a d - l a y o u t   d e t a i l s [ o p e n ]   >   s u m m a r y   >   . f o l d e r - a r r o w   {   t r a n s f o r m :   r o t a t e ( 9 0 d e g )   ! i m p o r t a n t ;   }  
  . f o l d e r - t e x t ,   . f i l e - d e s c r i p t i o n   {   f l e x :   1 ;   }  
  
+
+/* VISOR DE ARCHIVOS */
+
+/* Hover de opciones */
+.view-option:hover { background: #f0f2f5; }
+.view-option.is-active { background: #e7eeee; color: #005a9e; }
+
+/* Ocultar/mostrar detalles en los diferentes modos de vista */
+.explorer-container.view-list .file-detail-col { display: none; }
+.explorer-container.view-icons .file-detail-col { display: none; }
+
+/* === VISTA LISTA === */
+.explorer-container.view-list .explorer-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.explorer-container.view-list .explorer-file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: background 0.1s;
+}
+.explorer-container.view-list .explorer-file-item:hover { background: #f5f7f9; }
+.explorer-container.view-list .file-icon { font-size: 1.2rem; color: #5a6b7c; }
+.explorer-container.view-list .file-name { font-size: 0.9rem; font-weight: 500; }
+
+/* === VISTA DETALLES === */
+.explorer-container.view-details .explorer-file-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.explorer-container.view-details .explorer-file-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #edf1f5;
+}
+.explorer-container.view-details .explorer-file-item:hover { background: #f5f7f9; }
+.explorer-container.view-details .file-name-wrap { display: flex; align-items: center; gap: 8px; }
+.explorer-container.view-details .file-icon { color: #5a6b7c; }
+.explorer-container.view-details .file-name { font-size: 0.9rem; font-weight: 500; }
+.explorer-container.view-details .file-detail-col { font-size: 0.85rem; color: #5a6b7c; }
+
+/* === VISTA MOSAICOS === */
+.explorer-container.view-tiles .explorer-file-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+.explorer-container.view-tiles .explorer-file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #dcdfe4;
+    border-radius: 6px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.explorer-container.view-tiles .explorer-file-item:hover {
+    border-color: #b0bac9;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.explorer-container.view-tiles .file-icon {
+    font-size: 2rem;
+    color: #005a9e;
+    background: #e7eeee;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+.explorer-container.view-tiles .file-name-wrap { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.explorer-container.view-tiles .file-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.explorer-container.view-tiles .file-detail-col { font-size: 0.75rem; color: #738496; }
+
+/* === VISTA ICONOS === */
+.explorer-container.view-icons .explorer-file-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 16px;
+    justify-items: center;
+}
+.explorer-container.view-icons .explorer-file-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    width: 100%;
+}
+.explorer-container.view-icons .explorer-file-item:hover { background: #f5f7f9; }
+.explorer-container.view-icons .file-icon {
+    font-size: 3rem;
+    color: #005a9e;
+    background: #e7eeee;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+.explorer-container.view-icons .file-name { font-size: 0.8rem; font-weight: 500; word-break: break-word; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Carpetas estilo Explorador */
+.explorer-folder { margin-bottom: 24px; }
+.explorer-folder-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #1b2633;
+    border-bottom: 1px solid #edf1f5;
+}
+.explorer-folder-icon { color: #f4c022; }
+.explorer-folder-body { margin-left: 12px; padding-left: 12px; border-left: 1px solid #edf1f5; }
