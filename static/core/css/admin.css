@@ -653,9 +653,10 @@
     gap: 12px;
 }
 .explorer-container.view-tiles .explorer-file-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    column-gap: 12px;
     padding: 12px;
     border: 1px solid #dcdfe4;
     border-radius: 6px;
@@ -665,7 +666,12 @@
     border-color: #b0bac9;
     box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
+.explorer-container.view-tiles .file-name-wrap {
+    display: contents;
+}
 .explorer-container.view-tiles .file-icon {
+    grid-column: 1;
+    grid-row: 1 / span 3;
     font-size: 2rem;
     color: #005a9e;
     background: #e7eeee;
@@ -676,9 +682,31 @@
     justify-content: center;
     border-radius: 8px;
 }
-.explorer-container.view-tiles .file-name-wrap { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-.explorer-container.view-tiles .file-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.explorer-container.view-tiles .file-detail-col { font-size: 0.75rem; color: #738496; }
+.explorer-container.view-tiles .file-name {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+.explorer-container.view-tiles .file-size {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 0.75rem;
+    color: #738496;
+    line-height: 1.2;
+}
+.explorer-container.view-tiles .file-type {
+    grid-column: 2;
+    grid-row: 3;
+    font-size: 0.75rem;
+    color: #738496;
+    line-height: 1.2;
+}
 
 /* === VISTA ICONOS === */
 .explorer-container.view-icons .explorer-file-list {
