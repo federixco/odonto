@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
@@ -23,9 +24,11 @@ from apps.archivos.services.storage import (
     generar_urls_prefirmadas,
     iniciar_multipart_upload,
 )
+from apps.accesos.models import Autorizacion
 from apps.auditoria.models import LogActividad
-from apps.core.enums import CategoriaArchivo, EstadoArchivo, EstadoEstudio, EstadoImportacion, FormatoArchivo, TipoEvento
+from apps.core.enums import CategoriaArchivo, EstadoAcceso, EstadoArchivo, EstadoEstudio, EstadoImportacion, FormatoArchivo, TipoEvento
 from apps.core.mixins import AdminRequeridoMixin
+from apps.usuarios.models import Odontologo
 from .forms import (
     ConfirmarImportacionForm,
     EstudioForm,
@@ -139,69 +142,140 @@ class CrearEstudioView(AdminRequeridoMixin, View):
         return render(request, "estudios/estudio_crear.html", {"form": form})
 
 class DetalleEstudioView(AdminRequeridoMixin, DetailView):
-    """Muestra el estudio y sus archivos agrupados por carpeta."""
+    """Resume el estudio, sus archivos y los profesionales con acceso."""
+
     model = Estudio
     template_name = "estudios/estudio_detalle.html"
     context_object_name = "estudio"
 
+    def get_queryset(self):
+        return Estudio.objects.select_related("paciente")
+
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        archivos = list(
-            self.object.archivos.order_by("ruta_relativa", "nombre_archivo")
+        archivos = self.object.archivos.order_by("ruta_relativa", "nombre_archivo")
+        contexto["archivos_pagina"] = Paginator(archivos, 100).get_page(
+            self.request.GET.get("archivos_pagina")
         )
-        contexto["total_archivos"] = len(archivos)
 
-        if not archivos:
-            contexto["tree"] = None
-            return contexto
-
-        # Construir árbol recursivo
-        tree = {"nombre": "Raíz", "archivos": [], "subcarpetas": {}, "tamano_total": 0, "total_archivos_recursivo": 0}
-        
-        for archivo in archivos:
-            partes = archivo.ruta_relativa.split("/") if archivo.ruta_relativa else []
-            
-            # Si el último elemento de la ruta es igual al nombre del archivo, es el archivo mismo.
-            # En webkitdirectory, path completo incluye el archivo al final.
-            if partes and partes[-1] == archivo.nombre_archivo:
-                partes_carpeta = partes[:-1]
-            else:
-                partes_carpeta = partes
-
-            current = tree
-            current["tamano_total"] += archivo.tamano
-            current["total_archivos_recursivo"] += 1
-            
-            for parte in partes_carpeta:
-                if parte not in current["subcarpetas"]:
-                    current["subcarpetas"][parte] = {
-                        "nombre": parte, 
-                        "archivos": [], 
-                        "subcarpetas": {}, 
-                        "tamano_total": 0,
-                        "total_archivos_recursivo": 0
-                    }
-                current = current["subcarpetas"][parte]
-                current["tamano_total"] += archivo.tamano
-                current["total_archivos_recursivo"] += 1
-                
-            current["archivos"].append(archivo)
-
-        # Si el árbol tiene una sola subcarpeta en la raíz y ningún archivo suelto en la raíz, 
-        # saltamos ese nivel superior para que la raíz real sea esa carpeta principal (ej: "tOMAS sANDRA gAL")
-        while not tree["archivos"] and len(tree["subcarpetas"]) == 1:
-            unica_llave = list(tree["subcarpetas"].keys())[0]
-            tree = tree["subcarpetas"][unica_llave]
-
-        contexto["tree"] = tree
+        autorizaciones = self.object.autorizaciones.select_related(
+            "odontologo__usuario",
+            "revocado_por",
+        ).order_by("odontologo__apellido", "odontologo__nombre")
+        contexto["accesos_vigentes"] = autorizaciones.filter(
+            estado_acceso=EstadoAcceso.VIGENTE
+        )
+        contexto["accesos_revocados"] = autorizaciones.filter(
+            estado_acceso=EstadoAcceso.REVOCADO
+        )
+        odontologos_asociados = autorizaciones.values_list(
+            "odontologo_id", flat=True
+        )
+        contexto["odontologos_disponibles"] = (
+            Odontologo.objects.select_related("usuario")
+            .exclude(pk__in=odontologos_asociados)
+            .order_by("apellido", "nombre", "matricula")
+        )
         return contexto
+
+
+class AgregarAccesoEstudioView(AdminRequeridoMixin, View):
+    """Otorga o reactiva el acceso de un odontólogo a un estudio."""
+
+    def post(self, request, pk):
+        estudio = get_object_or_404(
+            Estudio.objects.exclude(estado=EstadoEstudio.ELIMINADO),
+            pk=pk,
+        )
+        odontologo = get_object_or_404(
+            Odontologo.objects.select_related("usuario"),
+            pk=request.POST.get("odontologo"),
+        )
+
+        with transaction.atomic():
+            autorizacion, creada = Autorizacion.objects.get_or_create(
+                estudio=estudio,
+                odontologo=odontologo,
+            )
+            reactivada = False
+            if not creada and autorizacion.estado_acceso == EstadoAcceso.REVOCADO:
+                autorizacion.estado_acceso = EstadoAcceso.VIGENTE
+                autorizacion.fecha_revocacion = None
+                autorizacion.revocado_por = None
+                autorizacion.full_clean()
+                autorizacion.save(
+                    update_fields=[
+                        "estado_acceso",
+                        "fecha_revocacion",
+                        "revocado_por",
+                    ]
+                )
+                reactivada = True
+            if creada or reactivada:
+                LogActividad.objects.create(
+                    usuario=request.user,
+                    estudio=estudio,
+                    tipo_evento=TipoEvento.MODIFICACION_USUARIO,
+                    resultado="Acceso otorgado al estudio",
+                    detalles=f"Acceso del estudio {estudio.pk} otorgado a {odontologo}.",
+                )
+
+        if creada:
+            messages.success(request, f"{odontologo} ahora tiene acceso al estudio.")
+        elif reactivada:
+            messages.success(request, f"Se reactivó el acceso de {odontologo}.")
+        else:
+            messages.info(request, f"{odontologo} ya tenía acceso al estudio.")
+        return redirect("estudio_detalle", pk=estudio.pk)
+
+
+class RevocarAccesoEstudioView(AdminRequeridoMixin, View):
+    """Revoca un acceso sin eliminar su trazabilidad."""
+
+    def post(self, request, pk, autorizacion_id):
+        estudio = get_object_or_404(
+            Estudio.objects.exclude(estado=EstadoEstudio.ELIMINADO),
+            pk=pk,
+        )
+        autorizacion = get_object_or_404(
+            Autorizacion.objects.select_related("odontologo"),
+            pk=autorizacion_id,
+            estudio=estudio,
+        )
+        if autorizacion.estado_acceso == EstadoAcceso.REVOCADO:
+            messages.info(request, "Ese acceso ya estaba revocado.")
+            return redirect("estudio_detalle", pk=estudio.pk)
+
+        with transaction.atomic():
+            autorizacion.revocar(request.user)
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.REVOCACION,
+                resultado="Acceso revocado",
+                detalles=f"Acceso del estudio {estudio.pk} revocado a {autorizacion.odontologo}.",
+            )
+        messages.success(
+            request,
+            f"Se revocó el acceso de {autorizacion.odontologo}.",
+        )
+        return redirect("estudio_detalle", pk=estudio.pk)
 
 
 class CrearImportacionView(AdminRequeridoMixin, View):
     """Pantalla para seleccionar una carpeta exportada por el equipo clínico."""
 
     def get(self, request):
-        return render(request, "estudios/importacion_crear.html")
+        estudios_recientes = (
+            Estudio.objects.select_related("paciente")
+            .exclude(estado=EstadoEstudio.ELIMINADO)
+            .order_by("-created_at")[:5]
+        )
+        return render(
+            request,
+            "estudios/importacion_crear.html",
+            {"estudios_recientes": estudios_recientes},
+        )
 
 
 class IniciarImportacionView(AdminRequeridoMixin, View):
@@ -295,11 +369,8 @@ class DetalleImportacionView(AdminRequeridoMixin, DetailView):
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
         contexto["form"] = ConfirmarImportacionForm(importacion=self.object)
-        contexto["mostrar_registro_paciente"] = (
-            self.request.GET.get("registrar_paciente") == "1"
-            and not self.object.paciente_sugerido_id
-        )
-        if contexto["mostrar_registro_paciente"]:
+        contexto["mostrar_registro_paciente"] = not self.object.paciente_sugerido_id
+        if not self.object.paciente_sugerido_id:
             contexto["paciente_form"] = RegistrarPacienteDetectadoForm(
                 importacion=self.object
             )
@@ -349,10 +420,27 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
         lote = get_object_or_404(ImportacionEstudio, pk=importacion_id, iniciada_por=request.user, estado=EstadoImportacion.PENDIENTE_CONFIRMACION)
         form = ConfirmarImportacionForm(request.POST, importacion=lote)
         if not form.is_valid():
-            return render(request, "estudios/importacion_detalle.html", {"importacion": lote, "form": form})
+            contexto = {
+                "importacion": lote,
+                "form": form,
+                "mostrar_registro_paciente": not lote.paciente_sugerido_id,
+            }
+            if not lote.paciente_sugerido_id:
+                contexto["paciente_form"] = RegistrarPacienteDetectadoForm(
+                    importacion=lote
+                )
+            return render(request, "estudios/importacion_detalle.html", contexto)
         with transaction.atomic():
             estudio = form.save()
             lote.confirmar(estudio)
+            derivante = form.cleaned_data["derivante"]
+            Autorizacion.objects.create(
+                estudio=estudio,
+                odontologo=derivante,
+            )
             LogActividad.objects.create(usuario=request.user, estudio=estudio, tipo_evento=TipoEvento.IMPORTACION_CONFIRMADA, resultado="Estudio creado desde importación", detalles=f"Importación {lote.pk} confirmada.")
-        messages.success(request, "La carpeta fue confirmada y el estudio quedó creado en borrador.")
+        messages.success(
+            request,
+            f"La carpeta fue confirmada y el estudio quedó asociado a {derivante}.",
+        )
         return redirect("estudio_detalle", pk=estudio.pk)

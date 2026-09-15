@@ -1,66 +1,86 @@
 {% extends 'core/admin_base.html' %}
 {% load static %}
 
-{% block title %}Estudio #{{ estudio.pk }} | D.O.C.{% endblock %}
+{% block title %}Detalle del estudio | D.O.C.{% endblock %}
 
 {% block content %}
-<a class="admin-back-link text-link" href="{% url 'estudio_lista' %}">
-    <span aria-hidden="true">←</span> Volver a estudios
-</a>
+<div class="study-detail-page">
+    <a class="admin-back-link text-link" href="{% url 'estudio_lista' %}"><span aria-hidden="true">←</span> Volver a estudios</a>
 
-<header class="admin-page-heading">
-    <div>
-        <p class="eyebrow">ESTUDIO #{{ estudio.pk }} · {{ estudio.get_estado_display|upper }}</p>
-        <h1>{{ estudio.tipo }} <span>· {{ estudio.paciente }}</span></h1>
-        <p>Fecha del estudio: {{ estudio.fecha_estudio|date:'d/m/Y' }}</p>
-    </div>
-</header>
+    <header class="study-detail-hero">
+        <div><p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p><h1>{{ estudio.tipo }}</h1><p>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }} · DNI {{ estudio.paciente.dni }}</p></div>
+        <span class="account-status study-state {% if estudio.estado == 'PUBLICADO' %}status-enabled{% elif estudio.estado == 'BORRADOR' %}status-pending{% elif estudio.estado == 'ELIMINADO' %}status-disabled{% endif %}"><span></span>{{ estudio.get_estado_display }}</span>
+    </header>
 
-<div class="study-upload-layout" data-estudio-uploader data-estudio-id="{{ estudio.pk }}">
-    <section class="admin-card study-upload-card" aria-labelledby="upload-title">
-        <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
-        <div class="upload-area" id="drop-zone">
-            <span class="panel-icon">{% include 'core/includes/icon.html' with name='scan' %}</span>
-            <h2 id="upload-title">Seleccioná los archivos</h2>
-            <p>Podés arrastrarlos o buscarlos en el equipo del centro.</p>
-            <p class="upload-formats">DICOM · STL · PLY · JPG · PNG · TIFF · PDF</p>
-            <input type="file" id="file-input" class="visually-hidden" accept=".dcm,.dicom,.stl,.ply,.jpg,.jpeg,.png,.tif,.tiff,.pdf" multiple>
-            <button type="button" class="button button-small" id="file-select-button">Seleccionar archivos</button>
-        </div>
-        <div id="upload-progress-container" class="upload-progress" hidden>
-            <div class="progress-copy">
-                <strong>Procesando archivos</strong>
-                <span id="progress-text" aria-live="polite">Preparando la carga…</span>
-            </div>
-            <div class="progress-bar-wrap" role="progressbar" aria-label="Progreso de la carga" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <div id="progress-bar" class="progress-bar"></div>
-            </div>
-        </div>
-        <p id="upload-success" class="notice success" hidden aria-live="polite">Los archivos se cargaron y verificaron correctamente.</p>
-        <p id="upload-error" class="notice error" hidden role="alert"></p>
+    <section class="study-summary-grid" aria-label="Resumen del estudio">
+        <article><span>Paciente</span><strong>{{ estudio.paciente }}</strong><a href="{% url 'paciente_detalle' estudio.paciente_id %}">Ver ficha →</a></article>
+        <article><span>Fecha del estudio</span><strong>{{ estudio.fecha_estudio|date:'d/m/Y' }}</strong><small>Cargado {{ estudio.created_at|date:'d/m/Y H:i' }}</small></article>
+        <article><span>Archivos</span><strong>{{ archivos_pagina.paginator.count }}</strong><small>Elementos asociados</small></article>
+        <article><span>Accesos vigentes</span><strong>{{ accesos_vigentes|length }}</strong><small>Odontólogos autorizados</small></article>
     </section>
 
-    <aside class="admin-card study-files-card" aria-labelledby="files-title">
-        <div class="study-files-heading">
-            <div>
-                <p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p>
-                <h2 id="files-title">Archivos registrados</h2>
+    <details class="admin-card study-detail-section study-files-disclosure" id="archivos" {% if request.GET.archivos_pagina %}open{% endif %}>
+        <summary>
+            <span class="study-section-icon">{% include 'core/includes/icon.html' with name='cube' %}</span>
+            <span><strong>Mostrar detalles y archivos del estudio</strong><small>Consultá nombres, formatos, tamaños y estado de verificación.</small></span>
+            <span class="directory-count">{{ archivos_pagina.paginator.count }}</span><span class="disclosure-arrow" aria-hidden="true">⌄</span>
+        </summary>
+        <div class="study-section-body">
+            {% if archivos_pagina %}
+            <div class="study-file-directory">
+                <div class="study-file-directory-head" aria-hidden="true"><span>Archivo</span><span>Formato</span><span>Tamaño</span><span>Estado</span></div>
+                {% for archivo in archivos_pagina %}
+                <article class="study-file-row">
+                    <span class="file-format">{{ archivo.formato }}</span>
+                    <span class="file-description"><strong>{{ archivo.nombre_archivo }}</strong><small>{{ archivo.ruta_relativa|default:archivo.nombre_archivo }}</small>{% if archivo.hash_sha256 %}<small class="file-hash">SHA-256 · {{ archivo.hash_sha256|truncatechars:22 }}</small>{% endif %}</span>
+                    <span class="study-file-format">{{ archivo.get_categoria_display }}</span><span class="study-file-size">{{ archivo.tamano|filesizeformat }}</span>
+                    <span class="account-status {% if archivo.estado == 'COMPLETO' %}status-enabled{% elif archivo.estado == 'INCORRECTO' %}status-disabled{% else %}status-pending{% endif %}"><span></span>{{ archivo.get_estado_display }}</span>
+                </article>
+                {% endfor %}
             </div>
-            <span class="directory-count">{{ total_archivos }} archivo{{ total_archivos|pluralize }}</span>
-        </div>
+            {% if archivos_pagina.paginator.num_pages > 1 %}<nav class="study-file-pagination" aria-label="Páginas de archivos">{% if archivos_pagina.has_previous %}<a class="button button-secondary button-small" href="?archivos_pagina={{ archivos_pagina.previous_page_number }}#archivos">← Anteriores</a>{% endif %}<span>Página {{ archivos_pagina.number }} de {{ archivos_pagina.paginator.num_pages }}</span>{% if archivos_pagina.has_next %}<a class="button button-secondary button-small" href="?archivos_pagina={{ archivos_pagina.next_page_number }}#archivos">Siguientes →</a>{% endif %}</nav>{% endif %}
+            {% else %}
+            <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
+            {% endif %}
 
-        {% if tree %}
-            <div class="folder-root">
-                {% include 'estudios/_folder_node.html' with node=tree %}
-            </div>
+            {% if estudio.estado == 'BORRADOR' or estudio.estado == 'EN_REVISION' %}
+            <details class="manual-upload-option" data-estudio-uploader data-estudio-id="{{ estudio.pk }}">
+                <summary>Agregar archivos manualmente</summary>
+                <div class="manual-upload-body">
+                    <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
+                    <div class="upload-area" id="drop-zone"><span class="panel-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span><h2 id="upload-title">Seleccioná archivos adicionales</h2><p>Usá esta opción solo para corregir o completar una carga.</p><p class="upload-formats">DICOM · STL · PLY · JPG · PNG · TIFF · PDF</p><input type="file" id="file-input" class="visually-hidden" accept=".dcm,.dicom,.stl,.ply,.jpg,.jpeg,.png,.tif,.tiff,.pdf" multiple><button type="button" class="button button-small" id="file-select-button">Seleccionar archivos</button></div>
+                    <div id="upload-progress-container" class="upload-progress" hidden><div class="progress-copy"><strong>Procesando archivos</strong><span id="progress-text" aria-live="polite">Preparando la carga…</span></div><div class="progress-bar-wrap" role="progressbar" aria-label="Progreso de la carga" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar" class="progress-bar"></div></div></div>
+                    <p id="upload-success" class="notice success" hidden aria-live="polite">Los archivos se cargaron y verificaron correctamente.</p><p id="upload-error" class="notice error" hidden role="alert"></p>
+                </div>
+            </details>
+            {% endif %}
+        </div>
+    </details>
+
+    <section class="admin-card study-access-card" aria-labelledby="access-title" data-study-access>
+        <div class="study-access-heading"><div><p class="eyebrow">PERMISOS DEL ESTUDIO</p><h2 id="access-title">Accesos de odontólogos</h2><p>Administrá qué profesionales pueden consultar este estudio.</p></div><span class="directory-count">{{ accesos_vigentes|length }} vigentes</span></div>
+
+        {% if accesos_vigentes %}
+        <div class="study-access-list">{% for acceso in accesos_vigentes %}<article class="study-access-row"><span class="professional-avatar" aria-hidden="true">{{ acceso.odontologo.nombre|first|upper }}{{ acceso.odontologo.apellido|first|upper }}</span><span class="access-identity"><strong>{{ acceso.odontologo }}</strong><small>Matrícula {{ acceso.odontologo.matricula }} · Desde {{ acceso.fecha_autorizacion|date:'d/m/Y' }}</small></span><span class="account-status status-enabled"><span></span>Acceso vigente</span><form method="post" action="{% url 'estudio_acceso_revocar' estudio.pk acceso.pk %}">{% csrf_token %}<button class="button button-secondary button-small access-revoke-button" type="submit">Revocar acceso</button></form></article>{% endfor %}</div>
         {% else %}
-        <div class="directory-empty compact-empty">
-            <h3>Todavía no hay archivos</h3>
-            <p>El estudio permanecerá en borrador hasta completar la carga.</p>
-        </div>
+        <div class="study-access-empty"><strong>Ningún odontólogo tiene acceso todavía.</strong><p>Agregá al profesional que solicitó el estudio.</p></div>
         {% endif %}
-    </aside>
-</div>
 
-<script src="{% static 'core/js/upload.js' %}" defer></script>
+        {% if accesos_revocados %}<details class="revoked-accesses"><summary>Ver accesos revocados ({{ accesos_revocados|length }})</summary><div class="study-access-list">{% for acceso in accesos_revocados %}<article class="study-access-row is-revoked"><span class="professional-avatar" aria-hidden="true">{{ acceso.odontologo.nombre|first|upper }}{{ acceso.odontologo.apellido|first|upper }}</span><span class="access-identity"><strong>{{ acceso.odontologo }}</strong><small>Revocado {{ acceso.fecha_revocacion|date:'d/m/Y H:i' }}</small></span><span class="account-status status-disabled"><span></span>Revocado</span><form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ acceso.odontologo_id }}"><button class="button button-secondary button-small" type="submit">Reactivar</button></form></article>{% endfor %}</div></details>{% endif %}
+
+        <details class="add-study-access" {% if not accesos_vigentes %}open{% endif %}>
+            <summary>Agregar otro odontólogo</summary>
+            <div class="add-study-access-body">
+                <div class="study-access-tools"><div class="search-field"><label for="buscar-acceso">Buscar profesional</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-acceso" type="search" autocomplete="off" placeholder="Nombre, apellido, matrícula o correo" data-access-search></div></div><div class="form-field"><label for="filtrar-acceso">Estado de cuenta</label><select id="filtrar-acceso" data-access-status><option value="">Todos</option><option value="HABILITADA">Habilitados</option><option value="PENDIENTE">Pendientes</option><option value="DESHABILITADA">Deshabilitados</option></select></div></div>
+                {% if odontologos_disponibles %}
+                <div class="available-access-list">{% for odontologo in odontologos_disponibles %}<article class="available-access-row" data-access-card data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}" data-status="{{ odontologo.usuario.estado }}"><span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span><span class="access-identity"><strong>{{ odontologo }}</strong><small>Matrícula {{ odontologo.matricula }}{% if odontologo.usuario.email %} · {{ odontologo.usuario.email }}{% endif %}</small></span>{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}<form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ odontologo.pk }}"><button class="button button-small" type="submit">Dar acceso</button></form></article>{% endfor %}</div>
+                <div class="study-access-empty" data-access-empty hidden><strong>No hay coincidencias.</strong><p>Probá con otro nombre, matrícula o estado.</p></div>
+                {% else %}<div class="study-access-empty"><strong>No hay otros odontólogos disponibles.</strong><p>Podés registrar uno nuevo y volver directamente a este estudio.</p></div>{% endif %}
+                <div class="access-manual-link"><a class="button button-secondary" href="{% url 'odontologo_crear' %}?next={{ request.get_full_path|urlencode }}">{% include 'core/includes/icon.html' with name='plus' %} Registrar nuevo odontólogo</a></div>
+            </div>
+        </details>
+    </section>
+</div>
 {% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'core/js/upload.js' %}" defer></script><script src="{% static 'core/js/study_access.js' %}?v=1" defer></script>{% endblock %}

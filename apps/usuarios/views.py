@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
@@ -25,7 +26,7 @@ def redireccion_roles_view(request):
     """Enruta al usuario a su pantalla principal luego de iniciar sesión."""
     rol = request.user.rol
     if rol == RolUsuario.ADMINISTRADOR:
-        return redirect("odontologo_lista")
+        return redirect("importacion_crear")
     if rol == RolUsuario.ODONTOLOGO:
         return redirect("dashboard_odontologo")
     if rol == RolUsuario.PACIENTE:
@@ -39,7 +40,7 @@ class DashboardAdminView(AdminRequeridoMixin, View):
     """Conserva la URL anterior sin mostrar una pantalla intermedia."""
 
     def get(self, request, *args, **kwargs):
-        return redirect("odontologo_lista")
+        return redirect("importacion_crear")
 
 
 class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
@@ -68,17 +69,35 @@ class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
 class CrearOdontologoView(AdminRequeridoMixin, View):
     """Alta de odontólogo por el Administrador."""
 
+    def _retorno_seguro(self, request):
+        destino = request.POST.get("next") or request.GET.get("next", "")
+        if destino and url_has_allowed_host_and_scheme(
+            destino,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return destino
+        return ""
+
     def get(self, request):
         form = OdontologoCreacionAdminForm()
-        return render(request, "usuarios/odontologo_crear.html", {"form": form})
+        return render(
+            request,
+            "usuarios/odontologo_crear.html",
+            {"form": form, "next_url": self._retorno_seguro(request)},
+        )
 
     def post(self, request):
         form = OdontologoCreacionAdminForm(request.POST)
         if form.is_valid():
             odontologo = form.save()
             messages.success(request, f"Odontólogo {odontologo} creado exitosamente.")
-            return redirect("odontologo_lista")
-        return render(request, "usuarios/odontologo_crear.html", {"form": form})
+            return redirect(self._retorno_seguro(request) or "odontologo_lista")
+        return render(
+            request,
+            "usuarios/odontologo_crear.html",
+            {"form": form, "next_url": self._retorno_seguro(request)},
+        )
 
 
 class ListaOdontologosView(AdminRequeridoMixin, ListView):
