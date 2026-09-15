@@ -75,15 +75,31 @@
     </details>
 
     <section class="admin-card study-access-card" aria-labelledby="access-title" data-study-access>
-        <div class="study-access-heading"><div><p class="eyebrow">PERMISOS DEL ESTUDIO</p><h2 id="access-title">Accesos de odontólogos</h2><p>Administrá qué profesionales pueden consultar este estudio.</p></div><span class="directory-count">{{ accesos_vigentes|length }} vigentes</span></div>
+        <div class="study-access-heading"><div><p class="eyebrow">PERMISOS DEL ESTUDIO</p><h2 id="access-title">Accesos de odontólogos</h2><p>Administrá qué profesionales pueden consultar este estudio.</p></div><span class="directory-count">{{ accesos|length }} asignados</span></div>
 
-        {% if accesos_vigentes %}
-        <div class="study-access-list">{% for acceso in accesos_vigentes %}<article class="study-access-row"><span class="professional-avatar" aria-hidden="true">{{ acceso.odontologo.nombre|first|upper }}{{ acceso.odontologo.apellido|first|upper }}</span><span class="access-identity"><strong>{{ acceso.odontologo }}</strong><small>Matrícula {{ acceso.odontologo.matricula }} · Desde {{ acceso.fecha_autorizacion|date:'d/m/Y' }}</small></span><span class="account-status status-enabled"><span></span>Acceso vigente</span><form method="post" action="{% url 'estudio_acceso_revocar' estudio.pk acceso.pk %}">{% csrf_token %}<button class="button button-secondary button-small access-revoke-button" type="submit">Revocar acceso</button></form></article>{% endfor %}</div>
+        {% if accesos %}
+        <div class="study-access-list">
+            {% for acceso in accesos %}
+                {% if acceso.estado_acceso == 'VIGENTE' %}
+                <article class="study-access-row">
+                    <span class="professional-avatar" aria-hidden="true">{{ acceso.odontologo.nombre|first|upper }}{{ acceso.odontologo.apellido|first|upper }}</span>
+                    <span class="access-identity"><strong>{{ acceso.odontologo }}</strong><small>Matrícula {{ acceso.odontologo.matricula }} · Desde {{ acceso.fecha_autorizacion|date:'d/m/Y' }}</small></span>
+                    <span class="account-status status-enabled"><span></span>Acceso vigente</span>
+                    <form method="post" action="{% url 'estudio_acceso_revocar' estudio.pk acceso.pk %}">{% csrf_token %}<button class="button button-secondary button-small access-revoke-button" type="submit">Revocar acceso</button></form>
+                </article>
+                {% else %}
+                <article class="study-access-row is-revoked">
+                    <span class="professional-avatar" aria-hidden="true">{{ acceso.odontologo.nombre|first|upper }}{{ acceso.odontologo.apellido|first|upper }}</span>
+                    <span class="access-identity"><strong>{{ acceso.odontologo }}</strong><small>Revocado {{ acceso.fecha_revocacion|date:'d/m/Y H:i' }}</small></span>
+                    <span class="account-status status-disabled"><span></span>Revocado</span>
+                    <form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ acceso.odontologo_id }}"><button class="button button-secondary button-small" type="submit">Reactivar</button></form>
+                </article>
+                {% endif %}
+            {% endfor %}
+        </div>
         {% else %}
         <div class="study-access-empty"><strong>Ningún odontólogo tiene acceso todavía.</strong><p>Agregá al profesional que solicitó el estudio.</p></div>
         {% endif %}
-
-        {% if accesos_revocados %}<details class="revoked-accesses"><summary>Ver accesos revocados ({{ accesos_revocados|length }})</summary><div class="study-access-list">{% for acceso in accesos_revocados %}<article class="study-access-row is-revoked"><span class="professional-avatar" aria-hidden="true">{{ acceso.odontologo.nombre|first|upper }}{{ acceso.odontologo.apellido|first|upper }}</span><span class="access-identity"><strong>{{ acceso.odontologo }}</strong><small>Revocado {{ acceso.fecha_revocacion|date:'d/m/Y H:i' }}</small></span><span class="account-status status-disabled"><span></span>Revocado</span><form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ acceso.odontologo_id }}"><button class="button button-secondary button-small" type="submit">Reactivar</button></form></article>{% endfor %}</div></details>{% endif %}
 
         <details class="add-study-access" {% if not accesos_vigentes %}open{% endif %}>
             <summary>Agregar otro odontólogo</summary>

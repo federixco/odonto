@@ -214,9 +214,7 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
         contexto["accesos_vigentes"] = autorizaciones.filter(
             estado_acceso=EstadoAcceso.VIGENTE
         )
-        contexto["accesos_revocados"] = autorizaciones.filter(
-            estado_acceso=EstadoAcceso.REVOCADO
-        )
+        contexto["accesos"] = autorizaciones
         odontologos_asociados = autorizaciones.values_list(
             "odontologo_id", flat=True
         )
