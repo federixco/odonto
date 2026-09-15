@@ -111,7 +111,7 @@
                             </tr>
                             {% else %}
                             <tr style="cursor: pointer;" onclick="window.location='?agrupar={{ agrupar }}&carpeta_id={{ item.pk }}'">
-                                <th scope="row" class="professional-cell"><div class="professional-identity"><span class="professional-avatar" style="background:#fff2cc; color:#b08d00;" aria-hidden="true">{% include 'core/includes/icon.html' with name='cube' %}</span><span><strong>{{ item.apellido }}, {{ item.nombre }}</strong></span></div></th>
+                                <th scope="row" class="professional-cell"><div class="professional-identity"><span class="professional-avatar" style="background:#fff2cc; color:#b08d00;" aria-hidden="true">{% include 'core/includes/icon.html' with name='folder' %}</span><span><strong>{{ item.apellido }}, {{ item.nombre }}</strong></span></div></th>
                                 <td>{% if agrupar == 'odontologo' %}Mat. {{ item.matricula }}{% else %}DNI: {{ item.dni }}{% endif %}</td>
                                 <td>{{ item.num_estudios }} estudio{{ item.num_estudios|pluralize }}</td>
                                 <td></td>
@@ -138,7 +138,7 @@
                     {% else %}
                     <a href="?agrupar={{ agrupar }}&carpeta_id={{ item.pk }}" class="explorer-file-item" style="text-decoration: none; color: inherit;">
                         <div class="file-name-wrap">
-                            <span class="file-icon" style="background: #fff2cc; color: #b08d00;">{% include 'core/includes/icon.html' with name='cube' %}</span>
+                            <span class="file-icon" style="background: #fff2cc; color: #b08d00;">{% include 'core/includes/icon.html' with name='folder' %}</span>
                             <span class="file-name" title="{{ item.apellido }}, {{ item.nombre }}">{{ item.apellido }}, {{ item.nombre }}</span>
                         </div>
                         <div class="file-detail-col file-size">{% if agrupar == 'odontologo' %}Mat. {{ item.matricula }}{% else %}DNI: {{ item.dni }}{% endif %}</div>

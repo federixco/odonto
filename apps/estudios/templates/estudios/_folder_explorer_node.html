@@ -1,9 +1,11 @@
-<div class="explorer-folder">
+<details class="explorer-folder" {% if node.nombre == 'Raíz' %}open{% endif %}>
     {% if node.nombre != 'Raíz' %}
-    <div class="explorer-folder-title">
-        <span class="explorer-folder-icon">{% include 'core/includes/icon.html' with name='cube' %}</span>
+    <summary class="explorer-folder-title" style="cursor: pointer;">
+        <span class="explorer-folder-icon">{% include 'core/includes/icon.html' with name='folder' %}</span>
         {{ node.nombre }}
-    </div>
+    </summary>
+    {% else %}
+    <summary style="display: none;"></summary>
     {% endif %}
     
     <div class="explorer-folder-body">
@@ -26,4 +28,4 @@
         </div>
         {% endif %}
     </div>
-</div>
+</details>
