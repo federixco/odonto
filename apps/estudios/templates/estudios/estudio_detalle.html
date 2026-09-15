@@ -28,11 +28,8 @@
         <div class="study-section-body">
             {% if tree %}
             <div class="folder-root">
-                {% include 'estudios/_folder_node.html' with node=tree %}
+                {% include "estudios/_folder_node.html" with node=tree %}
             </div>
-            {% else %}
-            <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
-            {% endif %}<span>Página {{ archivos_pagina.number }} de {{ archivos_pagina.paginator.num_pages }}</span>{% if archivos_pagina.has_next %}<a class="button button-secondary button-small" href="?archivos_pagina={{ archivos_pagina.next_page_number }}#archivos">Siguientes →</a>{% endif %}</nav>{% endif %}
             {% else %}
             <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
             {% endif %}
