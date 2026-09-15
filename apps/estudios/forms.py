@@ -73,4 +73,14 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
                     "fecha_nacimiento": datos.get("fecha_nacimiento", ""),
                 }
             )
-        self.fields["dni"].help_text = "Dato sugerido por el archivo. Verificá que sea el DNI real antes de guardar."
+        dni_sugerido = self.initial.get("dni", "")
+        if dni_sugerido:
+            self.fields["dni"].help_text = "Dato sugerido por el archivo. Verificá que sea el DNI real antes de guardar."
+        else:
+            self.fields["dni"].help_text = "Ingresá el DNI del paciente."
+
+    def clean_dni(self):
+        dni = self.cleaned_data.get("dni")
+        if dni and Paciente.objects.filter(dni=dni).exists():
+            raise forms.ValidationError("Este paciente ya está registrado en el sistema. Por favor, utilizá el botón de búsqueda de abajo ('¿Este estudio pertenece a un paciente ya registrado?') para asignarle el estudio.")
+        return dni
