@@ -5,11 +5,12 @@ from .views import (AgregarAccesoEstudioView, AnalizarImportacionView,
                     DetalleImportacionView, IniciarArchivoImportadoView,
                     IniciarImportacionView, ListaEstudiosView,
                     RegistrarPacienteDetectadoView,
-                    RevocarAccesoEstudioView, PublicarEstudioView)
+                    RevocarAccesoEstudioView, PublicarEstudioView, VerEstudioView)
 
 urlpatterns = [
     path("", ListaEstudiosView.as_view(), name="estudio_lista"),
     path("crear/", CrearEstudioView.as_view(), name="estudio_crear"),
+    path("<int:pk>/ver/", VerEstudioView.as_view(), name="estudio_ver"),
     path("importar/", CrearImportacionView.as_view(), name="importacion_crear"),
     path("importaciones/iniciar/", IniciarImportacionView.as_view(), name="importacion_iniciar"),
     path("importaciones/<int:importacion_id>/archivos/iniciar/", IniciarArchivoImportadoView.as_view(), name="importacion_archivo_iniciar"),
