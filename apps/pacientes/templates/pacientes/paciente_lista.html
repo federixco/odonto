@@ -31,12 +31,10 @@
     </form>
     {% if pacientes %}
     <div class="explorer-container view-tiles" id="explorer-container">
-        <!-- Vista Detalles (Tabla) -->
         <div class="directory-table-wrap view-details-only"><table class="directory-table"><caption class="visually-hidden">Pacientes y estado de su acceso web.</caption><thead><tr><th scope="col">Paciente</th><th scope="col">DNI</th><th scope="col">Obra social</th><th scope="col">Acceso web</th><th scope="col">Acciones</th></tr></thead><tbody>
-            {% for paciente in pacientes %}<tr><th scope="row" class="professional-cell"><div class="professional-identity"><span class="professional-avatar" aria-hidden="true">{{ paciente.nombre|first|upper }}{{ paciente.apellido|first|upper }}</span><span><strong>{{ paciente.apellido }}, {{ paciente.nombre }}</strong><small>{% if paciente.fecha_nacimiento %}Nacimiento: {{ paciente.fecha_nacimiento|date:'d/m/Y' }}{% else %}Fecha de nacimiento no registrada{% endif %}</small></span></div></th><td class="matricula-cell">{{ paciente.dni }}</td><td>{{ paciente.obra_social|default:'No registrada' }}</td><td>{% if paciente.usuario %}{% include 'usuarios/includes/estado_cuenta.html' with usuario=paciente.usuario %}{% else %}<span class="account-status"><span></span> Sin cuenta</span>{% endif %}</td><td class="row-actions patient-actions"><a class="patient-view-link" href="{% url 'paciente_detalle' paciente.pk %}" aria-label="Ver ficha clínica de {{ paciente }}">Ver ficha <span aria-hidden="true">→</span></a><a class="patient-edit-link" href="{% url 'paciente_editar' paciente.pk %}" aria-label="Editar ficha clínica de {{ paciente }}">{% include 'core/includes/icon.html' with name='edit' %} Editar</a></td></tr>{% endfor %}
-        </tbody></table></div>
+        {% for paciente in pacientes %}<tr><th scope="row" class="professional-cell"><div class="professional-identity"><span class="professional-avatar" aria-hidden="true">{{ paciente.nombre|first|upper }}{{ paciente.apellido|first|upper }}</span><span><strong>{{ paciente.apellido }}, {{ paciente.nombre }}</strong><small>{% if paciente.fecha_nacimiento %}Nacimiento: {{ paciente.fecha_nacimiento|date:'d/m/Y' }}{% else %}Fecha de nacimiento no registrada{% endif %}</small></span></div></th><td class="matricula-cell">{{ paciente.dni }}</td><td>{{ paciente.obra_social|default:'No registrada' }}</td><td>{% if paciente.usuario %}{% include 'usuarios/includes/estado_cuenta.html' with usuario=paciente.usuario %}{% else %}<span class="account-status"><span></span> Sin cuenta</span>{% endif %}</td><td class="row-actions patient-actions"><a class="patient-view-link" href="{% url 'paciente_detalle' paciente.pk %}" aria-label="Ver ficha clínica de {{ paciente }}">Ver ficha <span aria-hidden="true">→</span></a><a class="patient-edit-link" href="{% url 'paciente_editar' paciente.pk %}" aria-label="Editar ficha clínica de {{ paciente }}">{% include 'core/includes/icon.html' with name='edit' %} Editar</a></td></tr>{% endfor %}
+    </tbody></table></div>
 
-        <!-- Vista Carpeta (Mosaicos, Iconos, Lista) -->
         <div class="explorer-file-list non-details-only">
             {% for paciente in pacientes %}
             <a href="{% url 'paciente_detalle' paciente.pk %}" class="explorer-file-item" style="text-decoration: none; color: inherit;">
@@ -55,7 +53,6 @@
     {% else %}<div class="directory-empty"><span class="panel-icon">{% include 'core/includes/icon.html' with name='people' %}</span><h3>{% if busqueda %}No encontramos coincidencias{% else %}Todavía no hay pacientes registrados{% endif %}</h3><p>{% if busqueda %}Probá con otro nombre, apellido o DNI.{% else %}Registrá la primera ficha clínica para comenzar a asociar estudios.{% endif %}</p>{% if busqueda %}<a class="text-link" href="{% url 'paciente_lista' %}">Ver todos los pacientes {% include 'core/includes/icon.html' with name='arrow' %}</a>{% else %}<a class="button button-small" href="{% url 'paciente_crear' %}">Registrar paciente</a>{% endif %}</div>{% endif %}
     <div class="directory-note">{% include 'core/includes/icon.html' with name='lock' %}<p>Una cuenta web es opcional y solo permite al paciente consultar sus propios estudios publicados.</p></div>
 </section>
-
 <style>
 .view-details .non-details-only { display: none !important; }
 .view-details .view-details-only { display: block !important; }
