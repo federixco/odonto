@@ -115,7 +115,7 @@
         </form>
 
         <details class="existing-patient-option">
-            <summary>Asignar a un paciente ya registrado (Búsqueda manual)</summary>
+            <summary>Paciente existente: agregar nuevo estudio</summary>
             <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
                 {% csrf_token %}
                 
