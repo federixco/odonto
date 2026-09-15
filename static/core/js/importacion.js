@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
             activarEtapa("review");
             progressTitle.textContent = "Datos encontrados";
             progressText.textContent = "Abriendo confirmación…";
-            window.location.assign(analisis.detalle_url);
+            window.location.assign(analisis.detalle_url + (window.DOC_UPLOAD_REDIRECT_APPEND || ""));
         } catch (error) {
             mostrarError(error.message || "No se pudo importar la carpeta.");
             progress.hidden = true;
@@ -223,4 +223,34 @@ document.addEventListener("DOMContentLoaded", () => {
             mostrarError(error.message || "No pudimos leer la carpeta.");
         }
     });
+
+    window.DOC_manejarDropOdontologo = async function(e, nombreOdontologo, idOdontologo) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Remove styling class
+        e.currentTarget.style.borderColor = "";
+        e.currentTarget.style.backgroundColor = "";
+
+        if (root.dataset.busy === "true") return;
+        
+        if (!window.confirm("¿Estás seguro que deseas cargar y asignar esta carpeta de estudio para " + nombreOdontologo + "?")) {
+            return;
+        }
+
+        window.DOC_UPLOAD_REDIRECT_APPEND = "?derivante=" + idOdontologo;
+        
+        if (root.tagName === "DIALOG") {
+            root.showModal();
+        } else {
+            root.hidden = false;
+        }
+        
+        try {
+            const files = await archivosDesdeCarpetaSoltada(e.dataTransfer);
+            await procesar(files);
+        } catch (err) {
+            mostrarError(err.message);
+        }
+    };
 });

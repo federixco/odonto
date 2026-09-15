@@ -490,7 +490,13 @@ class DetalleImportacionView(AdminRequeridoMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        contexto["form"] = ConfirmarImportacionForm(importacion=self.object)
+        
+        derivante_id = self.request.GET.get('derivante')
+        initial = {}
+        if derivante_id:
+            initial['derivante'] = derivante_id
+            
+        contexto["form"] = ConfirmarImportacionForm(importacion=self.object, initial=initial)
         contexto["mostrar_registro_paciente"] = not self.object.paciente_sugerido_id
         if not self.object.paciente_sugerido_id:
             contexto["paciente_form"] = RegistrarPacienteDetectadoForm(
