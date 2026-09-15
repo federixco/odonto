@@ -8,8 +8,8 @@
     <meta name="robots" content="noindex, nofollow">
     <title>{% block title %}Administración | D.O.C.{% endblock %}</title>
     <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
-    <link rel="stylesheet" href="{% static 'core/css/public.css' %}">
-    <link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=admin-sidebar-vertical-2">
+    <link rel="stylesheet" href="{% static 'core/css/public.css' %}?v=details-scope-2">
+    <link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=admin-correccion-detectados-4">
     <script src="{% static 'core/js/public.js' %}" defer></script>
 </head>
 <body class="admin-page">
@@ -35,6 +35,14 @@
                 <div>
                     <p class="admin-sidebar-label">Gestión del centro</p>
                     <nav class="admin-sidebar-nav" aria-label="Administración del centro">
+                        <a class="admin-sidebar-link admin-sidebar-primary" href="{% url 'importacion_crear' %}" {% if request.resolver_match.url_name|slice:':11' == 'importacion' %}aria-current="page"{% endif %}>
+                            {% include 'core/includes/icon.html' with name='scan' %}
+                            <span><strong>Cargar estudio</strong><small>Seleccionar una carpeta</small></span>
+                        </a>
+                        <a class="admin-sidebar-link" href="{% url 'estudio_lista' %}" {% if request.resolver_match.url_name|slice:':7' == 'estudio' %}aria-current="page"{% endif %}>
+                            {% include 'core/includes/icon.html' with name='cube' %}
+                            <span><strong>Estudios</strong><small>Historial del centro</small></span>
+                        </a>
                         <a class="admin-sidebar-link" href="{% url 'paciente_lista' %}" {% if request.resolver_match.url_name|slice:':8' == 'paciente' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='people' %}
                             <span><strong>Pacientes</strong><small>Fichas clínicas</small></span>
@@ -42,14 +50,6 @@
                         <a class="admin-sidebar-link" href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='tooth' %}
                             <span><strong>Odontólogos derivantes</strong><small>Cuentas profesionales</small></span>
-                        </a>
-                        <a class="admin-sidebar-link" href="{% url 'estudio_lista' %}" {% if request.resolver_match.url_name == 'estudio_lista' %}aria-current="page"{% endif %}>
-                            {% include 'core/includes/icon.html' with name='cube' %}
-                            <span><strong>Estudios</strong><small>Gestión y publicación</small></span>
-                        </a>
-                        <a class="admin-sidebar-link" href="{% url 'importacion_crear' %}" {% if request.resolver_match.url_name|slice:':11' == 'importacion' or request.resolver_match.url_name|slice:':7' == 'estudio' and request.resolver_match.url_name != 'estudio_lista' %}aria-current="page"{% endif %}>
-                            {% include 'core/includes/icon.html' with name='scan' %}
-                            <span><strong>Cargar estudio</strong><small>Importar carpeta clínica</small></span>
                         </a>
                     </nav>
                 </div>
@@ -68,5 +68,6 @@
             <footer class="admin-container admin-footer"><span>D.O.C. · Diagnóstico Odontológico Computado</span><span>{% include 'core/includes/icon.html' with name='lock' %} Espacio de administración</span></footer>
         </div>
     </div>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

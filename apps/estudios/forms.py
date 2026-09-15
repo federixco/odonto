@@ -1,5 +1,6 @@
 from django import forms
 from apps.pacientes.models import Paciente
+from apps.usuarios.models import Odontologo
 from .models import Estudio
 
 class EstudioForm(forms.ModelForm):
@@ -15,8 +16,20 @@ class EstudioForm(forms.ModelForm):
 class ConfirmarImportacionForm(EstudioForm):
     """Formulario final: transforma una detección revisada en un estudio."""
 
+    derivante = forms.ModelChoiceField(
+        label="Odontólogo derivante",
+        queryset=Odontologo.objects.none(),
+        empty_label=None,
+        help_text="Profesional que solicitó el estudio y podrá consultarlo.",
+        widget=forms.RadioSelect,
+    )
+
     def __init__(self, *args, importacion=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["derivante"].queryset = (
+            Odontologo.objects.select_related("usuario")
+            .order_by("apellido", "nombre", "matricula")
+        )
         if importacion and not self.is_bound:
             datos = importacion.datos_detectados or {}
             self.initial.update(

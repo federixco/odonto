@@ -50,29 +50,29 @@ class AccesosRolesTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith(reverse("login")))
 
-    def test_acceso_anterior_del_admin_redirige_al_listado(self):
+    def test_acceso_anterior_del_admin_redirige_a_carga_rapida(self):
         self.client.login(username="admin_test", password=self.password)
         response = self.client.get(reverse("dashboard_admin"), follow=True)
-        self.assertRedirects(response, reverse("odontologo_lista"))
-        self.assertTemplateUsed(response, "usuarios/odontologo_lista.html")
+        self.assertRedirects(response, reverse("importacion_crear"))
+        self.assertTemplateUsed(response, "estudios/importacion_crear.html")
 
-    def test_login_admin_termina_en_odontologos_sin_inicio_intermedio(self):
+    def test_login_admin_termina_en_carga_rapida(self):
         response = self.client.post(reverse("login"), {
             "username": "admin_test", "password": self.password,
         }, follow=True)
         self.assertEqual(response.redirect_chain, [
             (reverse("redireccion_roles"), 302),
-            (reverse("odontologo_lista"), 302),
+            (reverse("importacion_crear"), 302),
         ])
-        self.assertTemplateUsed(response, "usuarios/odontologo_lista.html")
+        self.assertTemplateUsed(response, "estudios/importacion_crear.html")
 
-    def test_login_admin_con_next_anterior_tambien_abre_odontologos(self):
+    def test_login_admin_con_next_anterior_tambien_abre_carga_rapida(self):
         response = self.client.post(reverse("login"), {
             "username": "admin_test", "password": self.password,
             "next": reverse("dashboard_admin"),
         }, follow=True)
-        self.assertRedirects(response, reverse("odontologo_lista"))
-        self.assertTemplateUsed(response, "usuarios/odontologo_lista.html")
+        self.assertRedirects(response, reverse("importacion_crear"))
+        self.assertTemplateUsed(response, "estudios/importacion_crear.html")
 
     def test_admin_rechazado_en_dashboard_odontologo(self):
         """El administrador no debería acceder a vistas exclusivas de odontólogo."""

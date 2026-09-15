@@ -1,52 +1,104 @@
 {% extends 'core/admin_base.html' %}
+{% load static %}
 
-{% block title %}Revisar importación | D.O.C.{% endblock %}
+{% block title %}Confirmar estudio | D.O.C.{% endblock %}
 
 {% block content %}
-<a class="admin-back-link text-link" href="{% url 'importacion_crear' %}"><span aria-hidden="true">←</span> Nueva importación</a>
-<header class="admin-page-heading"><div><p class="eyebrow">IMPORTACIÓN #{{ importacion.pk }}</p><h1>Revisá la <span>detección.</span></h1><p>{{ importacion.nombre_carpeta }} · {{ importacion.cantidad_archivos }} archivos · {{ importacion.tamano_total|filesizeformat }}</p></div></header>
-<div class="admin-form-layout">
-    <section class="admin-card form-card">
-        <h2>Crear estudio desde esta carpeta</h2>
-        <p class="form-help">Los campos son sugerencias. Confirmá siempre el paciente y corregí lo que sea necesario antes de continuar.</p>
-        {% if importacion.advertencias %}<div class="notice warning"><strong>Revisión requerida</strong><ul>{% for advertencia in importacion.advertencias %}<li>{{ advertencia }}</li>{% endfor %}</ul></div>{% endif %}
-        {% if not importacion.paciente_sugerido_id %}
-            <div class="admin-tip">
-                <strong>No encontramos un paciente coincidente</strong>
-                <p>Podés seleccionar una ficha existente o registrar una nueva con los datos detectados.</p>
-                {% if not mostrar_registro_paciente %}
-                    <a class="text-link" href="{% url 'importacion_detalle' importacion.pk %}?registrar_paciente=1">Registrar paciente detectado →</a>
-                {% endif %}
+<div class="review-page">
+    <a class="admin-back-link text-link" href="{% url 'importacion_crear' %}"><span aria-hidden="true">←</span> Cargar otra carpeta</a>
+    <header class="review-heading">
+        <p class="eyebrow">CARPETA ANALIZADA</p>
+        <h1>Confirmá el <span>estudio detectado.</span></h1>
+        <p>{{ importacion.nombre_carpeta }} · {{ importacion.cantidad_archivos }} archivos · {{ importacion.tamano_total|filesizeformat }}</p>
+    </header>
+
+    {% if importacion.advertencias %}
+    <div class="notice warning review-warning" role="status">
+        <strong>Hay datos que conviene revisar</strong>
+        <ul>{% for advertencia in importacion.advertencias %}<li>{{ advertencia }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    {% if importacion.paciente_sugerido_id %}
+    <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-card detection-card" novalidate>
+        {% csrf_token %}
+        <div class="detection-success">
+            {% include 'core/includes/icon.html' with name='check' %}
+            <span><strong>Datos encontrados automáticamente</strong><small>Revisalos y confirmá. No hace falta volver a escribirlos.</small></span>
+        </div>
+
+        {% if form.errors %}<div class="notice error" role="alert"><strong>No pudimos confirmar el estudio.</strong> Revisá el derivante y los datos indicados.</div>{% endif %}
+
+        <dl class="detection-grid">
+            <div><dt>Paciente</dt><dd>{{ importacion.paciente_sugerido }}</dd><small>DNI {{ importacion.paciente_sugerido.dni }}</small></div>
+            <div><dt>Tipo de estudio</dt><dd>{{ form.tipo.value|default:'No identificado' }}</dd></div>
+            <div><dt>Fecha</dt><dd>{{ form.fecha_estudio.value|default:'No identificada' }}</dd></div>
+            <div><dt>Archivos</dt><dd>{{ importacion.archivos.count }} completos</dd><small>{{ importacion.datos_detectados.software_origen|default:'Origen no identificado' }}</small></div>
+        </dl>
+
+        <details class="detected-edit detected-edit-prominent" {% if form.errors %}open{% endif %}>
+            <summary>
+                <span class="detected-edit-icon">{% include 'core/includes/icon.html' with name='edit' %}</span>
+                <span><strong>¿Hay un dato incorrecto?</strong><small>Corregir paciente o datos detectados antes de asociar el odontólogo.</small></span>
+                <span class="detected-edit-action">Corregir datos</span>
+            </summary>
+            <div class="admin-form detection-edit-form">
+                <p class="form-help">Modificá únicamente lo que no coincida con la carpeta original.</p>
+                {% include 'core/includes/form_field.html' with field=form.paciente %}
+                {% include 'core/includes/form_field.html' with field=form.tipo %}
+                {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
+                {% include 'core/includes/form_field.html' with field=form.observaciones %}
             </div>
-            {% if mostrar_registro_paciente %}
-                <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" class="admin-form" novalidate>
-                    {% csrf_token %}
-                    <h3>Registrar paciente</h3>
-                    <p class="form-help">Revisá especialmente el DNI: puede ser un identificador interno del equipo.</p>
-                    {% include 'core/includes/form_field.html' with field=paciente_form.nombre %}
-                    {% include 'core/includes/form_field.html' with field=paciente_form.apellido %}
-                    {% include 'core/includes/form_field.html' with field=paciente_form.dni %}
+        </details>
+
+        {% include 'estudios/derivante_selector.html' %}
+
+        <div class="review-actions">
+            <button type="submit" class="button review-confirm-button">Confirmar estudio</button>
+            <span>Se guardará como borrador.</span>
+        </div>
+
+    </form>
+    {% else %}
+    <section class="admin-card patient-exception-card">
+        <div class="exception-heading">
+            <span class="exception-icon">?</span>
+            <div><p class="eyebrow">REVISIÓN NECESARIA</p><h2>No encontramos una ficha coincidente</h2><p>Los datos detectados ya están completados. Verificá el DNI y creá la ficha para continuar.</p></div>
+        </div>
+
+        <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" class="admin-form compact-patient-form" novalidate>
+            {% csrf_token %}
+            {% if paciente_form.errors %}<div class="notice error" role="alert">Revisá los campos indicados.</div>{% endif %}
+            <div class="form-grid">
+                {% include 'core/includes/form_field.html' with field=paciente_form.nombre %}
+                {% include 'core/includes/form_field.html' with field=paciente_form.apellido %}
+                {% include 'core/includes/form_field.html' with field=paciente_form.dni %}
+            </div>
+            <details class="detected-edit optional-patient-data" {% if paciente_form.fecha_nacimiento.errors or paciente_form.obra_social.errors %}open{% endif %}>
+                <summary>Agregar datos opcionales</summary>
+                <div class="form-grid">
                     {% include 'core/includes/form_field.html' with field=paciente_form.fecha_nacimiento %}
                     {% include 'core/includes/form_field.html' with field=paciente_form.obra_social %}
-                    <div class="admin-form-actions"><button type="submit" class="button button-secondary">Guardar ficha y continuar</button></div>
-                </form>
-            {% endif %}
-        {% endif %}
-        <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
-            {% csrf_token %}
-            {% include 'core/includes/form_field.html' with field=form.paciente %}
-            {% include 'core/includes/form_field.html' with field=form.tipo %}
-            {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
-            {% include 'core/includes/form_field.html' with field=form.observaciones %}
-            <div class="admin-form-actions"><button type="submit" class="button">Confirmar y crear estudio</button></div>
+                </div>
+            </details>
+            <div class="review-actions"><button type="submit" class="button review-confirm-button">Crear paciente y continuar</button></div>
         </form>
+
+        <details class="existing-patient-option">
+            <summary>El paciente ya existe: elegir otra ficha</summary>
+            <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
+                {% csrf_token %}
+                {% include 'core/includes/form_field.html' with field=form.paciente %}
+                {% include 'core/includes/form_field.html' with field=form.tipo %}
+                {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
+                {% include 'core/includes/form_field.html' with field=form.observaciones %}
+                {% include 'estudios/derivante_selector.html' %}
+                <div class="admin-form-actions"><button type="submit" class="button button-secondary">Usar esta ficha y confirmar</button></div>
+            </form>
+        </details>
     </section>
-    <aside class="admin-card study-files-card">
-        <p class="eyebrow">RESULTADO</p><h2>{{ importacion.datos_detectados.formato|default:'Formato no identificado' }}</h2>
-        <ul class="study-file-list">
-            <li><span class="file-format">{{ importacion.archivos.count }}</span><span class="file-description"><strong>Archivos completos</strong><small>{{ importacion.datos_detectados.software_origen|default:'Software no identificado' }}</small></span></li>
-            {% if importacion.datos_detectados.nombre_paciente %}<li><span class="file-format">DICOM</span><span class="file-description"><strong>{{ importacion.datos_detectados.nombre_paciente }}</strong><small>ID detectado: {{ importacion.datos_detectados.identificador_paciente|default:'sin dato' }}</small></span></li>{% endif %}
-        </ul>
-    </aside>
+    {% endif %}
 </div>
 {% endblock %}
+
+{% block extra_scripts %}<script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}

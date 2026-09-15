@@ -131,7 +131,7 @@ details > summary::-webkit-details-marker { display: none; }
 .service-copy summary > span { font-size: 1.25rem; font-weight: 400; }
 .service-copy ul { padding-left: 19px; font-size: .81rem; color: var(--muted); margin-bottom: 0; }
 .service-copy li + li { margin-top: 8px; }
-details[open] summary > span, .faq details[open] summary > .icon { transform: rotate(45deg); }
+.service-copy details[open] summary > span, .faq details[open] summary > .icon { transform: rotate(45deg); }
 .service-card-feature { background: #f0f8f7; }
 .specialty-art { background: #e3f2f1; display: flex; align-items: center; justify-content: center; }
 .specialty-ring { position: absolute; width: 144px; height: 144px; border: 1px solid #87c6c8; border-radius: 50%; top: 25px; }

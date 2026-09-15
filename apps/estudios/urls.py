@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import (AnalizarImportacionView, CompletarArchivoImportadoView,
-                    ConfirmarImportacionView, CrearEstudioView,
+from .views import (AgregarAccesoEstudioView, AnalizarImportacionView,
+                    CompletarArchivoImportadoView, ConfirmarImportacionView, CrearEstudioView,
                     CrearImportacionView, DetalleEstudioView,
                     DetalleImportacionView, IniciarArchivoImportadoView,
                     IniciarImportacionView, ListaEstudiosView,
-                    RegistrarPacienteDetectadoView)
+                    RegistrarPacienteDetectadoView,
+                    RevocarAccesoEstudioView)
 
 urlpatterns = [
     path("", ListaEstudiosView.as_view(), name="estudio_lista"),
@@ -17,5 +18,7 @@ urlpatterns = [
     path("importaciones/<int:pk>/", DetalleImportacionView.as_view(), name="importacion_detalle"),
     path("importaciones/<int:importacion_id>/registrar-paciente/", RegistrarPacienteDetectadoView.as_view(), name="importacion_registrar_paciente"),
     path("importaciones/<int:importacion_id>/confirmar/", ConfirmarImportacionView.as_view(), name="importacion_confirmar"),
+    path("<int:pk>/accesos/agregar/", AgregarAccesoEstudioView.as_view(), name="estudio_acceso_agregar"),
+    path("<int:pk>/accesos/<int:autorizacion_id>/revocar/", RevocarAccesoEstudioView.as_view(), name="estudio_acceso_revocar"),
     path("<int:pk>/", DetalleEstudioView.as_view(), name="estudio_detalle"),
 ]

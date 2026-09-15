@@ -61,6 +61,7 @@ class PanelOdontologosPresentacionTests(TestCase):
         self.assertContains(odontologos, "Odontólogos derivantes")
         self.assertContains(odontologos, "Pacientes")
         self.assertContains(odontologos, "Cargar estudio")
+        self.assertContains(odontologos, "Seleccionar una carpeta")
         self.assertContains(
             odontologos, f'href="{reverse("importacion_crear")}"',
         )
@@ -71,6 +72,7 @@ class PanelOdontologosPresentacionTests(TestCase):
 
         importacion = self.client.get(reverse("importacion_crear"))
         self.assertContains(importacion, 'aria-current="page"', count=1)
+        self.assertContains(importacion, 'class="admin-sidebar-link admin-sidebar-primary"')
 
     def test_listado_muestra_datos_estado_y_acciones_reales(self):
         response = self.client.get(reverse("odontologo_lista"))
