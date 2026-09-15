@@ -115,7 +115,10 @@
         </form>
 
         <details class="existing-patient-option">
-            <summary>Paciente existente: agregar nuevo estudio</summary>
+            <summary style="display: flex; align-items: center; gap: 10px; background: #eef2f6; padding: 16px; border-radius: 8px; border: 1px dashed #b9ccd8; font-size: 0.95rem; font-weight: 600; color: var(--navy); cursor: pointer; margin-top: 15px; transition: background 0.2s;" onmouseover="this.style.background='#e2eaf1'" onmouseout="this.style.background='#eef2f6'">
+    {% include 'core/includes/icon.html' with name='search' %}
+    ¿Este estudio pertenece a un paciente ya registrado? Hacé clic para buscarlo y asociarlo.
+</summary>
             <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
                 {% csrf_token %}
                 
