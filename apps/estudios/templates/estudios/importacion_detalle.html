@@ -39,12 +39,42 @@
         <details class="detected-edit detected-edit-prominent" {% if form.errors %}open{% endif %}>
             <summary>
                 <span class="detected-edit-icon">{% include 'core/includes/icon.html' with name='edit' %}</span>
-                <span><strong>¿Hay un dato incorrecto?</strong><small>Corregir paciente o datos detectados antes de asociar el odontólogo.</small></span>
+                <span><strong>Editar datos detectados</strong><small>Cambiar paciente, fecha o tipo de estudio manualmente.</small></span>
                 <span class="detected-edit-action">Corregir datos</span>
             </summary>
             <div class="admin-form detection-edit-form">
                 <p class="form-help">Modificá únicamente lo que no coincida con la carpeta original.</p>
-                {% include 'core/includes/form_field.html' with field=form.paciente %}
+                
+<div class="paciente-selector" style="margin-bottom: 1.5rem;">
+    <label class="form-label">Paciente asignado al estudio</label>
+    <div class="derivante-tools" style="margin-top: 0.5rem; margin-bottom: 1rem;">
+        <div class="search-field">
+            <div class="search-input">
+                {% include 'core/includes/icon.html' with name='search' %}
+                <input type="search" autocomplete="off" placeholder="Buscar por nombre, apellido o DNI..." oninput="filtrarPacientes(this)">
+            </div>
+        </div>
+    </div>
+    <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
+        {% with seleccionado=form.paciente.value|stringformat:'s' %}
+        {% for pac in form.fields.paciente.queryset %}
+        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
+            <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
+            <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
+            <span class="derivante-identity">
+                <strong>{{ pac.apellido }}, {{ pac.nombre }}</strong>
+                <small>DNI {{ pac.dni }}</small>
+            </span>
+            <span class="derivante-check" aria-hidden="true">✓</span>
+        </label>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <div class="derivante-empty" data-paciente-empty hidden style="padding: 1rem; text-align: center; color: #5a6b7c;">
+        No encontramos un paciente con esos datos.
+    </div>
+</div>
+
                 {% include 'core/includes/form_field.html' with field=form.tipo %}
                 {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
                 {% include 'core/includes/form_field.html' with field=form.observaciones %}
@@ -85,10 +115,40 @@
         </form>
 
         <details class="existing-patient-option">
-            <summary>El paciente ya existe: elegir otra ficha</summary>
+            <summary>Asignar a un paciente ya registrado (Búsqueda manual)</summary>
             <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
                 {% csrf_token %}
-                {% include 'core/includes/form_field.html' with field=form.paciente %}
+                
+<div class="paciente-selector" style="margin-bottom: 1.5rem;">
+    <label class="form-label">Paciente asignado al estudio</label>
+    <div class="derivante-tools" style="margin-top: 0.5rem; margin-bottom: 1rem;">
+        <div class="search-field">
+            <div class="search-input">
+                {% include 'core/includes/icon.html' with name='search' %}
+                <input type="search" autocomplete="off" placeholder="Buscar por nombre, apellido o DNI..." oninput="filtrarPacientes(this)">
+            </div>
+        </div>
+    </div>
+    <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
+        {% with seleccionado=form.paciente.value|stringformat:'s' %}
+        {% for pac in form.fields.paciente.queryset %}
+        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
+            <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
+            <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
+            <span class="derivante-identity">
+                <strong>{{ pac.apellido }}, {{ pac.nombre }}</strong>
+                <small>DNI {{ pac.dni }}</small>
+            </span>
+            <span class="derivante-check" aria-hidden="true">✓</span>
+        </label>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <div class="derivante-empty" data-paciente-empty hidden style="padding: 1rem; text-align: center; color: #5a6b7c;">
+        No encontramos un paciente con esos datos.
+    </div>
+</div>
+
                 {% include 'core/includes/form_field.html' with field=form.tipo %}
                 {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
                 {% include 'core/includes/form_field.html' with field=form.observaciones %}
