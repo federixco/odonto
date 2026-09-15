@@ -96,7 +96,7 @@
             <div><p class="eyebrow">REVISIÓN NECESARIA</p><h2>No encontramos una ficha coincidente</h2><p>Los datos detectados ya están completados. Verificá el DNI y creá la ficha para continuar.</p></div>
         </div>
 
-        <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" class="admin-form compact-patient-form" novalidate>
+        <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" id="compact-patient-form" class="admin-form compact-patient-form" novalidate>
             {% csrf_token %}
             {% if paciente_form.errors %}<div class="notice error" role="alert">Revisá los campos indicados.</div>{% endif %}
             <div class="form-grid">
@@ -182,34 +182,39 @@
 {% block extra_scripts %}
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    const createForm = document.querySelector(".compact-patient-form");
-    if (createForm) {
-        createForm.addEventListener("submit", function(e) {
-            const dniInput = createForm.querySelector('input[name="dni"]');
-            if (dniInput && dniInput.value.trim() !== "") {
-                const typedDni = dniInput.value.replace(/\D/g, "");
-                const cards = document.querySelectorAll("[data-paciente-card]");
-                for (let card of cards) {
-                    const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
-                    if (cardDni === typedDni && typedDni.length > 0) {
-                        e.preventDefault();
-                        const nombre = card.querySelector("strong").textContent.trim();
-                        const dialog = document.getElementById("dni-confirm-dialog");
-                        document.getElementById("dni-confirm-text").innerHTML = `Ya existe un paciente con el DNI <strong>${typedDni}</strong> (${nombre}).<br><br>¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`;
-                        dialog.showModal();
-                        
-                        document.getElementById("dni-confirm-accept").onclick = function() {
-                            const radio = card.querySelector('input[type="radio"]');
-                            if(radio) radio.checked = true;
-                            card.closest("form").submit();
-                        };
-                        return; // Stop execution
+(function() {
+    function initModalInterceptor() {
+        const createForm = document.getElementById("compact-patient-form");
+        if (createForm) {
+            createForm.onsubmit = function(e) {
+                const dniInput = createForm.querySelector('input[name="dni"]');
+                if (dniInput && dniInput.value.trim() !== "") {
+                    const typedDni = dniInput.value.replace(/\D/g, "");
+                    const cards = document.querySelectorAll("[data-paciente-card]");
+                    for (let card of cards) {
+                        const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
+                        if (cardDni === typedDni && typedDni.length > 0) {
+                            e.preventDefault();
+                            const nombre = card.querySelector("strong").textContent.trim();
+                            const dialog = document.getElementById("dni-confirm-dialog");
+                            document.getElementById("dni-confirm-text").innerHTML = `Ya existe un paciente con el DNI <strong>${typedDni}</strong> (${nombre}).<br><br>¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`;
+                            dialog.showModal();
+                            
+                            document.getElementById("dni-confirm-accept").onclick = function() {
+                                const radio = card.querySelector('input[type="radio"]');
+                                if(radio) radio.checked = true;
+                                card.closest("form").submit();
+                            };
+                            return false; // Stop execution
+                        }
                     }
                 }
-            }
-        });
+            };
+        }
     }
-});
+    // Ejecutar inmediatamente y tambi?n on load por si acaso
+    initModalInterceptor();
+    window.addEventListener('load', initModalInterceptor);
+})();
 </script>
 <script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}
