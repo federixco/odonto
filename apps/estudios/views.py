@@ -207,21 +207,24 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
             self.request.GET.get("archivos_pagina")
         )
 
-        autorizaciones = self.object.autorizaciones.select_related(
-            "odontologo__usuario",
-            "revocado_por",
-        ).order_by("odontologo__apellido", "odontologo__nombre")
-        contexto["accesos_vigentes"] = autorizaciones.filter(
-            estado_acceso=EstadoAcceso.VIGENTE
-        )
-        contexto["accesos"] = autorizaciones
-        odontologos_asociados = autorizaciones.values_list(
-            "odontologo_id", flat=True
-        )
+        contexto["accesos_vigentes"] = self.object.autorizaciones.select_related(
+            "odontologo__usuario", "revocado_por"
+        ).filter(estado_acceso=EstadoAcceso.VIGENTE).order_by("odontologo__apellido", "odontologo__nombre")
+        
+        odontologos_vigentes_ids = contexto["accesos_vigentes"].values_list("odontologo_id", flat=True)
+        
+        from django.db.models import Prefetch
         contexto["odontologos_disponibles"] = (
             Odontologo.objects.select_related("usuario")
             .filter(usuario__estado="HABILITADA")
-            .exclude(pk__in=odontologos_asociados)
+            .exclude(pk__in=odontologos_vigentes_ids)
+            .prefetch_related(
+                Prefetch(
+                    "autorizaciones", 
+                    queryset=Autorizacion.objects.filter(estudio=self.object),
+                    to_attr="autorizacion_estudio"
+                )
+            )
             .order_by("apellido", "nombre", "matricula")
         )
 
