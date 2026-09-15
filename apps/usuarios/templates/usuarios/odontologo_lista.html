@@ -42,7 +42,7 @@
                     <td role="cell" data-label="Matrícula" class="matricula-cell">{{ odontologo.matricula }}</td>
                     <td role="cell" data-label="Contacto" class="contact-cell"><span>{{ odontologo.usuario.email|default:"Sin correo registrado" }}</span>{% if odontologo.usuario.telefono %}<small>{{ odontologo.usuario.telefono }}</small>{% endif %}</td>
                     <td role="cell" data-label="Estado" class="status-cell">{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}</td>
-                    <td role="cell" class="row-actions"><a class="text-link" href="{% url 'odontologo_detalle' odontologo.pk %}" aria-label="Ver ficha de {{ odontologo }}">Ver ficha <span aria-hidden="true">↗</span></a><a class="edit-link" href="{% url 'odontologo_editar' odontologo.pk %}" aria-label="Editar a {{ odontologo }}">{% include 'core/includes/icon.html' with name='edit' %} Editar</a></td>
+                    <td role="cell" class="row-actions patient-actions"><a class="patient-view-link" href="{% url 'odontologo_detalle' odontologo.pk %}" aria-label="Ver ficha de {{ odontologo }}">Ver ficha <span aria-hidden="true">↗</span></a><a class="patient-edit-link" href="{% url 'odontologo_editar' odontologo.pk %}" aria-label="Editar a {{ odontologo }}">{% include 'core/includes/icon.html' with name='edit' %} Editar</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
