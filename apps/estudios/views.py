@@ -334,10 +334,18 @@ class CrearImportacionView(AdminRequeridoMixin, View):
             .exclude(estado=EstadoEstudio.ELIMINADO)
             .order_by("-created_at")[:5]
         )
+        pendientes = ImportacionEstudio.objects.filter(
+            iniciada_por=request.user, 
+            estado=EstadoImportacion.PENDIENTE_CONFIRMACION
+        ).order_by("-created_at")
+        
         return render(
             request,
             "estudios/importacion_crear.html",
-            {"estudios_recientes": estudios_recientes},
+            {
+                "estudios_recientes": estudios_recientes,
+                "pendientes": pendientes,
+            },
         )
 
 

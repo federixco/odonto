@@ -11,6 +11,34 @@
         <p>Seleccioná la carpeta que generó el equipo. D.O.C. carga los archivos y detecta los datos del paciente automáticamente.</p>
     </header>
 
+    
+    {% if pendientes %}
+    <section class="admin-card recent-studies" style="border: 2px solid #ffab00; background: #fffcf5; margin-bottom: 2rem;">
+        <div class="recent-studies-heading">
+            <div>
+                <p class="eyebrow" style="color: #b27b00;">ATENCIÓN REQUERIDA</p>
+                <h2>Importaciones sin confirmar</h2>
+                <p>Tenés carpetas que se subieron pero todavía no se confirmaron como estudios.</p>
+            </div>
+        </div>
+        <ul class="recent-study-list">
+            {% for pendiente in pendientes %}
+            <li>
+                <a href="{% url 'importacion_detalle' pendiente.pk %}">
+                    <span class="professional-avatar" aria-hidden="true" style="background:#ffab00; color:#fff">!</span>
+                    <span class="recent-study-patient">
+                        <strong>{{ pendiente.nombre_carpeta }}</strong>
+                        <small>{{ pendiente.cantidad_archivos }} archivos subidos &middot; {{ pendiente.created_at|date:'d/m/Y H:i' }}</small>
+                    </span>
+                    <span class="account-status status-pending"><span></span>Pendiente</span>
+                    <span class="recent-study-arrow" aria-hidden="true">→</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
     <section class="admin-card quick-upload-card" aria-labelledby="upload-title">
         <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
         <div class="upload-area quick-upload-zone" id="drop-zone">
