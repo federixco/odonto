@@ -218,6 +218,26 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
         return contexto
 
 
+
+class PublicarEstudioView(AdminRequeridoMixin, View):
+    """Permite al administrador publicar un estudio manualmente si tiene archivos completos."""
+    def post(self, request, pk):
+        estudio = get_object_or_404(Estudio.objects.exclude(estado=EstadoEstudio.ELIMINADO), pk=pk)
+        try:
+            estudio.publicar()
+            messages.success(request, "El estudio fue publicado exitosamente.")
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.PUBLICACION,
+                resultado="Estudio publicado manualmente",
+                detalles=f"El estudio {estudio.pk} cambi a estado PUBLICADO."
+            )
+        except ValidationError as e:
+            messages.error(request, e.message)
+        return redirect("estudio_detalle", pk=estudio.pk)
+
+
 class AgregarAccesoEstudioView(AdminRequeridoMixin, View):
     """Otorga o reactiva el acceso de un odontólogo a un estudio."""
 
@@ -251,6 +271,10 @@ class AgregarAccesoEstudioView(AdminRequeridoMixin, View):
                 )
                 reactivada = True
             if creada or reactivada:
+                try:
+                    estudio.publicar()
+                except ValidationError:
+                    pass
                 LogActividad.objects.create(
                     usuario=request.user,
                     estudio=estudio,
@@ -477,6 +501,10 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
                 estudio=estudio,
                 odontologo=derivante,
             )
+            try:
+                estudio.publicar()
+            except ValidationError:
+                pass
             LogActividad.objects.create(usuario=request.user, estudio=estudio, tipo_evento=TipoEvento.IMPORTACION_CONFIRMADA, resultado="Estudio creado desde importación", detalles=f"Importación {lote.pk} confirmada.")
         messages.success(
             request,

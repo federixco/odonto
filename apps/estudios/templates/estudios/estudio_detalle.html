@@ -10,6 +10,12 @@
     <header class="study-detail-hero">
         <div><p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p><h1>{{ estudio.tipo }}</h1><p>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }} · DNI {{ estudio.paciente.dni }}</p></div>
         <span class="account-status study-state {% if estudio.estado == 'PUBLICADO' %}status-enabled{% elif estudio.estado == 'BORRADOR' %}status-pending{% elif estudio.estado == 'ELIMINADO' %}status-disabled{% endif %}"><span></span>{{ estudio.get_estado_display }}</span>
+        {% if estudio.estado == 'BORRADOR' or estudio.estado == 'EN_REVISION' %}
+        <form method="post" action="{% url 'estudio_publicar' estudio.pk %}" style="display: inline-block; margin-left: 12px;">
+            {% csrf_token %}
+            <button type="submit" class="button button-small">Publicar Estudio</button>
+        </form>
+        {% endif %}
     </header>
 
     <section class="study-summary-grid" aria-label="Resumen del estudio">
