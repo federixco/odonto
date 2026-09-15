@@ -6,7 +6,7 @@
     const status = root.querySelector("[data-access-status]");
     const cards = [...root.querySelectorAll("[data-access-card]")];
     const empty = root.querySelector("[data-access-empty]");
-    if (!search || !status || !cards.length) return;
+    if (!search || !cards.length) return;
 
     const normalize = (value) => value
         .normalize("NFD")
@@ -16,7 +16,7 @@
 
     const filter = () => {
         const query = normalize(search.value);
-        const selectedStatus = status.value;
+        const selectedStatus = status ? status.value : "";
         let visible = 0;
 
         cards.forEach((card) => {
@@ -31,5 +31,5 @@
     };
 
     search.addEventListener("input", filter);
-    status.addEventListener("change", filter);
+    if (status) status.addEventListener("change", filter);
 })();

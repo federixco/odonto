@@ -29,6 +29,7 @@ class ConfirmarImportacionForm(EstudioForm):
         super().__init__(*args, **kwargs)
         self.fields["derivante"].queryset = (
             Odontologo.objects.select_related("usuario")
+            .filter(usuario__estado="HABILITADA")
             .order_by("apellido", "nombre", "matricula")
         )
         if importacion and not self.is_bound:

@@ -222,6 +222,7 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
         )
         contexto["odontologos_disponibles"] = (
             Odontologo.objects.select_related("usuario")
+            .filter(usuario__estado="HABILITADA")
             .exclude(pk__in=odontologos_asociados)
             .order_by("apellido", "nombre", "matricula")
         )

@@ -22,16 +22,6 @@
                 {% include 'core/includes/icon.html' with name='search' %}
                 <input id="buscar-derivante" type="search" autocomplete="off" placeholder="Nombre, apellido, matrícula o correo" data-derivante-search>
             </div>
-        </div>
-        <div class="form-field derivante-filter">
-            <label for="estado-derivante">Estado de la cuenta</label>
-            <select id="estado-derivante" data-derivante-status>
-                <option value="">Todos</option>
-                <option value="HABILITADA">Habilitados</option>
-                <option value="PENDIENTE">Pendientes</option>
-                <option value="DESHABILITADA">Deshabilitados</option>
-            </select>
-        </div>
     </div>
 
     <div class="derivante-results" role="radiogroup" aria-labelledby="derivante-title">
@@ -57,7 +47,6 @@
                 <strong>{{ odontologo.apellido }}, {{ odontologo.nombre }}</strong>
                 <small>Matrícula {{ odontologo.matricula }}{% if odontologo.usuario.email %} · {{ odontologo.usuario.email }}{% endif %}</small>
             </span>
-            {% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}
             <span class="derivante-check" aria-hidden="true">✓</span>
         </label>
         {% endfor %}
