@@ -188,10 +188,11 @@ document.addEventListener("DOMContentLoaded", function() {
         createForm.addEventListener("submit", function(e) {
             const dniInput = createForm.querySelector('input[name="dni"]');
             if (dniInput && dniInput.value.trim() !== "") {
-                const typedDni = dniInput.value.trim();
+                const typedDni = dniInput.value.replace(/\D/g, "");
                 const cards = document.querySelectorAll("[data-paciente-card]");
                 for (let card of cards) {
-                    if (card.getAttribute("data-dni") === typedDni) {
+                    const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
+                    if (cardDni === typedDni && typedDni.length > 0) {
                         e.preventDefault();
                         const nombre = card.querySelector("strong").textContent.trim();
                         const dialog = document.getElementById("dni-confirm-dialog");
@@ -200,7 +201,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         
                         document.getElementById("dni-confirm-accept").onclick = function() {
                             const radio = card.querySelector('input[type="radio"]');
-                            radio.checked = true;
+                            if(radio) radio.checked = true;
                             card.closest("form").submit();
                         };
                         return; // Stop execution
