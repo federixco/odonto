@@ -233,8 +233,22 @@ document.addEventListener("DOMContentLoaded", () => {
         e.currentTarget.style.backgroundColor = "";
 
         if (root.dataset.busy === "true") return;
+
+        // Extraer entradas de forma síncrona antes del window.confirm
+        // porque Chrome vacía el dataTransfer mientras el hilo está bloqueado.
+        let entradas = [];
+        if (e.dataTransfer && e.dataTransfer.items) {
+            entradas = Array.from(e.dataTransfer.items)
+                .map(item => typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null)
+                .filter(Boolean);
+        }
+
+        if (entradas.length !== 1 || !entradas[0].isDirectory) {
+            alert("Por favor, arrastrá una sola carpeta completa, no archivos sueltos.");
+            return;
+        }
         
-        if (!window.confirm("¿Estás seguro que deseas cargar y asignar esta carpeta de estudio para " + nombreOdontologo + "?")) {
+        if (!window.confirm("¿Estás seguro que deseas cargar y asignar este estudio para " + nombreOdontologo + "?")) {
             return;
         }
 
@@ -247,7 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         
         try {
-            const files = await archivosDesdeCarpetaSoltada(e.dataTransfer);
+            const files = await recorrerEntrada(entradas[0]);
             await procesar(files);
         } catch (err) {
             mostrarError(err.message);
