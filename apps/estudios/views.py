@@ -1,3 +1,6 @@
+from apps.pacientes.models import Paciente
+from apps.usuarios.models import Odontologo
+from django.db.models import Count
 import json
 import logging
 import math
