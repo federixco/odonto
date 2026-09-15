@@ -79,8 +79,4 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
         else:
             self.fields["dni"].help_text = "Ingresá el DNI del paciente."
 
-    def clean_dni(self):
-        dni = self.cleaned_data.get("dni")
-        if dni and Paciente.objects.filter(dni=dni).exists():
-            raise forms.ValidationError("Este paciente ya está registrado en el sistema. Por favor, utilizá el botón de búsqueda de abajo ('¿Este estudio pertenece a un paciente ya registrado?') para asignarle el estudio.")
-        return dni
+

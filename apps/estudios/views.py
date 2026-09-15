@@ -519,12 +519,28 @@ class RegistrarPacienteDetectadoView(AdminRequeridoMixin, View):
             messages.info(request, "La importación ya tiene un paciente seleccionado.")
             return redirect("importacion_detalle", pk=lote.pk)
 
+        dni_ingresado = request.POST.get("dni", "").strip()
+        if dni_ingresado:
+            from apps.pacientes.models import Paciente
+            paciente_existente = Paciente.objects.filter(dni=dni_ingresado).first()
+            if paciente_existente:
+                with transaction.atomic():
+                    lote.paciente_sugerido = paciente_existente
+                    lote.save(update_fields=["paciente_sugerido", "updated_at"])
+                from django.contrib import messages
+                messages.info(
+                    request,
+                    f"El DNI {dni_ingresado} pertenece a {paciente_existente}. Verificá los datos y confirmá el estudio."
+                )
+                return redirect("importacion_detalle", pk=lote.pk)
+
         form = RegistrarPacienteDetectadoForm(request.POST, importacion=lote)
         if form.is_valid():
             with transaction.atomic():
                 paciente = form.save()
                 lote.paciente_sugerido = paciente
                 lote.save(update_fields=["paciente_sugerido", "updated_at"])
+            from django.contrib import messages
             messages.success(
                 request,
                 f"La ficha de {paciente} fue creada y quedó seleccionada para este estudio.",
