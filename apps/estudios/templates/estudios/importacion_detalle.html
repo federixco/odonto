@@ -58,7 +58,7 @@
     <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
         {% with seleccionado=form.paciente.value|stringformat:'s' %}
         {% for pac in form.fields.paciente.queryset %}
-        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
+        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-dni="{{ pac.dni }}" data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
             <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
             <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
             <span class="derivante-identity">
@@ -135,7 +135,7 @@
     <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
         {% with seleccionado=form.paciente.value|stringformat:'s' %}
         {% for pac in form.fields.paciente.queryset %}
-        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
+        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-dni="{{ pac.dni }}" data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
             <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
             <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
             <span class="derivante-identity">
@@ -164,4 +164,34 @@
 </div>
 {% endblock %}
 
-{% block extra_scripts %}<script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_scripts %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const createForm = document.querySelector(".compact-patient-form");
+    if (createForm) {
+        createForm.addEventListener("submit", function(e) {
+            const dniInput = createForm.querySelector('input[name="dni"]');
+            if (dniInput && dniInput.value.trim() !== "") {
+                const typedDni = dniInput.value.trim();
+                const cards = document.querySelectorAll("[data-paciente-card]");
+                for (let card of cards) {
+                    if (card.getAttribute("data-dni") === typedDni) {
+                        e.preventDefault();
+                        const nombre = card.querySelector("strong").innerText;
+                        if (confirm(`Ya existe un paciente registrado con el DNI ${typedDni} (${nombre}).\n\n¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`)) {
+                            // Marcar el radio button
+                            const radio = card.querySelector('input[type="radio"]');
+                            radio.checked = true;
+                            // Enviar el formulario de confirmar existente
+                            card.closest("form").submit();
+                        }
+                        return; // Stop execution
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+<script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}
