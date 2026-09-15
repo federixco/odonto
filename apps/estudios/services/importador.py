@@ -177,11 +177,34 @@ def _formato_no_dicom(importacion):
     rutas = [archivo.ruta_relativa.lower() for archivo in importacion.archivos.all()]
     extensiones = {PurePosixPath(ruta).suffix for ruta in rutas}
     if any(ruta.endswith(".gwg") for ruta in rutas):
+        nombre = importacion.nombre_carpeta
+        
+        # Limpiar prefijo WeTransfer y fechas
+        if nombre.lower().startswith("wetransfer_"):
+            nombre = nombre[11:]
+            import re
+            nombre = re.sub(r'_\d{4}-\d{2}-\d{2}.*$', '', nombre)
+            nombre = nombre.replace("-", " ")
+
+        # Corregir mayúsculas invertidas (ej. tOMAS sANDRA -> Tomas Sandra)
+        palabras = []
+        for w in nombre.split():
+            if len(w) > 1 and w[0].islower() and w[1:].isupper():
+                palabras.append(w.capitalize())
+            else:
+                palabras.append(w.title())
+        nombre = " ".join(palabras).strip()
+        
+        # Quitar sufijo Gal (Galileos)
+        if nombre.lower().endswith(" gal"):
+            nombre = nombre[:-4]
+
         return {
             "formato": "GALILEOS",
             "software_origen": "GALILEOS / GALAXIS",
+            "nombre_paciente": nombre,
             "advertencias": [
-                "Paquete propietario detectado. Seleccioná el paciente manualmente."
+                "Paquete propietario detectado. El nombre del paciente se extrajo de la carpeta, por favor verificalo."
             ],
         }
     if extensiones and extensiones <= {".stl", ".ply"}:
