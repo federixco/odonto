@@ -91,34 +91,80 @@ def _clasificar_importado(nombre):
     return extension, *conocidos.get(extension, (FormatoArchivo.OTRO, CategoriaArchivo.PAQUETE_PROPIETARIO, "application/octet-stream"))
 
 class ListaEstudiosView(AdminRequeridoMixin, ListView):
-    """Listado de todos los estudios con búsqueda y filtro por estado."""
-
-    model = Estudio
+    """Listado de todos los estudios con opción de agruparlos como explorador."""
+    
     template_name = "estudios/estudio_lista.html"
-    context_object_name = "estudios"
+    context_object_name = "items"
 
     def get_queryset(self):
-        queryset = Estudio.objects.select_related("paciente").order_by(
-            "-fecha_estudio", "-created_at"
-        )
+        self.agrupar = self.request.GET.get("agrupar", "").strip()
+        self.carpeta_id = self.request.GET.get("carpeta_id", "").strip()
         busqueda = self.request.GET.get("q", "").strip()
+        estado = self.request.GET.get("estado", "").strip()
+        
+        # 1. Agrupar por Paciente (Nivel Raíz)
+        if self.agrupar == "paciente" and not self.carpeta_id:
+            qs = Paciente.objects.annotate(num_estudios=Count('estudios')).filter(num_estudios__gt=0)
+            if busqueda:
+                qs = qs.filter(Q(nombre__icontains=busqueda) | Q(apellido__icontains=busqueda) | Q(dni__icontains=busqueda))
+            return qs.order_by("apellido", "nombre")
+            
+        # 2. Agrupar por Odontólogo (Nivel Raíz)
+        if self.agrupar == "odontologo" and not self.carpeta_id:
+            qs = Odontologo.objects.annotate(num_estudios=Count('autorizaciones')).filter(num_estudios__gt=0)
+            if busqueda:
+                qs = qs.filter(Q(nombre__icontains=busqueda) | Q(apellido__icontains=busqueda) | Q(matricula__icontains=busqueda))
+            return qs.order_by("apellido", "nombre")
+
+        # 3. Listado de Estudios (Plano o dentro de una carpeta)
+        qs = Estudio.objects.select_related("paciente").order_by("-fecha_estudio", "-created_at")
+        
+        if self.agrupar == "paciente" and self.carpeta_id:
+            qs = qs.filter(paciente_id=self.carpeta_id)
+        elif self.agrupar == "odontologo" and self.carpeta_id:
+            qs = qs.filter(autorizaciones__odontologo_id=self.carpeta_id)
+            
         if busqueda:
-            queryset = queryset.filter(
+            qs = qs.filter(
                 Q(paciente__nombre__icontains=busqueda)
                 | Q(paciente__apellido__icontains=busqueda)
                 | Q(paciente__dni__icontains=busqueda)
                 | Q(tipo__icontains=busqueda)
             )
-        estado = self.request.GET.get("estado", "").strip()
         if estado and estado in EstadoEstudio.values:
-            queryset = queryset.filter(estado=estado)
-        return queryset
+            qs = qs.filter(estado=estado)
+            
+        return qs
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
         contexto["busqueda"] = self.request.GET.get("q", "")
         contexto["estado_filtro"] = self.request.GET.get("estado", "")
         contexto["estados"] = EstadoEstudio.choices
+        contexto["agrupar"] = self.agrupar
+        contexto["carpeta_id"] = self.carpeta_id
+        
+        # Determinar el tipo de elementos actuales y armar el breadcrumb
+        contexto["breadcrumb"] = [{"nombre": "Todos los estudios", "url": "?agrupar="}]
+        
+        if self.agrupar == "paciente":
+            contexto["tipo_items"] = "carpetas_pacientes" if not self.carpeta_id else "estudios"
+            contexto["breadcrumb"] = [{"nombre": "Pacientes", "url": "?agrupar=paciente"}]
+            if self.carpeta_id:
+                paciente = get_object_or_404(Paciente, pk=self.carpeta_id)
+                contexto["breadcrumb"].append({"nombre": f"{paciente.nombre} {paciente.apellido}", "url": ""})
+                contexto["carpeta_obj"] = paciente
+                
+        elif self.agrupar == "odontologo":
+            contexto["tipo_items"] = "carpetas_odontologos" if not self.carpeta_id else "estudios"
+            contexto["breadcrumb"] = [{"nombre": "Odontólogos", "url": "?agrupar=odontologo"}]
+            if self.carpeta_id:
+                odontologo = get_object_or_404(Odontologo, pk=self.carpeta_id)
+                contexto["breadcrumb"].append({"nombre": f"Dr/a. {odontologo.apellido}", "url": ""})
+                contexto["carpeta_obj"] = odontologo
+        else:
+            contexto["tipo_items"] = "estudios"
+            
         return contexto
 
 
