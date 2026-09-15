@@ -8,8 +8,14 @@
     <a class="admin-back-link text-link" href="{% url 'estudio_lista' %}"><span aria-hidden="true">←</span> Volver a estudios</a>
 
     <header class="study-detail-hero">
-        <div><p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p><h1>{{ estudio.tipo }}</h1><p>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }} · DNI {{ estudio.paciente.dni }}</p></div>
-        <span class="account-status study-state {% if estudio.estado == 'PUBLICADO' %}status-enabled{% elif estudio.estado == 'BORRADOR' %}status-pending{% elif estudio.estado == 'ELIMINADO' %}status-disabled{% endif %}"><span></span>{{ estudio.get_estado_display }}</span>
+        <div>
+            <p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p>
+            <h1>{{ estudio.tipo }}</h1>
+            <p style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }} · DNI {{ estudio.paciente.dni }}</span>
+                <span class="account-status study-state {% if estudio.estado == 'PUBLICADO' %}status-enabled{% elif estudio.estado == 'BORRADOR' %}status-pending{% elif estudio.estado == 'ELIMINADO' %}status-disabled{% endif %}" style="margin: 0;"><span></span>{{ estudio.get_estado_display }}</span>
+            </p>
+        </div>
         {% if estudio.estado == 'BORRADOR' or estudio.estado == 'EN_REVISION' %}
         <form method="post" action="{% url 'estudio_publicar' estudio.pk %}" style="display: inline-block; margin-left: 12px;">
             {% csrf_token %}
