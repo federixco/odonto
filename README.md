@@ -1,4 +1,4 @@
-# SISETMA
+# Plataforma web para almacenamiento, gestión, transferencia y visualización de estudios de diagnóstico por imágenes odontológicas en formatos DICOM, STL, PLY y otros archivos asociados.
 
 Sistema web para la gestión, publicación y consulta de estudios odontológicos de D.O.C.
 
