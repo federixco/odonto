@@ -1,0 +1,31 @@
+<details class="explorer-folder" {% if node.nombre == 'Raíz' %}open{% endif %}>
+    {% if node.nombre != 'Raíz' %}
+    <summary class="explorer-folder-title" style="cursor: pointer;">
+        <span class="explorer-folder-icon">{% include 'core/includes/icon.html' with name='folder' %}</span>
+        {{ node.nombre }}
+    </summary>
+    {% else %}
+    <summary style="display: none;"></summary>
+    {% endif %}
+    
+    <div class="explorer-folder-body">
+        {% for subname, subnode in node.subcarpetas.items %}
+            {% include 'estudios/_folder_explorer_node.html' with node=subnode %}
+        {% endfor %}
+        
+        {% if node.archivos %}
+        <div class="explorer-file-list">
+            {% for archivo in node.archivos %}
+            <div class="explorer-file-item">
+                <div class="file-name-wrap">
+                    <span class="file-icon">{% include 'core/includes/icon.html' with name='file' %}</span>
+                    <span class="file-name" title="{{ archivo.nombre_archivo }}">{{ archivo.nombre_archivo }}</span>
+                </div>
+                <div class="file-detail-col file-size">{{ archivo.tamano|filesizeformat }}</div>
+                <div class="file-detail-col file-type">{{ archivo.formato }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</details>

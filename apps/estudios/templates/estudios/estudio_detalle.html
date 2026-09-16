@@ -8,8 +8,14 @@
     <a class="admin-back-link text-link" href="{% url 'estudio_lista' %}"><span aria-hidden="true">←</span> Volver a estudios</a>
 
     <header class="study-detail-hero">
-        <div><p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p><h1>{{ estudio.tipo }}</h1><p>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }} · DNI {{ estudio.paciente.dni }}</p></div>
-        <span class="account-status study-state {% if estudio.estado == 'PUBLICADO' %}status-enabled{% elif estudio.estado == 'BORRADOR' %}status-pending{% elif estudio.estado == 'ELIMINADO' %}status-disabled{% endif %}"><span></span>{{ estudio.get_estado_display }}</span>
+        <div>
+            <p class="eyebrow">ESTUDIO #{{ estudio.pk }}</p>
+            <h1>{{ estudio.tipo }}</h1>
+            <p style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }} · DNI {{ estudio.paciente.dni }}</span>
+                <span class="account-status study-state {% if estudio.estado == 'PUBLICADO' %}status-enabled{% elif estudio.estado == 'BORRADOR' %}status-pending{% elif estudio.estado == 'ELIMINADO' %}status-disabled{% endif %}" style="margin: 0;"><span></span>{{ estudio.get_estado_display }}</span>
+            </p>
+        </div>
         {% if estudio.estado == 'BORRADOR' or estudio.estado == 'EN_REVISION' %}
         <form method="post" action="{% url 'estudio_publicar' estudio.pk %}" style="display: inline-block; margin-left: 12px;">
             {% csrf_token %}
@@ -33,8 +39,22 @@
         </summary>
         <div class="study-section-body">
             {% if tree %}
-            <div class="folder-root">
-                {% include "estudios/_folder_node.html" with node=tree %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">Archivos cargados</h3>
+                <div class="view-mode-selector" style="position: relative; display: inline-block;">
+                    <button type="button" class="button button-secondary" id="view-mode-btn" aria-haspopup="true" aria-expanded="false" style="display: flex; gap: 0.5rem; align-items: center;">
+                        {% include 'core/includes/icon.html' with name='grid' %} Ver
+                    </button>
+                    <div class="view-mode-menu" id="view-mode-menu" hidden style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #dcdfe4; border-radius: 8px; margin-top: 0.5rem; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 150px;">
+                        <button type="button" class="view-option" data-view="view-list" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Lista</button>
+                        <button type="button" class="view-option" data-view="view-details" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Detalles</button>
+                        <button type="button" class="view-option is-active" data-view="view-tiles" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px; font-weight: 600;">Mosaicos</button>
+                        <button type="button" class="view-option" data-view="view-icons" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Iconos grandes</button>
+                    </div>
+                </div>
+            </div>
+            <div class="explorer-container view-tiles folder-root" id="explorer-container">
+                {% include "estudios/_folder_explorer_node.html" with node=tree %}
             </div>
             {% else %}
             <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
@@ -63,14 +83,29 @@
         <div class="study-access-empty"><strong>Ningún odontólogo tiene acceso todavía.</strong><p>Agregá al profesional que solicitó el estudio.</p></div>
         {% endif %}
 
-        {% if accesos_revocados %}<details class="revoked-accesses"><summary>Ver accesos revocados ({{ accesos_revocados|length }})</summary><div class="study-access-list">{% for acceso in accesos_revocados %}<article class="study-access-row is-revoked"><span class="professional-avatar" aria-hidden="true">{{ acceso.odontologo.nombre|first|upper }}{{ acceso.odontologo.apellido|first|upper }}</span><span class="access-identity"><strong>{{ acceso.odontologo }}</strong><small>Revocado {{ acceso.fecha_revocacion|date:'d/m/Y H:i' }}</small></span><span class="account-status status-disabled"><span></span>Revocado</span><form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ acceso.odontologo_id }}"><button class="button button-secondary button-small" type="submit">Reactivar</button></form></article>{% endfor %}</div></details>{% endif %}
-
         <details class="add-study-access" {% if not accesos_vigentes %}open{% endif %}>
             <summary>Agregar otro odontólogo</summary>
             <div class="add-study-access-body">
-                <div class="study-access-tools"><div class="search-field"><label for="buscar-acceso">Buscar profesional</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-acceso" type="search" autocomplete="off" placeholder="Nombre, apellido, matrícula o correo" data-access-search></div></div><div class="form-field"><label for="filtrar-acceso">Estado de cuenta</label><select id="filtrar-acceso" data-access-status><option value="">Todos</option><option value="HABILITADA">Habilitados</option><option value="PENDIENTE">Pendientes</option><option value="DESHABILITADA">Deshabilitados</option></select></div></div>
+                <div class="study-access-tools"><div class="search-field"><label for="buscar-acceso">Buscar profesional</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-acceso" type="search" autocomplete="off" placeholder="Nombre, apellido, matrícula o correo" data-access-search></div></div></div>
                 {% if odontologos_disponibles %}
-                <div class="available-access-list">{% for odontologo in odontologos_disponibles %}<article class="available-access-row" data-access-card data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}" data-status="{{ odontologo.usuario.estado }}"><span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span><span class="access-identity"><strong>{{ odontologo }}</strong><small>Matrícula {{ odontologo.matricula }}{% if odontologo.usuario.email %} · {{ odontologo.usuario.email }}{% endif %}</small></span>{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}<form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ odontologo.pk }}"><button class="button button-small" type="submit">Dar acceso</button></form></article>{% endfor %}</div>
+                <div class="available-access-list">
+                    {% for odontologo in odontologos_disponibles %}
+                        {% if odontologo.autorizacion_estudio %}
+                            <article class="available-access-row is-revoked" data-access-card data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}" data-status="{{ odontologo.usuario.estado }}">
+                                <span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
+                                <span class="access-identity"><strong>{{ odontologo }}</strong><small>Revocado {{ odontologo.autorizacion_estudio.0.fecha_revocacion|date:'d/m/Y H:i' }}</small></span>
+                                <span class="account-status status-disabled" style="margin-right: auto; margin-left: 10px;"><span></span>Revocado</span>
+                                <form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ odontologo.pk }}"><button class="button button-secondary button-small" type="submit">Reactivar</button></form>
+                            </article>
+                        {% else %}
+                            <article class="available-access-row" data-access-card data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}" data-status="{{ odontologo.usuario.estado }}">
+                                <span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
+                                <span class="access-identity"><strong>{{ odontologo }}</strong><small>Matrícula {{ odontologo.matricula }}{% if odontologo.usuario.email %} · {{ odontologo.usuario.email }}{% endif %}</small></span>
+                                <form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ odontologo.pk }}"><button class="button button-small" type="submit">Dar acceso</button></form>
+                            </article>
+                        {% endif %}
+                    {% endfor %}
+                </div>
                 <div class="study-access-empty" data-access-empty hidden><strong>No hay coincidencias.</strong><p>Probá con otro nombre, matrícula o estado.</p></div>
                 {% else %}<div class="study-access-empty"><strong>No hay otros odontólogos disponibles.</strong><p>Podés registrar uno nuevo y volver directamente a este estudio.</p></div>{% endif %}
                 <div class="access-manual-link"><a class="button button-secondary" href="{% url 'odontologo_crear' %}?next={{ request.get_full_path|urlencode }}">{% include 'core/includes/icon.html' with name='plus' %} Registrar nuevo odontólogo</a></div>
@@ -80,4 +115,8 @@
 </div>
 {% endblock %}
 
-{% block extra_scripts %}<script src="{% static 'core/js/upload.js' %}" defer></script><script src="{% static 'core/js/study_access.js' %}?v=1" defer></script>{% endblock %}
+{% block extra_scripts %}
+<script src="{% static 'core/js/upload.js' %}" defer></script>
+<script src="{% static 'core/js/study_access.js' %}?v=1" defer></script>
+<script src="{% static 'core/js/file_view.js' %}" defer></script>
+{% endblock %}

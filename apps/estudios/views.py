@@ -1,3 +1,6 @@
+from apps.pacientes.models import Paciente
+from apps.usuarios.models import Odontologo
+from django.db.models import Count
 import json
 import logging
 import math
@@ -27,7 +30,7 @@ from apps.archivos.services.storage import (
 from apps.accesos.models import Autorizacion
 from apps.auditoria.models import LogActividad
 from apps.core.enums import CategoriaArchivo, EstadoAcceso, EstadoArchivo, EstadoEstudio, EstadoImportacion, FormatoArchivo, TipoEvento
-from apps.core.mixins import AdminRequeridoMixin
+from apps.core.mixins import AdminRequeridoMixin, EstudioAccesoMixin
 from apps.usuarios.models import Odontologo
 from .forms import (
     ConfirmarImportacionForm,
@@ -91,34 +94,80 @@ def _clasificar_importado(nombre):
     return extension, *conocidos.get(extension, (FormatoArchivo.OTRO, CategoriaArchivo.PAQUETE_PROPIETARIO, "application/octet-stream"))
 
 class ListaEstudiosView(AdminRequeridoMixin, ListView):
-    """Listado de todos los estudios con búsqueda y filtro por estado."""
-
-    model = Estudio
+    """Listado de todos los estudios con opción de agruparlos como explorador."""
+    
     template_name = "estudios/estudio_lista.html"
-    context_object_name = "estudios"
+    context_object_name = "items"
 
     def get_queryset(self):
-        queryset = Estudio.objects.select_related("paciente").order_by(
-            "-fecha_estudio", "-created_at"
-        )
+        self.agrupar = self.request.GET.get("agrupar", "").strip()
+        self.carpeta_id = self.request.GET.get("carpeta_id", "").strip()
         busqueda = self.request.GET.get("q", "").strip()
+        estado = self.request.GET.get("estado", "").strip()
+        
+        # 1. Agrupar por Paciente (Nivel Raíz)
+        if self.agrupar == "paciente" and not self.carpeta_id:
+            qs = Paciente.objects.annotate(num_estudios=Count('estudios')).filter(num_estudios__gt=0)
+            if busqueda:
+                qs = qs.filter(Q(nombre__icontains=busqueda) | Q(apellido__icontains=busqueda) | Q(dni__icontains=busqueda))
+            return qs.order_by("apellido", "nombre")
+            
+        # 2. Agrupar por Odontólogo (Nivel Raíz)
+        if self.agrupar == "odontologo" and not self.carpeta_id:
+            qs = Odontologo.objects.annotate(num_estudios=Count('autorizaciones')).filter(num_estudios__gt=0)
+            if busqueda:
+                qs = qs.filter(Q(nombre__icontains=busqueda) | Q(apellido__icontains=busqueda) | Q(matricula__icontains=busqueda))
+            return qs.order_by("apellido", "nombre")
+
+        # 3. Listado de Estudios (Plano o dentro de una carpeta)
+        qs = Estudio.objects.select_related("paciente").order_by("-fecha_estudio", "-created_at")
+        
+        if self.agrupar == "paciente" and self.carpeta_id:
+            qs = qs.filter(paciente_id=self.carpeta_id)
+        elif self.agrupar == "odontologo" and self.carpeta_id:
+            qs = qs.filter(autorizaciones__odontologo_id=self.carpeta_id)
+            
         if busqueda:
-            queryset = queryset.filter(
+            qs = qs.filter(
                 Q(paciente__nombre__icontains=busqueda)
                 | Q(paciente__apellido__icontains=busqueda)
                 | Q(paciente__dni__icontains=busqueda)
                 | Q(tipo__icontains=busqueda)
             )
-        estado = self.request.GET.get("estado", "").strip()
         if estado and estado in EstadoEstudio.values:
-            queryset = queryset.filter(estado=estado)
-        return queryset
+            qs = qs.filter(estado=estado)
+            
+        return qs
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
         contexto["busqueda"] = self.request.GET.get("q", "")
         contexto["estado_filtro"] = self.request.GET.get("estado", "")
         contexto["estados"] = EstadoEstudio.choices
+        contexto["agrupar"] = self.agrupar
+        contexto["carpeta_id"] = self.carpeta_id
+        
+        # Determinar el tipo de elementos actuales y armar el breadcrumb
+        contexto["breadcrumb"] = [{"nombre": "Todos los estudios", "url": "?agrupar="}]
+        
+        if self.agrupar == "paciente":
+            contexto["tipo_items"] = "carpetas_pacientes" if not self.carpeta_id else "estudios"
+            contexto["breadcrumb"] = [{"nombre": "Pacientes", "url": "?agrupar=paciente"}]
+            if self.carpeta_id:
+                paciente = get_object_or_404(Paciente, pk=self.carpeta_id)
+                contexto["breadcrumb"].append({"nombre": f"{paciente.nombre} {paciente.apellido}", "url": ""})
+                contexto["carpeta_obj"] = paciente
+                
+        elif self.agrupar == "odontologo":
+            contexto["tipo_items"] = "carpetas_odontologos" if not self.carpeta_id else "estudios"
+            contexto["breadcrumb"] = [{"nombre": "Odontólogos", "url": "?agrupar=odontologo"}]
+            if self.carpeta_id:
+                odontologo = get_object_or_404(Odontologo, pk=self.carpeta_id)
+                contexto["breadcrumb"].append({"nombre": f"Dr/a. {odontologo.apellido}", "url": ""})
+                contexto["carpeta_obj"] = odontologo
+        else:
+            contexto["tipo_items"] = "estudios"
+            
         return contexto
 
 
@@ -158,22 +207,24 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
             self.request.GET.get("archivos_pagina")
         )
 
-        autorizaciones = self.object.autorizaciones.select_related(
-            "odontologo__usuario",
-            "revocado_por",
-        ).order_by("odontologo__apellido", "odontologo__nombre")
-        contexto["accesos_vigentes"] = autorizaciones.filter(
-            estado_acceso=EstadoAcceso.VIGENTE
-        )
-        contexto["accesos_revocados"] = autorizaciones.filter(
-            estado_acceso=EstadoAcceso.REVOCADO
-        )
-        odontologos_asociados = autorizaciones.values_list(
-            "odontologo_id", flat=True
-        )
+        contexto["accesos_vigentes"] = self.object.autorizaciones.select_related(
+            "odontologo__usuario", "revocado_por"
+        ).filter(estado_acceso=EstadoAcceso.VIGENTE).order_by("odontologo__apellido", "odontologo__nombre")
+        
+        odontologos_vigentes_ids = contexto["accesos_vigentes"].values_list("odontologo_id", flat=True)
+        
+        from django.db.models import Prefetch
         contexto["odontologos_disponibles"] = (
             Odontologo.objects.select_related("usuario")
-            .exclude(pk__in=odontologos_asociados)
+            .filter(usuario__estado="HABILITADA")
+            .exclude(pk__in=odontologos_vigentes_ids)
+            .prefetch_related(
+                Prefetch(
+                    "autorizaciones", 
+                    queryset=Autorizacion.objects.filter(estudio=self.object),
+                    to_attr="autorizacion_estudio"
+                )
+            )
             .order_by("apellido", "nombre", "matricula")
         )
 
@@ -439,7 +490,13 @@ class DetalleImportacionView(AdminRequeridoMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        contexto["form"] = ConfirmarImportacionForm(importacion=self.object)
+        
+        derivante_id = self.request.GET.get('derivante')
+        initial = {}
+        if derivante_id:
+            initial['derivante'] = derivante_id
+            
+        contexto["form"] = ConfirmarImportacionForm(importacion=self.object, initial=initial)
         contexto["mostrar_registro_paciente"] = not self.object.paciente_sugerido_id
         if not self.object.paciente_sugerido_id:
             contexto["paciente_form"] = RegistrarPacienteDetectadoForm(
@@ -462,12 +519,28 @@ class RegistrarPacienteDetectadoView(AdminRequeridoMixin, View):
             messages.info(request, "La importación ya tiene un paciente seleccionado.")
             return redirect("importacion_detalle", pk=lote.pk)
 
+        dni_ingresado = request.POST.get("dni", "").strip()
+        if dni_ingresado:
+            from apps.pacientes.models import Paciente
+            paciente_existente = Paciente.objects.filter(dni=dni_ingresado).first()
+            if paciente_existente:
+                with transaction.atomic():
+                    lote.paciente_sugerido = paciente_existente
+                    lote.save(update_fields=["paciente_sugerido", "updated_at"])
+                from django.contrib import messages
+                messages.info(
+                    request,
+                    f"El DNI {dni_ingresado} pertenece a {paciente_existente}. Verificá los datos y confirmá el estudio."
+                )
+                return redirect("importacion_detalle", pk=lote.pk)
+
         form = RegistrarPacienteDetectadoForm(request.POST, importacion=lote)
         if form.is_valid():
             with transaction.atomic():
                 paciente = form.save()
                 lote.paciente_sugerido = paciente
                 lote.save(update_fields=["paciente_sugerido", "updated_at"])
+            from django.contrib import messages
             messages.success(
                 request,
                 f"La ficha de {paciente} fue creada y quedó seleccionada para este estudio.",
@@ -520,3 +593,58 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
             f"La carpeta fue confirmada y el estudio quedó asociado a {derivante}.",
         )
         return redirect("estudio_detalle", pk=estudio.pk)
+
+
+class VerEstudioView(EstudioAccesoMixin, DetailView):
+    """Vista de archivos para el odontólogo y el paciente."""
+
+    model = Estudio
+    template_name = "estudios/estudio_ver.html"
+    context_object_name = "estudio"
+
+    def get_queryset(self):
+        return Estudio.objects.select_related("paciente")
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        archivos = self.object.archivos.order_by("ruta_relativa", "nombre_archivo")
+        
+        archivos_list = list(archivos)
+        contexto["total_archivos"] = len(archivos_list)
+        if not archivos_list:
+            contexto["tree"] = None
+        else:
+            tree = {"nombre": "Raíz", "archivos": [], "subcarpetas": {}, "tamano_total": 0, "total_archivos_recursivo": 0}
+            for archivo in archivos_list:
+                partes = archivo.ruta_relativa.split("/") if archivo.ruta_relativa else []
+                if partes and partes[-1] == archivo.nombre_archivo:
+                    partes_carpeta = partes[:-1]
+                else:
+                    partes_carpeta = partes
+
+                current = tree
+                current["tamano_total"] += archivo.tamano
+                current["total_archivos_recursivo"] += 1
+                
+                for parte in partes_carpeta:
+                    if parte not in current["subcarpetas"]:
+                        current["subcarpetas"][parte] = {
+                            "nombre": parte, 
+                            "archivos": [], 
+                            "subcarpetas": {}, 
+                            "tamano_total": 0,
+                            "total_archivos_recursivo": 0
+                        }
+                    current = current["subcarpetas"][parte]
+                    current["tamano_total"] += archivo.tamano
+                    current["total_archivos_recursivo"] += 1
+                    
+                current["archivos"].append(archivo)
+
+            while not tree["archivos"] and len(tree["subcarpetas"]) == 1:
+                unica_llave = list(tree["subcarpetas"].keys())[0]
+                tree = tree["subcarpetas"][unica_llave]
+
+            contexto["tree"] = tree
+            
+        return contexto

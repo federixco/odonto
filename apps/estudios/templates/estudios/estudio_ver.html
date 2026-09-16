@@ -1,0 +1,172 @@
+{% extends 'core/public_base.html' %}
+{% load static %}
+{% block title %}Archivos del estudio | D.O.C.{% endblock %}
+{% block body_class %}patient-page{% endblock %}
+{% block content %}
+<section class="patient-portal section" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="container" style="max-width: 1000px;">
+        <div class="patient-heading" style="margin-bottom: 2rem;">
+            <div>
+                <p class="eyebrow"><a href="{% if request.user.rol == 'ODONTOLOGO' %}{% url 'dashboard_odontologo' %}{% else %}{% url 'dashboard_paciente' %}{% endif %}" style="text-decoration: none; color: inherit;">&larr; Volver al tablero</a></p>
+                <h1>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }}</h1>
+                <p>{{ estudio.tipo }} &middot; {{ estudio.fecha_estudio|date:'d/m/Y' }} &middot; {{ total_archivos }} archivos</p>
+            </div>
+            
+            <div class="view-mode-selector" style="position: relative; display: inline-block;">
+                <button class="button button-secondary" id="view-mode-btn" aria-haspopup="true" aria-expanded="false" style="display: flex; gap: 0.5rem; align-items: center;">
+                    {% include 'core/includes/icon.html' with name='grid' %} Ver
+                </button>
+                <div class="view-mode-menu" id="view-mode-menu" hidden style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #dcdfe4; border-radius: 8px; margin-top: 0.5rem; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 150px;">
+                    <button class="view-option" data-view="view-list" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Lista</button>
+                    <button class="view-option" data-view="view-details" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Detalles</button>
+                    <button class="view-option is-active" data-view="view-tiles" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px; font-weight: 600;">Mosaicos</button>
+                    <button class="view-option" data-view="view-icons" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Iconos grandes</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="explorer-container view-tiles" id="explorer-container" style="background: white; border: 1px solid #dcdfe4; border-radius: 12px; padding: 1.5rem; min-height: 400px;">
+            {% if tree %}
+                {% include "estudios/_folder_explorer_node.html" with node=tree %}
+            {% else %}
+                <div class="directory-empty compact-empty" style="text-align: center; padding: 3rem;">
+                    <h3>Todavía no hay archivos asociados</h3>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<style>
+/* Hover de opciones */
+.view-option:hover { background: #f0f2f5; }
+.view-option.is-active { background: #e7eeee; color: #005a9e; }
+
+/* Ocultar/mostrar detalles en los diferentes modos de vista */
+.explorer-container.view-list .file-detail-col { display: none; }
+.explorer-container.view-icons .file-detail-col { display: none; }
+
+/* === VISTA LISTA === */
+.explorer-container.view-list .explorer-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.explorer-container.view-list .explorer-file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: background 0.1s;
+}
+.explorer-container.view-list .explorer-file-item:hover { background: #f5f7f9; }
+.explorer-container.view-list .file-icon { font-size: 1.2rem; color: #5a6b7c; }
+.explorer-container.view-list .file-name { font-size: 0.9rem; font-weight: 500; }
+
+/* === VISTA DETALLES === */
+.explorer-container.view-details .explorer-file-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.explorer-container.view-details .explorer-file-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #edf1f5;
+}
+.explorer-container.view-details .explorer-file-item:hover { background: #f5f7f9; }
+.explorer-container.view-details .file-name-wrap { display: flex; align-items: center; gap: 8px; }
+.explorer-container.view-details .file-icon { color: #5a6b7c; }
+.explorer-container.view-details .file-name { font-size: 0.9rem; font-weight: 500; }
+.explorer-container.view-details .file-detail-col { font-size: 0.85rem; color: #5a6b7c; }
+
+/* === VISTA MOSAICOS === */
+.explorer-container.view-tiles .explorer-file-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+.explorer-container.view-tiles .explorer-file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #dcdfe4;
+    border-radius: 6px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.explorer-container.view-tiles .explorer-file-item:hover {
+    border-color: #b0bac9;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.explorer-container.view-tiles .file-icon {
+    font-size: 2rem;
+    color: #005a9e;
+    background: #e7eeee;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+.explorer-container.view-tiles .file-name-wrap { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.explorer-container.view-tiles .file-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.explorer-container.view-tiles .file-detail-col { font-size: 0.75rem; color: #738496; }
+
+/* === VISTA ICONOS === */
+.explorer-container.view-icons .explorer-file-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 16px;
+    justify-items: center;
+}
+.explorer-container.view-icons .explorer-file-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    width: 100%;
+}
+.explorer-container.view-icons .explorer-file-item:hover { background: #f5f7f9; }
+.explorer-container.view-icons .file-icon {
+    font-size: 3rem;
+    color: #005a9e;
+    background: #e7eeee;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+.explorer-container.view-icons .file-name { font-size: 0.8rem; font-weight: 500; word-break: break-word; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Carpetas estilo Explorador */
+.explorer-folder { margin-bottom: 24px; }
+.explorer-folder-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #1b2633;
+    border-bottom: 1px solid #edf1f5;
+}
+.explorer-folder-icon { color: #f4c022; }
+.explorer-folder-body { margin-left: 12px; padding-left: 12px; border-left: 1px solid #edf1f5; }
+</style>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'core/js/file_view.js' %}" defer></script>
+{% endblock %}

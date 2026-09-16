@@ -29,6 +29,7 @@ class ConfirmarImportacionForm(EstudioForm):
         super().__init__(*args, **kwargs)
         self.fields["derivante"].queryset = (
             Odontologo.objects.select_related("usuario")
+            .filter(usuario__estado="HABILITADA")
             .order_by("apellido", "nombre", "matricula")
         )
         if importacion and not self.is_bound:
@@ -72,4 +73,10 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
                     "fecha_nacimiento": datos.get("fecha_nacimiento", ""),
                 }
             )
-        self.fields["dni"].help_text = "Dato sugerido por el archivo. Verificá que sea el DNI real antes de guardar."
+        dni_sugerido = self.initial.get("dni", "")
+        if dni_sugerido:
+            self.fields["dni"].help_text = "Dato sugerido por el archivo. Verificá que sea el DNI real antes de guardar."
+        else:
+            self.fields["dni"].help_text = "Ingresá el DNI del paciente."
+
+

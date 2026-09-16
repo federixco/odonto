@@ -44,7 +44,37 @@
             </summary>
             <div class="admin-form detection-edit-form">
                 <p class="form-help">Modificá únicamente lo que no coincida con la carpeta original.</p>
-                {% include 'core/includes/form_field.html' with field=form.paciente %}
+                
+<div class="paciente-selector" style="margin-bottom: 1.5rem;">
+    <label class="form-label">Paciente asignado al estudio</label>
+    <div class="derivante-tools" style="margin-top: 0.5rem; margin-bottom: 1rem;">
+        <div class="search-field">
+            <div class="search-input">
+                {% include 'core/includes/icon.html' with name='search' %}
+                <input type="search" autocomplete="off" placeholder="Buscar por nombre, apellido o DNI..." oninput="filtrarPacientes(this)">
+            </div>
+        </div>
+    </div>
+    <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
+        {% with seleccionado=form.paciente.value|stringformat:'s' %}
+        {% for pac in form.fields.paciente.queryset %}
+        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-dni="{{ pac.dni }}" data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
+            <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
+            <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
+            <span class="derivante-identity">
+                <strong>{{ pac.apellido }}, {{ pac.nombre }}</strong>
+                <small>DNI {{ pac.dni }}</small>
+            </span>
+            <span class="derivante-check" aria-hidden="true">✓</span>
+        </label>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <div class="derivante-empty" data-paciente-empty hidden style="padding: 1rem; text-align: center; color: #5a6b7c;">
+        No encontramos un paciente con esos datos.
+    </div>
+</div>
+
                 {% include 'core/includes/form_field.html' with field=form.tipo %}
                 {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
                 {% include 'core/includes/form_field.html' with field=form.observaciones %}
@@ -66,7 +96,7 @@
             <div><p class="eyebrow">REVISIÓN NECESARIA</p><h2>No encontramos una ficha coincidente</h2><p>Los datos detectados ya están completados. Verificá el DNI y creá la ficha para continuar.</p></div>
         </div>
 
-        <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" class="admin-form compact-patient-form" novalidate>
+        <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" id="compact-patient-form" class="admin-form compact-patient-form" novalidate>
             {% csrf_token %}
             {% if paciente_form.errors %}<div class="notice error" role="alert">Revisá los campos indicados.</div>{% endif %}
             <div class="form-grid">
@@ -85,10 +115,43 @@
         </form>
 
         <details class="existing-patient-option">
-            <summary>El paciente ya existe: elegir otra ficha</summary>
+            <summary style="display: flex; align-items: center; gap: 10px; background: #eef2f6; padding: 16px; border-radius: 8px; border: 1px dashed #b9ccd8; font-size: 0.95rem; font-weight: 600; color: var(--navy); cursor: pointer; margin-top: 15px; transition: background 0.2s;" onmouseover="this.style.background='#e2eaf1'" onmouseout="this.style.background='#eef2f6'">
+    {% include 'core/includes/icon.html' with name='search' %}
+    ¿Este estudio pertenece a un paciente ya registrado? Hacé clic para buscarlo y asociarlo.
+</summary>
             <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
                 {% csrf_token %}
-                {% include 'core/includes/form_field.html' with field=form.paciente %}
+                
+<div class="paciente-selector" style="margin-bottom: 1.5rem;">
+    <label class="form-label">Paciente asignado al estudio</label>
+    <div class="derivante-tools" style="margin-top: 0.5rem; margin-bottom: 1rem;">
+        <div class="search-field">
+            <div class="search-input">
+                {% include 'core/includes/icon.html' with name='search' %}
+                <input type="search" autocomplete="off" placeholder="Buscar por nombre, apellido o DNI..." oninput="filtrarPacientes(this)">
+            </div>
+        </div>
+    </div>
+    <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
+        {% with seleccionado=form.paciente.value|stringformat:'s' %}
+        {% for pac in form.fields.paciente.queryset %}
+        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-dni="{{ pac.dni }}" data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
+            <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
+            <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
+            <span class="derivante-identity">
+                <strong>{{ pac.apellido }}, {{ pac.nombre }}</strong>
+                <small>DNI {{ pac.dni }}</small>
+            </span>
+            <span class="derivante-check" aria-hidden="true">✓</span>
+        </label>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <div class="derivante-empty" data-paciente-empty hidden style="padding: 1rem; text-align: center; color: #5a6b7c;">
+        No encontramos un paciente con esos datos.
+    </div>
+</div>
+
                 {% include 'core/includes/form_field.html' with field=form.tipo %}
                 {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
                 {% include 'core/includes/form_field.html' with field=form.observaciones %}
@@ -98,7 +161,100 @@
         </details>
     </section>
     {% endif %}
+<style>#dni-confirm-dialog::backdrop { background: rgba(10, 25, 41, 0.6); backdrop-filter: blur(2px); }</style>
+<dialog id="dni-confirm-dialog" class="admin-card" style="border:none; padding:2rem; border-radius:12px; width:100%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+    <div style="text-align: center;">
+        <div style="background: #e7eeee; color: #005a9e; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem; font-weight: bold;">
+            {% include 'core/includes/icon.html' with name='people' %}
+        </div>
+        <h2 style="margin-bottom: 0.5rem;">Paciente ya registrado</h2>
+        <p style="color: var(--slate); margin-bottom: 1.5rem; line-height: 1.5;" id="dni-confirm-text"></p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" class="button button-secondary" onclick="document.getElementById('dni-confirm-dialog').close()" style="flex:1;">Cancelar</button>
+            <button type="button" class="button" id="dni-confirm-accept" style="flex:1;">Sí, asignar estudio</button>
+        </div>
+    </div>
+</dialog>
 </div>
 {% endblock %}
 
-{% block extra_scripts %}<script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}
+
+
+
+{% block extra_scripts %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const dniInput = document.querySelector('#compact-patient-form input[name="dni"]');
+    if (!dniInput) return;
+
+    function checkDniMatch() {
+        const typedDni = dniInput.value.replace(/\D/g, "");
+        if (typedDni.length === 0) return;
+
+        const cards = document.querySelectorAll("[data-paciente-card]");
+        let matchedCard = null;
+        let matchedNombre = "";
+        
+        for (let card of cards) {
+            const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
+            if (cardDni === typedDni) {
+                matchedCard = card;
+                const strongTag = card.querySelector("strong");
+                matchedNombre = strongTag ? strongTag.textContent.trim() : "Paciente existente";
+                break;
+            }
+        }
+        
+        if (matchedCard) {
+            const dialog = document.getElementById("dni-confirm-dialog");
+            const textEl = document.getElementById("dni-confirm-text");
+            const acceptBtn = document.getElementById("dni-confirm-accept");
+            
+            if (textEl) {
+                textEl.innerHTML = `Ya existe un paciente con el DNI <strong>${typedDni}</strong> (${matchedNombre}).<br><br>¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`;
+            }
+            
+            if (acceptBtn) {
+                acceptBtn.onclick = function() {
+                    const radio = matchedCard.querySelector('input[type="radio"]');
+                    if(radio) radio.checked = true;
+                    const assignForm = matchedCard.closest("form");
+                    if(assignForm) assignForm.submit();
+                };
+            }
+            
+            if (dialog && typeof dialog.showModal === "function") {
+                if (!dialog.open) {
+                    dialog.showModal();
+                }
+            } else {
+                if (confirm(`Ya existe un paciente con el DNI ${typedDni} (${matchedNombre}).\n\n¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`)) {
+                    acceptBtn.onclick();
+                }
+            }
+        }
+    }
+
+    // Check on blur (when user leaves the DNI field)
+    dniInput.addEventListener("blur", checkDniMatch);
+    
+    // Check on submit as fallback
+    const createForm = document.getElementById("compact-patient-form");
+    if (createForm) {
+        createForm.addEventListener("submit", function(e) {
+            const typedDni = dniInput.value.replace(/\D/g, "");
+            const cards = document.querySelectorAll("[data-paciente-card]");
+            for (let card of cards) {
+                const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
+                if (cardDni === typedDni && typedDni.length > 0) {
+                    e.preventDefault();
+                    checkDniMatch();
+                    return;
+                }
+            }
+        });
+    }
+});
+</script>
+<script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}
