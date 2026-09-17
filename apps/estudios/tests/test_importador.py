@@ -1,5 +1,6 @@
 """Pruebas del análisis técnico de carpetas, sin tocar almacenamiento real."""
 
+import gzip
 from io import BytesIO
 from unittest.mock import patch
 
@@ -14,6 +15,37 @@ from apps.pacientes.models import Paciente
 from apps.usuarios.models import Usuario
 from apps.estudios.models import ImportacionEstudio
 from apps.estudios.services.importador import analizar_importacion
+
+
+def gwg_de_prueba():
+    """Construye un GWG16 mínimo sin depender de archivos clínicos reales."""
+
+    xml = b"""<?xml version="1.0" encoding="utf-16"?>
+<DataContainerProperties>
+  <TimeStamp>202609121430</TimeStamp>
+  <Version>1.9</Version>
+  <SoftwareVersion>Galileos Implant 1.9.test</SoftwareVersion>
+  <ScanID>scan-de-prueba</ScanID>
+  <Format>Encrypted</Format>
+  <PatientInfo>
+    <FirstName>ANA</FirstName>
+    <LastName>GOMEZ</LastName>
+    <BirthDate>19900515</BirthDate>
+    <ID>30111222</ID>
+  </PatientInfo>
+  <DataSource>WrapAndGo17</DataSource>
+</DataContainerProperties>"""
+    clave = bytes.fromhex("cd1f220e1cbea66a82eeaf5b")
+    cifrado = bytearray(gzip.compress(xml, mtime=0))
+    palabras = len(cifrado) // 4
+    for indice in range(palabras):
+        inicio = indice * 4
+        inicio_clave = (indice % (len(clave) // 4)) * 4
+        for desplazamiento in range(4):
+            cifrado[inicio + desplazamiento] ^= clave[inicio_clave + desplazamiento]
+    for indice in range(palabras * 4, len(cifrado)):
+        cifrado[indice] ^= clave[indice - palabras * 4]
+    return b"GWG16" + bytes(cifrado)
 
 
 def dicom_de_prueba():
@@ -121,3 +153,49 @@ class ImportadorTests(TestCase):
         self.assertEqual(datos["identificador_paciente"], "20877656")
         self.assertEqual(datos["fecha_estudio"], "2026-08-18")
         self.assertEqual(datos["descripcion"], "Exploracion 3D")
+
+    @patch("apps.estudios.services.importador.leer_objeto")
+    def test_gwg16_extrae_datos_y_sugiere_paciente_por_dni(self, leer_objeto):
+        leer_objeto.return_value = gwg_de_prueba()
+        archivo = self.importacion.archivos.get()
+        archivo.nombre_archivo = "scan-de-prueba.gwg"
+        archivo.ruta_relativa = "GOMEZ ANA GAL/scan-de-prueba.gwg"
+        archivo.save(update_fields=["nombre_archivo", "ruta_relativa", "updated_at"])
+        self.importacion.nombre_carpeta = "GOMEZ ANA GAL"
+        self.importacion.save(update_fields=["nombre_carpeta", "updated_at"])
+        self.importacion.marcar_procesando()
+
+        analizar_importacion(self.importacion)
+        self.importacion.refresh_from_db()
+
+        datos = self.importacion.datos_detectados
+        self.assertEqual(datos["formato"], "GALILEOS")
+        self.assertEqual(datos["nombre_paciente"], "GOMEZ ANA")
+        self.assertEqual(datos["identificador_paciente"], "30111222")
+        self.assertEqual(datos["fecha_nacimiento"], "1990-05-15")
+        self.assertEqual(datos["fecha_estudio"], "2026-09-12")
+        self.assertEqual(datos["scan_id"], "scan-de-prueba")
+        self.assertEqual(datos["data_source"], "WrapAndGo17")
+        self.assertEqual(datos["parser"], "galileos-gwg16-v1")
+        self.assertEqual(self.importacion.paciente_sugerido, self.paciente)
+
+    @patch("apps.estudios.services.importador.leer_objeto")
+    def test_gwg_desconocido_conserva_deteccion_por_nombre_carpeta(self, leer_objeto):
+        leer_objeto.return_value = b"GWG99contenido-no-compatible"
+        archivo = self.importacion.archivos.get()
+        archivo.nombre_archivo = "estudio.gwg"
+        archivo.ruta_relativa = "tOMAS sANDRA gAL/estudio.gwg"
+        archivo.save(update_fields=["nombre_archivo", "ruta_relativa", "updated_at"])
+        self.importacion.nombre_carpeta = "tOMAS sANDRA gAL"
+        self.importacion.save(update_fields=["nombre_carpeta", "updated_at"])
+        self.importacion.marcar_procesando()
+
+        analizar_importacion(self.importacion)
+        self.importacion.refresh_from_db()
+
+        datos = self.importacion.datos_detectados
+        self.assertEqual(datos["formato"], "GALILEOS")
+        self.assertEqual(datos["nombre_paciente"], "Tomas Sandra")
+        self.assertNotIn("identificador_paciente", datos)
+        self.assertIn("nombre de la carpeta", datos["advertencias"][0])
+        self.assertIsNone(self.importacion.paciente_sugerido)

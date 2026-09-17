@@ -41,15 +41,6 @@
 
     <section class="admin-card quick-upload-card" aria-labelledby="upload-title">
         <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
-        <div class="upload-area quick-upload-zone" id="drop-zone">
-            <span class="quick-upload-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span>
-            <h2 id="upload-title">Soltá aquí la carpeta del paciente</h2>
-            <p>También podés buscarla en la computadora del centro.</p>
-            <input type="file" id="folder-input" class="visually-hidden" webkitdirectory directory multiple>
-            <button type="button" class="button quick-upload-button" id="folder-select-button">Seleccionar carpeta</button>
-            <small>Usá la carpeta original, sin comprimir ni cambiar sus archivos.</small>
-        </div>
-
         <div id="upload-progress-container" class="upload-progress quick-upload-progress" hidden>
             <div class="progress-copy">
                 <strong id="progress-title">Cargando estudio</strong>
@@ -63,6 +54,15 @@
                 <li id="stage-analyze"><span>2</span>Detectar datos</li>
                 <li id="stage-review"><span>3</span>Confirmar</li>
             </ol>
+        </div>
+
+        <div class="upload-area quick-upload-zone" id="drop-zone">
+            <span class="quick-upload-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span>
+            <h2 id="upload-title">Soltá aquí la carpeta del paciente</h2>
+            <p>También podés buscarla en la computadora del centro.</p>
+            <input type="file" id="folder-input" class="visually-hidden" webkitdirectory directory multiple>
+            <button type="button" class="button quick-upload-button" id="folder-select-button">Seleccionar carpeta</button>
+            <small>Usá la carpeta original, sin comprimir ni cambiar sus archivos.</small>
         </div>
         <p id="upload-error" class="notice error" hidden role="alert"></p>
     </section>
