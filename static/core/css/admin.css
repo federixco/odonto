@@ -337,6 +337,7 @@
 .quick-upload-button:disabled { opacity: .58; cursor: wait; }
 .quick-upload-zone > small { margin-top: 15px; color: #718187; font-size: .71rem; }
 .quick-upload-progress { margin: 12px 0 0; padding: 24px 26px; background: white; }
+.quick-upload-card .quick-upload-progress { margin: 0 0 12px; border-color: #91c3c8; box-shadow: 0 8px 24px #005d7414; }
 .upload-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; list-style: none; margin: 20px 0 0; padding: 0; }
 .upload-stages li { display: flex; align-items: center; gap: 8px; color: #859397; font-size: .7rem; font-weight: 600; }
 .upload-stages li span { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: #edf2f2; color: #718187; }

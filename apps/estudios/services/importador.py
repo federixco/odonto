@@ -8,6 +8,9 @@ ni confirma un estudio automáticamente.
 from datetime import datetime
 from io import BytesIO
 from pathlib import PurePosixPath
+import re
+import xml.etree.ElementTree as ET
+import zlib
 
 import pydicom
 from django.db import transaction
@@ -18,6 +21,115 @@ from apps.pacientes.models import Paciente
 
 
 LIMITE_LECTURA_DICOM = 8 * 1024 * 1024
+LIMITE_LECTURA_GWG = 2 * 1024 * 1024
+LIMITE_XML_GWG = 4 * 1024 * 1024
+CABECERA_GWG16 = b"GWG16"
+
+
+def _clave_gwg16():
+    """Reproduce la clave fija usada por GALILEOS Viewer 1.9.
+
+    El generador opera con enteros con signo de 8 bits. Mantener el algoritmo
+    explícito permite detectar con claridad si una futura versión deja de ser
+    compatible, en lugar de tratar la clave como una contraseña configurable.
+    """
+
+    valor = -117
+    clave = bytearray()
+    for indice in range(12):
+        calculado = ((indice + valor) * valor + 31) % 255
+        valor = calculado if calculado < 128 else calculado - 256
+        clave.append(valor & 0xFF)
+    return bytes(clave)
+
+
+CLAVE_GWG16 = _clave_gwg16()
+
+
+def _aplicar_xor_gwg16(contenido):
+    """Aplica el XOR por palabras de 32 bits que utiliza Wrap&Go.
+
+    Los bytes residuales vuelven al comienzo de la clave; ese detalle difiere
+    de un XOR byte a byte continuo y también protege la validación del trailer
+    GZIP.
+    """
+
+    salida = bytearray(contenido)
+    palabras = len(salida) // 4
+    palabras_clave = len(CLAVE_GWG16) // 4
+    for indice in range(palabras):
+        inicio = indice * 4
+        inicio_clave = (indice % palabras_clave) * 4
+        for desplazamiento in range(4):
+            salida[inicio + desplazamiento] ^= CLAVE_GWG16[
+                inicio_clave + desplazamiento
+            ]
+    for indice in range(palabras * 4, len(salida)):
+        salida[indice] ^= CLAVE_GWG16[indice - palabras * 4]
+    return bytes(salida)
+
+
+def _descomprimir_gwg16(contenido):
+    """Descifra y descomprime un GWG16 con un límite estricto de salida."""
+
+    if not contenido.startswith(CABECERA_GWG16):
+        raise ValueError("Cabecera GWG no compatible.")
+    if len(contenido) <= len(CABECERA_GWG16):
+        raise ValueError("Archivo GWG vacío.")
+
+    comprimido = _aplicar_xor_gwg16(contenido[len(CABECERA_GWG16) :])
+    descompresor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+    xml = descompresor.decompress(comprimido, LIMITE_XML_GWG + 1)
+    if len(xml) > LIMITE_XML_GWG or descompresor.unconsumed_tail:
+        raise ValueError("Los metadatos GWG superan el límite permitido.")
+    xml += descompresor.flush(LIMITE_XML_GWG + 1 - len(xml))
+    if len(xml) > LIMITE_XML_GWG or not descompresor.eof:
+        raise ValueError("El contenido GZIP del GWG es inválido.")
+    return xml
+
+
+def _texto_xml(elemento, nombre):
+    nodo = elemento.find(f".//{nombre}")
+    return (nodo.text or "").strip() if nodo is not None else ""
+
+
+def _datos_desde_gwg16(contenido):
+    """Extrae metadatos clínicos del XML interno de GALILEOS Wrap&Go."""
+
+    xml = _descomprimir_gwg16(contenido)
+    texto = xml.decode("utf-8")
+    if "<!DOCTYPE" in texto.upper() or "<!ENTITY" in texto.upper():
+        raise ValueError("El XML del GWG contiene declaraciones no permitidas.")
+    # Algunos exportadores declaran UTF-16 aunque serializan bytes UTF-8.
+    texto = re.sub(r"^\s*<\?xml[^>]*\?>", "", texto, count=1)
+    raiz = ET.fromstring(texto)
+    if raiz.tag != "DataContainerProperties":
+        raise ValueError("El XML no corresponde a un contenedor GALILEOS.")
+
+    nombre = _texto_xml(raiz, "FirstName")
+    apellido = _texto_xml(raiz, "LastName")
+    marca_tiempo = _texto_xml(raiz, "TimeStamp")
+    return {
+        "formato": "GALILEOS",
+        "software_origen": (
+            _texto_xml(raiz, "SoftwareVersion") or "GALILEOS / GALAXIS"
+        )[:100],
+        # El resto del flujo interpreta el primer término como apellido.
+        "nombre_paciente": " ".join(
+            parte for parte in (apellido, nombre) if parte
+        ),
+        "identificador_paciente": _texto_xml(raiz, "ID")[:100],
+        "fecha_nacimiento": _fecha_iso(_texto_xml(raiz, "BirthDate")),
+        "fecha_estudio": _fecha_iso(marca_tiempo[:8]),
+        "descripcion": "Estudio GALILEOS",
+        "scan_id": _texto_xml(raiz, "ScanID")[:100],
+        "version_formato": _texto_xml(raiz, "Version")[:30],
+        "data_source": _texto_xml(raiz, "DataSource")[:50],
+        "parser": "galileos-gwg16-v1",
+        "advertencias": [
+            "Los datos se extrajeron del archivo GALILEOS. Confirmá que correspondan al paciente antes de continuar."
+        ],
+    }
 
 
 def _fecha_iso(valor):
@@ -171,42 +283,65 @@ def _dicom_detectado(importacion):
     return datos
 
 
-def _formato_no_dicom(importacion):
-    """Clasificación simple para formatos cuyo análisis profundo no entra al MVP."""
+def _nombre_desde_carpeta(nombre):
+    """Normaliza el nombre sugerido por una carpeta GALILEOS o WeTransfer."""
 
-    rutas = [archivo.ruta_relativa.lower() for archivo in importacion.archivos.all()]
-    extensiones = {PurePosixPath(ruta).suffix for ruta in rutas}
-    if any(ruta.endswith(".gwg") for ruta in rutas):
-        nombre = importacion.nombre_carpeta
-        
-        # Limpiar prefijo WeTransfer y fechas
-        if nombre.lower().startswith("wetransfer_"):
-            nombre = nombre[11:]
-            import re
-            nombre = re.sub(r'_\d{4}-\d{2}-\d{2}.*$', '', nombre)
-            nombre = nombre.replace("-", " ")
+    if nombre.lower().startswith("wetransfer_"):
+        nombre = nombre[11:]
+        nombre = re.sub(r"_\d{4}-\d{2}-\d{2}.*$", "", nombre)
+        nombre = nombre.replace("-", " ")
 
-        # Corregir mayúsculas invertidas (ej. tOMAS sANDRA -> Tomas Sandra)
-        palabras = []
-        for w in nombre.split():
-            if len(w) > 1 and w[0].islower() and w[1:].isupper():
-                palabras.append(w.capitalize())
-            else:
-                palabras.append(w.title())
-        nombre = " ".join(palabras).strip()
-        
-        # Quitar sufijo Gal (Galileos)
-        if nombre.lower().endswith(" gal"):
-            nombre = nombre[:-4]
+    palabras = []
+    for palabra in nombre.split():
+        if (
+            len(palabra) > 1
+            and palabra[0].islower()
+            and palabra[1:].isupper()
+        ):
+            palabras.append(palabra.capitalize())
+        else:
+            palabras.append(palabra.title())
+    nombre = " ".join(palabras).strip()
+    return nombre[:-4] if nombre.lower().endswith(" gal") else nombre
 
+
+def _galileos_detectado(importacion):
+    """Lee GWG16 y conserva el nombre de carpeta como fallback seguro."""
+
+    archivo = importacion.archivos.filter(ruta_relativa__iendswith=".gwg").first()
+    if not archivo:
+        return None
+
+    nombre_carpeta = _nombre_desde_carpeta(importacion.nombre_carpeta)
+    contenido = leer_objeto(archivo.ruta_almacenamiento, LIMITE_LECTURA_GWG)
+    try:
+        datos = _datos_desde_gwg16(contenido)
+    except (UnicodeDecodeError, ET.ParseError, ValueError, zlib.error):
         return {
             "formato": "GALILEOS",
             "software_origen": "GALILEOS / GALAXIS",
-            "nombre_paciente": nombre,
+            "nombre_paciente": nombre_carpeta,
             "advertencias": [
-                "Paquete propietario detectado. El nombre del paciente se extrajo de la carpeta, por favor verificalo."
+                "No se reconoció la versión interna del archivo GALILEOS. Se usó el nombre de la carpeta como sugerencia."
             ],
         }
+
+    if not datos["nombre_paciente"]:
+        datos["nombre_paciente"] = nombre_carpeta
+        datos["advertencias"].append(
+            "El archivo GALILEOS no contenía un nombre; se usó el nombre de la carpeta."
+        )
+    return datos
+
+
+def _formato_no_dicom(importacion):
+    """Clasifica formatos no DICOM y profundiza en GALILEOS GWG16."""
+
+    rutas = [archivo.ruta_relativa.lower() for archivo in importacion.archivos.all()]
+    extensiones = {PurePosixPath(ruta).suffix for ruta in rutas}
+    galileos = _galileos_detectado(importacion)
+    if galileos:
+        return galileos
     if extensiones and extensiones <= {".stl", ".ply"}:
         return {
             "formato": "STL" if ".stl" in extensiones else "PLY",
