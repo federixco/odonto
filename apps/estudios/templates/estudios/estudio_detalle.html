@@ -65,6 +65,16 @@
                 <summary>Agregar archivos manualmente</summary>
                 <div class="manual-upload-body">
                     <form class="csrf-token-source" aria-hidden="true">{% csrf_token %}</form>
+                    {% if archivos_incorrectos %}
+                    <div class="form-field correction-target-field">
+                        <label for="replacement-file-select">Tipo de carga</label>
+                        <select id="replacement-file-select">
+                            <option value="">Agregar un archivo nuevo</option>
+                            {% for archivo in archivos_incorrectos %}<option value="{{ archivo.pk }}">Reemplazar: {{ archivo.ruta_relativa|default:archivo.nombre_archivo }}</option>{% endfor %}
+                        </select>
+                        <p class="form-help">Si elegís un archivo incorrecto, la nueva carga quedará vinculada como su versión corregida.</p>
+                    </div>
+                    {% endif %}
                     <div class="upload-area" id="drop-zone"><span class="panel-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span><h2 id="upload-title">Seleccioná archivos adicionales</h2><p>Usá esta opción solo para corregir o completar una carga.</p><p class="upload-formats">DICOM · STL · PLY · JPG · PNG · TIFF · PDF</p><input type="file" id="file-input" class="visually-hidden" accept=".dcm,.dicom,.stl,.ply,.jpg,.jpeg,.png,.tif,.tiff,.pdf" multiple><button type="button" class="button button-small" id="file-select-button">Seleccionar archivos</button></div>
                     <div id="upload-progress-container" class="upload-progress" hidden><div class="progress-copy"><strong>Procesando archivos</strong><span id="progress-text" aria-live="polite">Preparando la carga…</span></div><div class="progress-bar-wrap" role="progressbar" aria-label="Progreso de la carga" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar" class="progress-bar"></div></div></div>
                     <p id="upload-success" class="notice success" hidden aria-live="polite">Los archivos se cargaron y verificaron correctamente.</p><p id="upload-error" class="notice error" hidden role="alert"></p>
@@ -74,6 +84,7 @@
         </div>
     </details>
 
+    {% if estudio.estado != 'ELIMINADO' %}
     <section class="admin-card study-access-card" aria-labelledby="access-title" data-study-access>
         <div class="study-access-heading"><div><p class="eyebrow">PERMISOS DEL ESTUDIO</p><h2 id="access-title">Accesos de odontólogos</h2><p>Administrá qué profesionales pueden consultar este estudio.</p></div><span class="directory-count">{{ accesos_vigentes|length }} vigentes</span></div>
 
@@ -112,11 +123,46 @@
             </div>
         </details>
     </section>
+    {% endif %}
+
+    <section class="admin-card study-danger-zone" aria-labelledby="danger-title">
+        {% if estudio.estado == 'ELIMINADO' %}
+        <p class="eyebrow">ESTUDIO ELIMINADO</p>
+        <h2 id="danger-title">Eliminación lógica aplicada</h2>
+        <p>El estudio dejó de estar disponible. Sus metadatos y archivos se conservan para auditoría.</p>
+        <dl class="profile-data">
+            <div><dt>Fecha</dt><dd>{{ estudio.fecha_eliminacion|date:'d/m/Y H:i'|default:'No registrada' }}</dd></div>
+            <div><dt>Responsable</dt><dd>{{ estudio.eliminado_por|default:'No registrado' }}</dd></div>
+            <div class="profile-data-wide"><dt>Motivo</dt><dd>{{ estudio.motivo_eliminacion|default:'No registrado' }}</dd></div>
+        </dl>
+        {% if archivos_pendientes_purga %}
+        <form method="post" action="{% url 'estudio_purgar' estudio.pk %}" class="danger-confirm-form">
+            {% csrf_token %}
+            <label for="purge-confirmation">Para borrar definitivamente los objetos de MinIO escribí <strong>ELIMINAR ESTUDIO {{ estudio.pk }}</strong></label>
+            <input id="purge-confirmation" name="confirmacion" type="text" autocomplete="off" required>
+            <button type="submit" class="button button-danger" onclick="return confirm('Esta operación no puede recuperar los archivos físicos. ¿Continuar?');">Eliminar archivos definitivamente</button>
+        </form>
+        {% else %}
+        <p class="notice success">Los archivos físicos ya fueron eliminados definitivamente. Se conserva únicamente la información de auditoría.</p>
+        {% endif %}
+        {% else %}
+        <details>
+            <summary><strong id="danger-title">Eliminar estudio</strong></summary>
+            <p>La eliminación inicial es lógica: bloquea el acceso, revoca permisos y conserva los archivos para auditoría.</p>
+            <form method="post" action="{% url 'estudio_eliminar' estudio.pk %}">
+                {% csrf_token %}
+                <label for="delete-reason">Motivo de la eliminación</label>
+                <textarea id="delete-reason" name="motivo" rows="3" required></textarea>
+                <button type="submit" class="button button-danger" onclick="return confirm('El estudio dejará de estar disponible. ¿Continuar?');">Eliminar lógicamente</button>
+            </form>
+        </details>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'core/js/upload.js' %}" defer></script>
+<script src="{% static 'core/js/upload.js' %}?v=correccion-reemplazo-2" defer></script>
 <script src="{% static 'core/js/study_access.js' %}?v=1" defer></script>
 <script src="{% static 'core/js/file_view.js' %}" defer></script>
 {% endblock %}

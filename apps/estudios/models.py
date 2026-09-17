@@ -20,6 +20,7 @@ class EstudioQuerySet(models.QuerySet):
     def delete(self):
         actualizados = self.exclude(estado=EstadoEstudio.ELIMINADO).update(
             estado=EstadoEstudio.ELIMINADO,
+            fecha_eliminacion=timezone.now(),
             updated_at=timezone.now(),
         )
         return actualizados, {self.model._meta.label: actualizados}
@@ -34,6 +35,15 @@ class Estudio(models.Model):
     observaciones = models.TextField(blank=True)
     estado = models.CharField(max_length=20, choices=EstadoEstudio.choices, default=EstadoEstudio.BORRADOR)
     fecha_publicacion = models.DateTimeField(null=True, blank=True)
+    fecha_eliminacion = models.DateTimeField(null=True, blank=True)
+    eliminado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="estudios_eliminados",
+    )
+    motivo_eliminacion = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,11 +77,14 @@ class Estudio(models.Model):
             raise ValidationError(
                 "El estudio debe guardarse antes de poder publicarse."
             )
-        if not self.archivos.exists():
+        archivos_vigentes = self.archivos.exclude(
+            estado__in=[EstadoArchivo.REEMPLAZADO, EstadoArchivo.PURGADO]
+        )
+        if not archivos_vigentes.exists():
             raise ValidationError(
                 "El estudio debe contener al menos un archivo para publicarse."
             )
-        if self.archivos.exclude(estado=EstadoArchivo.COMPLETO).exists():
+        if archivos_vigentes.exclude(estado=EstadoArchivo.COMPLETO).exists():
             raise ValidationError(
                 "Todos los archivos deben estar completos antes de publicar."
             )
@@ -87,30 +100,72 @@ class Estudio(models.Model):
         self.full_clean()
         self.save(update_fields=["estado", "fecha_publicacion", "updated_at"])
 
-    def delete(self, using=None, keep_parents=False):
-        """Marca el estudio como eliminado sin borrar sus datos relacionados."""
+    def eliminar_logicamente(self, usuario=None, motivo=""):
+        """Oculta el estudio conservando archivos, accesos e historial."""
+
         if self.estado != EstadoEstudio.ELIMINADO:
             self.estado = EstadoEstudio.ELIMINADO
-            self.save(update_fields=["estado", "updated_at"])
+            self.fecha_eliminacion = timezone.now()
+            self.eliminado_por = usuario
+            self.motivo_eliminacion = (motivo or "").strip()
+            self.save(
+                update_fields=[
+                    "estado",
+                    "fecha_eliminacion",
+                    "eliminado_por",
+                    "motivo_eliminacion",
+                    "updated_at",
+                ]
+            )
             return 1, {self._meta.label: 1}
         return 0, {self._meta.label: 0}
 
+    def delete(self, using=None, keep_parents=False):
+        """Convierte cualquier eliminación ORM en una eliminación lógica."""
+
+        return self.eliminar_logicamente()
 
     def validar_carga(self):
         """Verifica que todos los archivos requeridos se hayan subido correctamente."""
+        archivos_vigentes = self.archivos.exclude(
+            estado__in=[EstadoArchivo.REEMPLAZADO, EstadoArchivo.PURGADO]
+        )
         return (
             self.pk is not None
-            and self.archivos.exists()
-            and not self.archivos.exclude(estado=EstadoArchivo.COMPLETO).exists()
+            and archivos_vigentes.exists()
+            and not archivos_vigentes.exclude(estado=EstadoArchivo.COMPLETO).exists()
         )
 
     def marcar_en_revision(self):
         """Cambia el estado del estudio si hay archivos incorrectos o dudas clínicas."""
-        pass
+        if self.estado == EstadoEstudio.ELIMINADO:
+            raise ValidationError("Un estudio eliminado no puede entrar en revisión.")
+        if self.estado != EstadoEstudio.EN_REVISION:
+            self.estado = EstadoEstudio.EN_REVISION
+            self.save(update_fields=["estado", "updated_at"])
+        return self
 
     def reemplazar_archivo(self, archivo_viejo_id, archivo_nuevo):
         """Asocia un archivo nuevo como reemplazo de uno incorrecto."""
-        pass
+        if self.estado == EstadoEstudio.ELIMINADO:
+            raise ValidationError("No se pueden reemplazar archivos de un estudio eliminado.")
+        if not archivo_nuevo.pk or archivo_nuevo.estudio_id != self.pk:
+            raise ValidationError("El archivo nuevo debe pertenecer a este estudio.")
+        if archivo_nuevo.estado != EstadoArchivo.COMPLETO:
+            raise ValidationError("El archivo nuevo debe estar completo.")
+
+        with transaction.atomic():
+            archivo_viejo = self.archivos.select_for_update().get(pk=archivo_viejo_id)
+            if archivo_viejo.estado != EstadoArchivo.INCORRECTO:
+                raise ValidationError("Solo se puede reemplazar un archivo incorrecto.")
+            if archivo_nuevo.archivo_reemplazado_id not in {None, archivo_viejo.pk}:
+                raise ValidationError("El archivo nuevo ya reemplaza a otro archivo.")
+
+            archivo_nuevo.archivo_reemplazado = archivo_viejo
+            archivo_nuevo.save(update_fields=["archivo_reemplazado", "updated_at"])
+            archivo_viejo.estado = EstadoArchivo.REEMPLAZADO
+            archivo_viejo.save(update_fields=["estado", "updated_at"])
+        return archivo_nuevo
 
     def notificar_destinatarios(self):
         """Envía alertas (ej. email) a los odontólogos autorizados tras la publicación."""

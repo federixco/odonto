@@ -22,7 +22,26 @@
                     <span class="file-name" title="{{ archivo.nombre_archivo }}">{{ archivo.nombre_archivo }}</span>
                 </div>
                 <div class="file-detail-col file-size">{{ archivo.tamano|filesizeformat }}</div>
-                <div class="file-detail-col file-type">{{ archivo.formato }}</div>
+                <div class="file-detail-col file-type">
+                    {{ archivo.formato }} · {{ archivo.get_estado_display }}
+                    {% if archivo.archivo_reemplazado_id %}<small>Versión de reemplazo</small>{% endif %}
+                </div>
+                {% if request.user.rol == 'ADMINISTRADOR' and estudio.estado != 'ELIMINADO' %}
+                <div class="file-correction-actions">
+                    {% if archivo.estado == 'COMPLETO' %}
+                    <form method="post" action="{% url 'archivo_marcar_incorrecto' archivo.pk %}" onsubmit="return confirm('El estudio pasará a revisión y se revocarán temporalmente sus accesos si estaba publicado. ¿Continuar?');">
+                        {% csrf_token %}
+                        <button type="submit" class="button button-secondary button-small">Marcar incorrecto</button>
+                    </form>
+                    {% elif archivo.estado == 'INCORRECTO' %}
+                    <button type="button" class="button button-small" data-replacement-target="{{ archivo.pk }}" data-replacement-name="{{ archivo.nombre_archivo }}">Subir reemplazo</button>
+                    {% elif archivo.estado == 'REEMPLAZADO' %}
+                    <span class="account-status status-disabled"><span></span>Histórico</span>
+                    {% elif archivo.estado == 'PURGADO' %}
+                    <span class="account-status status-disabled"><span></span>Sin copia física</span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

@@ -7,14 +7,16 @@ import uuid
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib import messages
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 
 from apps.auditoria.models import LogActividad
 from apps.core.enums import (
     CategoriaArchivo,
+    EstadoAcceso,
     EstadoArchivo,
     EstadoEstudio,
     FormatoArchivo,
@@ -109,6 +111,53 @@ def _normalizar_partes(partes, cantidad_esperada):
     return normalizadas
 
 
+def _marcar_incorrecto_y_revisar(archivo, usuario):
+    """Conserva el archivo, abre la corrección y corta accesos publicados."""
+
+    with transaction.atomic():
+        estudio = Estudio.objects.select_for_update().get(pk=archivo.estudio_id)
+        archivo = Archivo.objects.select_for_update().get(pk=archivo.pk)
+        if estudio.estado == EstadoEstudio.ELIMINADO:
+            raise ValueError("El estudio está eliminado.")
+        if archivo.estado != EstadoArchivo.COMPLETO:
+            raise ValueError("Solo se puede marcar un archivo completo como incorrecto.")
+
+        estaba_publicado = estudio.estado == EstadoEstudio.PUBLICADO
+        archivo.estado = EstadoArchivo.INCORRECTO
+        archivo.save(update_fields=["estado", "updated_at"])
+        estudio.marcar_en_revision()
+
+        revocadas = 0
+        if estaba_publicado:
+            autorizaciones = estudio.autorizaciones.select_for_update().filter(
+                estado_acceso=EstadoAcceso.VIGENTE
+            )
+            for autorizacion in autorizaciones:
+                autorizacion.revocar(usuario)
+                revocadas += 1
+                LogActividad.objects.create(
+                    usuario=usuario,
+                    estudio=estudio,
+                    tipo_evento=TipoEvento.REVOCACION,
+                    resultado="Acceso revocado temporalmente por corrección",
+                    detalles=(
+                        f"Autorización {autorizacion.pk}; archivo incorrecto {archivo.pk}."
+                    ),
+                )
+
+        LogActividad.objects.create(
+            usuario=usuario,
+            estudio=estudio,
+            tipo_evento=TipoEvento.CORRECCION,
+            resultado="Archivo marcado como incorrecto",
+            detalles=(
+                f"Archivo {archivo.pk} ({archivo.nombre_archivo}); "
+                f"accesos revocados: {revocadas}."
+            ),
+        )
+    return archivo, revocadas
+
+
 class IniciarArchivoView(AdminRequeridoMixin, View):
     """Crea el registro transitorio y entrega permisos de subida temporales."""
 
@@ -122,6 +171,27 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
 
         data = _leer_json(request)
         clasificacion = _clasificar_nombre(data.get("nombre_archivo") if data else None)
+        archivo_reemplazado = None
+        reemplazado_id = data.get("archivo_reemplazado") if data else None
+        if reemplazado_id not in {None, ""}:
+            archivo_reemplazado = Archivo.objects.filter(
+                pk=reemplazado_id,
+                estudio=estudio,
+                estado=EstadoArchivo.INCORRECTO,
+            ).first()
+            if archivo_reemplazado is None:
+                return JsonResponse(
+                    {"error": "El archivo a reemplazar no existe o ya fue reemplazado."},
+                    status=409,
+                )
+            reemplazo_activo = archivo_reemplazado.reemplazos.filter(
+                estado__in=[EstadoArchivo.CARGANDO, EstadoArchivo.COMPLETO]
+            ).exists()
+            if reemplazo_activo:
+                return JsonResponse(
+                    {"error": "Ese archivo ya tiene un reemplazo en proceso."},
+                    status=409,
+                )
         try:
             tamano = int(data.get("tamano", 0)) if data else 0
         except (TypeError, ValueError):
@@ -164,6 +234,7 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
                 content_type=content_type,
                 cantidad_partes=cantidad_partes,
                 estado=EstadoArchivo.CARGANDO,
+                archivo_reemplazado=archivo_reemplazado,
             )
             urls = generar_urls_prefirmadas(
                 clave_objeto,
@@ -238,12 +309,27 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
                 archivo.save(
                     update_fields=["hash_sha256", "estado", "upload_id", "updated_at"]
                 )
+                es_reemplazo = archivo.archivo_reemplazado_id is not None
+                if es_reemplazo:
+                    archivo.estudio.reemplazar_archivo(
+                        archivo.archivo_reemplazado_id,
+                        archivo,
+                    )
                 LogActividad.objects.create(
                     usuario=request.user,
                     estudio=archivo.estudio,
-                    tipo_evento=TipoEvento.CARGA,
-                    resultado="Carga completada",
-                    detalles=f"Archivo {archivo.pk}; {archivo.tamano} bytes.",
+                    tipo_evento=(
+                        TipoEvento.CORRECCION if es_reemplazo else TipoEvento.CARGA
+                    ),
+                    resultado=(
+                        "Archivo reemplazado" if es_reemplazo else "Carga completada"
+                    ),
+                    detalles=(
+                        f"Archivo nuevo {archivo.pk}; reemplaza a "
+                        f"{archivo.archivo_reemplazado_id}; {archivo.tamano} bytes."
+                        if es_reemplazo
+                        else f"Archivo {archivo.pk}; {archivo.tamano} bytes."
+                    ),
                 )
         except Exception:
             logger.exception("No se pudo completar o verificar la carga multipartes.")
@@ -289,28 +375,36 @@ class CancelarArchivoView(AdminRequeridoMixin, View):
             logger.warning("S3 no confirmó la cancelación del archivo %s.", archivo.pk)
         return JsonResponse({"status": "cancelado", "archivo_id": archivo.pk})
 
+
+class MarcarArchivoIncorrectoView(AdminRequeridoMixin, View):
+    """Inicia una corrección sin borrar el archivo ni su objeto almacenado."""
+
+    def post(self, request, archivo_id):
+        archivo = get_object_or_404(
+            Archivo.objects.select_related("estudio"),
+            pk=archivo_id,
+            estudio__isnull=False,
+        )
+        try:
+            _, revocadas = _marcar_incorrecto_y_revisar(archivo, request.user)
+        except ValueError as error:
+            messages.error(request, str(error))
+        else:
+            mensaje = "El archivo quedó marcado como incorrecto."
+            if revocadas:
+                mensaje += f" Se revocaron temporalmente {revocadas} acceso(s)."
+            messages.success(request, mensaje)
+        return redirect("estudio_detalle", pk=archivo.estudio_id)
+
+
 class EliminarArchivoView(AdminRequeridoMixin, View):
-    """Elimina un archivo del estudio y de S3/MinIO."""
+    """Compatibilidad: convierte el borrado anterior en corrección trazable."""
 
     def post(self, request, archivo_id):
         archivo = get_object_or_404(Archivo, pk=archivo_id)
         
-        # Validar estado del estudio
-        if archivo.estudio.estado not in {EstadoEstudio.BORRADOR, EstadoEstudio.EN_REVISION}:
-            return JsonResponse({"error": "No se pueden eliminar archivos de este estudio."}, status=403)
-
         try:
-            eliminar_objeto(archivo.ruta_almacenamiento)
-        except Exception:
-            logger.exception("Error al eliminar objeto de S3.")
-            
-        archivo.delete()
-        
-        LogActividad.objects.create(
-            usuario=request.user,
-            estudio=archivo.estudio,
-            tipo_evento=TipoEvento.ELIMINACION,
-            resultado="Archivo eliminado",
-            detalles=f"Archivo {archivo.nombre_archivo} eliminado.",
-        )
-        return JsonResponse({"status": "eliminado"})
+            _marcar_incorrecto_y_revisar(archivo, request.user)
+        except ValueError as error:
+            return JsonResponse({"error": str(error)}, status=409)
+        return JsonResponse({"status": "marcado_incorrecto"})

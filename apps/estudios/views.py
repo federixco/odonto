@@ -29,7 +29,7 @@ from apps.archivos.services.storage import (
 )
 from apps.accesos.models import Autorizacion
 from apps.auditoria.models import LogActividad
-from apps.core.enums import CategoriaArchivo, EstadoAcceso, EstadoArchivo, EstadoEstudio, EstadoImportacion, FormatoArchivo, TipoEvento
+from apps.core.enums import CategoriaArchivo, EstadoAcceso, EstadoArchivo, EstadoCuenta, EstadoEstudio, EstadoImportacion, FormatoArchivo, TipoEvento
 from apps.core.mixins import AdminRequeridoMixin, EstudioAccesoMixin
 from apps.usuarios.models import Odontologo
 from .forms import (
@@ -206,6 +206,12 @@ class DetalleEstudioView(AdminRequeridoMixin, DetailView):
         contexto["archivos_pagina"] = Paginator(archivos, 100).get_page(
             self.request.GET.get("archivos_pagina")
         )
+        contexto["archivos_incorrectos"] = archivos.filter(
+            estado=EstadoArchivo.INCORRECTO
+        )
+        contexto["archivos_pendientes_purga"] = archivos.exclude(
+            estado=EstadoArchivo.PURGADO
+        ).count()
 
         contexto["accesos_vigentes"] = self.object.autorizaciones.select_related(
             "odontologo__usuario", "revocado_por"
@@ -300,6 +306,8 @@ class AgregarAccesoEstudioView(AdminRequeridoMixin, View):
         odontologo = get_object_or_404(
             Odontologo.objects.select_related("usuario"),
             pk=request.POST.get("odontologo"),
+            usuario__estado=EstadoCuenta.HABILITADA,
+            usuario__is_active=True,
         )
 
         with transaction.atomic():
@@ -588,10 +596,123 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
                 except ValidationError:
                     pass
             LogActividad.objects.create(usuario=request.user, estudio=estudio, tipo_evento=TipoEvento.IMPORTACION_CONFIRMADA, resultado="Estudio creado desde importación", detalles=f"Importación {lote.pk} confirmada.")
+        if derivante:
+            messages.success(
+                request,
+                f"La carpeta fue confirmada y el estudio quedó asociado a {derivante}.",
+            )
+        else:
+            messages.success(
+                request,
+                "La carpeta fue confirmada y el estudio quedó guardado como borrador sin odontólogo derivante.",
+            )
+        return redirect("estudio_detalle", pk=estudio.pk)
+
+
+class EliminarEstudioView(AdminRequeridoMixin, View):
+    """Realiza una baja lógica y conserva todos los metadatos y objetos."""
+
+    def post(self, request, pk):
+        motivo = request.POST.get("motivo", "").strip()
+        if not motivo:
+            messages.error(request, "Indicá el motivo de la eliminación.")
+            return redirect("estudio_detalle", pk=pk)
+
+        with transaction.atomic():
+            estudio = get_object_or_404(
+                Estudio.objects.select_for_update().exclude(
+                    estado=EstadoEstudio.ELIMINADO
+                ),
+                pk=pk,
+            )
+            autorizaciones = estudio.autorizaciones.select_for_update().filter(
+                estado_acceso=EstadoAcceso.VIGENTE
+            )
+            revocadas = 0
+            for autorizacion in autorizaciones:
+                autorizacion.revocar(request.user)
+                revocadas += 1
+            estudio.eliminar_logicamente(request.user, motivo)
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.ELIMINACION,
+                resultado="Estudio eliminado lógicamente",
+                detalles=(
+                    f"Motivo: {motivo}. Accesos revocados: {revocadas}. "
+                    "Los archivos físicos se conservaron."
+                ),
+            )
+
         messages.success(
             request,
-            f"La carpeta fue confirmada y el estudio quedó asociado a {derivante}.",
+            "El estudio fue eliminado lógicamente y todavía puede auditarse.",
         )
+        return redirect("estudio_detalle", pk=estudio.pk)
+
+
+class PurgarEstudioView(AdminRequeridoMixin, View):
+    """Borra los objetos físicos de un estudio eliminado, conservando su ficha."""
+
+    def post(self, request, pk):
+        estudio = get_object_or_404(
+            Estudio.objects.filter(estado=EstadoEstudio.ELIMINADO),
+            pk=pk,
+        )
+        confirmacion_esperada = f"ELIMINAR ESTUDIO {estudio.pk}"
+        if request.POST.get("confirmacion", "").strip() != confirmacion_esperada:
+            messages.error(
+                request,
+                f"Para purgar los archivos escribí exactamente: {confirmacion_esperada}",
+            )
+            return redirect("estudio_detalle", pk=estudio.pk)
+
+        purgados = 0
+        errores = []
+        archivos = estudio.archivos.exclude(estado=EstadoArchivo.PURGADO).order_by("pk")
+        for archivo in archivos:
+            try:
+                if archivo.upload_id:
+                    if not abortar_multipart_upload(
+                        archivo.ruta_almacenamiento,
+                        archivo.upload_id,
+                    ):
+                        raise RuntimeError("MinIO no confirmó la cancelación multipartes.")
+                else:
+                    eliminar_objeto(archivo.ruta_almacenamiento)
+            except Exception:
+                logger.exception(
+                    "No se pudo purgar el objeto del archivo %s.", archivo.pk
+                )
+                errores.append(archivo.pk)
+                continue
+
+            archivo.estado = EstadoArchivo.PURGADO
+            archivo.upload_id = None
+            archivo.save(update_fields=["estado", "upload_id", "updated_at"])
+            purgados += 1
+
+        LogActividad.objects.create(
+            usuario=request.user,
+            estudio=estudio,
+            tipo_evento=TipoEvento.ELIMINACION,
+            resultado="Purga física solicitada",
+            detalles=(
+                f"Objetos purgados: {purgados}. "
+                f"Errores pendientes: {errores or 'ninguno'}. "
+                "Se conservaron metadatos, hashes y relaciones de reemplazo."
+            ),
+        )
+        if errores:
+            messages.error(
+                request,
+                f"Se purgaron {purgados} archivos, pero {len(errores)} deberán reintentarse.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Se eliminaron definitivamente {purgados} archivos de MinIO. La trazabilidad se conservó.",
+            )
         return redirect("estudio_detalle", pk=estudio.pk)
 
 

@@ -526,6 +526,14 @@
 .manual-upload-option[open] > summary::after, .add-study-access[open] > summary::after { content: "−"; }
 .manual-upload-body { padding: 0 18px 18px; }
 .manual-upload-body .upload-area { padding-block: 30px; }
+.correction-target-field { margin-bottom: 16px; padding: 16px; border: 1px solid #e4b25b; border-radius: 10px; background: #fffaf0; }
+.file-correction-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.explorer-container.view-details .explorer-file-item { grid-template-columns: 2fr .75fr 1fr auto; }
+.study-danger-zone { margin-top: 24px; border-color: #e7b9b9; background: #fffafa; }
+.study-danger-zone h2 { margin: 7px 0 10px; }
+.study-danger-zone form { display: grid; gap: 10px; margin-top: 16px; }
+.study-danger-zone textarea, .study-danger-zone input { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.danger-confirm-form { padding-top: 16px; border-top: 1px solid #ead0d0; }
 .study-access-card { padding: 26px; }
 .study-access-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
 .study-access-heading .eyebrow { margin-bottom: 7px; font-size: .58rem; }
