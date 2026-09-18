@@ -1,0 +1,2 @@
+{# El estado se expresa con texto y color, nunca solo con color. #}
+<span class="account-status {% if usuario.estado == 'HABILITADA' %}status-enabled{% elif usuario.estado == 'PENDIENTE' %}status-pending{% else %}status-disabled{% endif %}"><span aria-hidden="true"></span>{{ usuario.get_estado_display }}</span>

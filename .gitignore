@@ -8,6 +8,7 @@ htmlcov/
 # Entornos y secretos
 .venv/
 venv/
+.local/
 .env
 .env.*
 !.env.example
@@ -17,6 +18,11 @@ db.sqlite3*
 media/*
 !media/.gitkeep
 staticfiles/
+
+# Herramientas y datos locales para simular S3/MinIO
+tools/minio/minio.exe
+tools/wheels/
+data/minio/
 
 # Backups locales de bases de datos
 *.sql

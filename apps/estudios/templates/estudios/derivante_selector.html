@@ -1,0 +1,68 @@
+<section class="derivante-selector" data-derivante-selector aria-labelledby="derivante-title">
+    <div class="derivante-heading">
+        <div>
+            <p class="eyebrow">PROFESIONAL SOLICITANTE</p>
+            <h2 id="derivante-title">Elegí el odontólogo derivante</h2>
+            <p>Este profesional quedará autorizado para consultar el estudio.</p>
+        </div>
+        <a class="button button-secondary button-small" href="{% url 'odontologo_crear' %}?next={{ request.get_full_path|urlencode }}">
+            {% include 'core/includes/icon.html' with name='plus' %} Registrar nuevo
+        </a>
+    </div>
+
+    {% if form.derivante.errors %}
+    <div class="notice error derivante-error" role="alert">{{ form.derivante.errors }}</div>
+    {% endif %}
+
+    {% if form.fields.derivante.queryset %}
+    <div class="derivante-tools">
+        <div class="search-field">
+            <label for="buscar-derivante">Buscar derivante</label>
+            <div class="search-input">
+                {% include 'core/includes/icon.html' with name='search' %}
+                <input id="buscar-derivante" type="search" autocomplete="off" placeholder="Nombre, apellido, matrícula o correo" data-derivante-search>
+            </div>
+        </div>
+    </div>
+
+    <div class="derivante-results" role="radiogroup" aria-labelledby="derivante-title">
+        {% with seleccionado=form.derivante.value|stringformat:'s' %}
+        
+        <label class="derivante-option{% if not seleccionado %} is-selected{% endif %}" data-derivante-card data-search="" data-status="">
+            <input type="radio" name="derivante" value="" {% if not seleccionado %}checked{% endif %}>
+            <span class="professional-avatar" aria-hidden="true" style="background:#e0e6ed;color:#5a6b7c">?</span>
+            <span class="derivante-identity">
+                <strong>Asignar más tarde</strong>
+                <small>El estudio quedará como borrador y sin permisos.</small>
+            </span>
+            <span class="derivante-check" aria-hidden="true">✓</span>
+        </label>
+{% for odontologo in form.fields.derivante.queryset %}
+        <label class="derivante-option{% if seleccionado == odontologo.pk|stringformat:'s' %} is-selected{% endif %}"
+               data-derivante-card
+               data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}"
+               data-status="{{ odontologo.usuario.estado }}">
+            <input type="radio" name="derivante" value="{{ odontologo.pk }}" {% if seleccionado == odontologo.pk|stringformat:'s' %}checked{% endif %}>
+            <span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
+            <span class="derivante-identity">
+                <strong>{{ odontologo.apellido }}, {{ odontologo.nombre }}</strong>
+                <small>Matrícula {{ odontologo.matricula }}{% if odontologo.usuario.email %} · {{ odontologo.usuario.email }}{% endif %}</small>
+            </span>
+            <span class="derivante-check" aria-hidden="true">✓</span>
+        </label>
+        {% endfor %}
+        {% endwith %}
+    </div>
+    <p class="derivante-count" aria-live="polite"><span data-derivante-count>{{ form.fields.derivante.queryset|length }}</span> profesionales disponibles</p>
+    <div class="derivante-empty" data-derivante-empty hidden>
+        <strong>No encontramos un derivante con esos filtros.</strong>
+        <p>Probá otra búsqueda o registrá al profesional para continuar.</p>
+    </div>
+    {% else %}
+    <div class="derivante-empty derivante-empty-initial">
+        <strong>Todavía no hay odontólogos registrados.</strong>
+        <p>Registrá al profesional solicitante y volverás automáticamente a esta confirmación.</p>
+        <a class="button" href="{% url 'odontologo_crear' %}?next={{ request.get_full_path|urlencode }}">Registrar primer derivante</a>
+    </div>
+    {% endif %}
+</section>

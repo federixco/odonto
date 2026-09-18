@@ -1,0 +1,79 @@
+{% extends 'core/public_base.html' %}
+{% load static %}
+{% block content %}
+<section class="hero" aria-labelledby="hero-title">
+    <div class="container hero-grid">
+        <div class="hero-copy">
+            <p class="eyebrow"><span class="coral-dot"></span> PRECISIÓN EN IMÁGENES. CERCANÍA EN LA ATENCIÓN.</p>
+            <h1 id="hero-title">Un buen tratamiento empieza con un <span>buen diagnóstico.</span></h1>
+            <p class="hero-description">Imágenes digitales en 2D y 3D para acompañar cada decisión de tu odontólogo. Tecnología y atención personalizada, en Formosa.</p>
+            <div class="hero-actions">
+                <a class="button" href="#servicios">Conocé nuestros servicios {% include 'core/includes/icon.html' with name='arrow' %}</a>
+                <a class="text-link" href="{% url 'login' %}">Acceder a estudios <span aria-hidden="true">↗</span></a>
+            </div>
+            <p class="hero-footnote">Al servicio de profesionales y pacientes.</p>
+        </div>
+        <div class="hero-visual">
+            <div class="visual-orbit" aria-hidden="true"></div>
+            <div class="equipment-frame">
+                <div class="equipment-photo"><img src="{% static 'core/images/doc-equipo-original.jpg' %}" width="1754" height="2480" alt="Equipo de diagnóstico por imágenes presentado en el material institucional de D.O.C." fetchpriority="high"></div>
+                <span class="photo-label"><span class="coral-dot"></span> TECNOLOGÍA CONE BEAM</span>
+                <div class="visual-caption"><span>Una mirada más completa.</span><strong>Imágenes que orientan<br>cada tratamiento.</strong></div>
+            </div>
+            <div class="image-note">{% include 'core/includes/icon.html' with name='cube' %}<div><strong>Diagnóstico en 3D</strong><span>Más perspectivas para planificar.</span></div></div>
+        </div>
+    </div>
+    <div class="container value-strip">
+        <div>{% include 'core/includes/icon.html' with name='scan' %}<span><strong>Imágenes digitales</strong><small>Estudios en 2D y 3D</small></span></div>
+        <div>{% include 'core/includes/icon.html' with name='people' %}<span><strong>Atención cercana</strong><small>Para cada paciente y profesional</small></span></div>
+        <div>{% include 'core/includes/icon.html' with name='lock' %}<span><strong>Acceso a estudios</strong><small>Ingreso con tu cuenta habilitada</small></span></div>
+    </div>
+</section>
+<section class="section services" id="servicios" aria-labelledby="services-title">
+    <div class="container">
+        <div class="section-heading"><div><p class="eyebrow">NUESTROS SERVICIOS</p><h2 id="services-title">Cada estudio, una<br>mirada más precisa.</h2></div><p>Acompañamos el diagnóstico y la planificación odontológica con imágenes digitales adaptadas a cada caso.</p></div>
+        <div class="service-grid">
+            <article class="service-card">
+                <div class="service-visual radiography"><img src="{% static 'core/images/doc-radiografias.jpg' %}" width="316" height="260" loading="lazy" alt="Ejemplos de radiografías odontológicas del folleto de D.O.C."><span class="image-tag">IMÁGENES 2D</span></div>
+                <div class="service-copy"><span class="service-index">01 / DIAGNÓSTICO DIGITAL</span><h3>Radiografías digitales</h3><p>Una visión de las estructuras dentales para acompañar la evaluación del profesional.</p><details><summary>Ver estudios incluidos <span aria-hidden="true">+</span></summary><ul><li>Panorámicas y telerradiografías digitales.</li><li>Radiografía carpal y cefalometrías.</li><li>Estudios de ATM y senos maxilares.</li></ul></details></div>
+            </article>
+            <article class="service-card">
+                <div class="service-visual tomography"><img src="{% static 'core/images/doc-planificacion.png' %}" width="604" height="532" loading="lazy" alt="Reconstrucción tridimensional para planificación odontológica, del material institucional"><span class="image-tag">IMÁGENES 3D</span></div>
+                <div class="service-copy"><span class="service-index">02 / TECNOLOGÍA CONE BEAM</span><h3>Tomografía 3D</h3><p>Imágenes tridimensionales para explorar la anatomía desde distintas perspectivas.</p><details><summary>Conocé sus aplicaciones <span aria-hidden="true">+</span></summary><ul><li>Planificación para implantes.</li><li>Evaluación de estructuras óseas y dentales.</li><li>Apoyo a distintas especialidades odontológicas.</li></ul></details></div>
+            </article>
+            <article class="service-card service-card-feature">
+                <div class="specialty-art" aria-hidden="true"><span class="specialty-ring"></span>{% include 'core/includes/icon.html' with name='tooth' %}<span class="specialty-point"></span><span class="art-caption">UNA VISIÓN INTEGRAL</span></div>
+                <div class="service-copy"><span class="service-index">03 / PLANIFICACIÓN</span><h3>Estudios complementarios</h3><p>Información para acompañar la planificación de tratamientos y el seguimiento de cada caso.</p><details><summary>Ver más información <span aria-hidden="true">+</span></summary><ul><li>Estudios para ortodoncia.</li><li>Fotografía odontológica.</li><li>Apoyo a la planificación para implantes.</li></ul></details></div>
+            </article>
+        </div>
+        <p class="section-note">¿No sabés qué estudio necesitás? Consultá con tu odontólogo o <a href="#contacto">comunicate con nosotros</a>.</p>
+    </div>
+</section>
+<section class="section about" id="nosotros" aria-labelledby="about-title">
+    <div class="container about-grid">
+        <div class="about-statement"><p class="eyebrow">SOMOS D.O.C.</p><h2 id="about-title">Entender tus necesidades también es parte del diagnóstico.</h2><p>Creemos que un buen tratamiento comienza con un diagnóstico y una planificación adecuados. Por eso, acompañamos a los profesionales de la odontología con imágenes digitales y una atención ajustada a cada caso.</p><p>En D.O.C. —Diagnóstico Odontológico Computado— trabajamos para acercar tecnología, información y atención personalizada a odontólogos y pacientes.</p><a class="text-link" href="#contacto">Conocé dónde estamos {% include 'core/includes/icon.html' with name='arrow' %}</a></div>
+        <div class="about-panel"><span class="large-quote" aria-hidden="true">“</span><blockquote>El punto de partida para un tratamiento exitoso.</blockquote><p class="panel-description">Una mirada profesional.<br>Una atención humana.</p><div class="team"><span class="team-label">PROFESIONALES DEL CENTRO</span><p><strong>Dra. María Luisa Stechina</strong></p><p><strong>Dr. Pedro Eduardo Morales</strong></p></div><span class="panel-dot" aria-hidden="true"></span></div>
+    </div>
+</section>
+<section class="section portal-section" id="estudios" aria-labelledby="portal-title">
+    <div class="container portal-panel">
+        <div class="portal-intro"><p class="eyebrow">PLATAFORMA DE ESTUDIOS</p><h2 id="portal-title">La información que necesitás,<br>en un mismo lugar.</h2><p>Ingresá con tu cuenta para acceder al espacio de estudios que te corresponde.</p><a class="button button-white" href="{% url 'login' %}">Acceder a estudios {% include 'core/includes/icon.html' with name='arrow' %}</a><a class="portal-register" href="{% url 'odontologo_autoregistro' %}">¿Sos odontólogo? Solicitá tu cuenta <span aria-hidden="true">↗</span></a></div>
+        <ol class="portal-steps"><li><span>01</span><div><h3>Ingresá con tu cuenta</h3><p>Usá tu nombre de usuario y contraseña.</p></div></li><li><span>02</span><div><h3>Accedé a tu espacio</h3><p>Cada cuenta tiene un acceso según su rol y las autorizaciones del centro.</p></div></li><li><span>03</span><div><h3>¿Necesitás ayuda?</h3><p>Contactanos si no tenés una cuenta o necesitás recuperar el acceso.</p></div></li></ol>
+    </div>
+</section>
+<section class="section faq" aria-labelledby="faq-title">
+    <div class="container faq-grid"><div><p class="eyebrow">TE ACOMPAÑAMOS</p><h2 id="faq-title">Algunas preguntas<br>antes de empezar.</h2><p>Si necesitás más información,<br><a href="#contacto">estamos para ayudarte</a>.</p></div><div class="faq-list">
+        <details><summary>¿Necesito una cuenta para conocer los servicios? {% include 'core/includes/icon.html' with name='plus' %}</summary><p>No. Toda la información sobre D.O.C., sus servicios y el contacto es pública. Solo necesitás iniciar sesión para ingresar a la plataforma de estudios.</p></details>
+        <details><summary>Soy odontólogo, ¿cómo solicito acceso? {% include 'core/includes/icon.html' with name='plus' %}</summary><p>Podés <a href="{% url 'odontologo_autoregistro' %}">registrarte desde la web</a>. Tu cuenta quedará pendiente hasta que el centro la habilite. También podés comunicarte con nosotros para solicitar el alta.</p></details>
+        <details><summary>Soy paciente, ¿cómo accedo a mis estudios? {% include 'core/includes/icon.html' with name='plus' %}</summary><p>Comunicate con el centro para solicitar acceso. El equipo de D.O.C. te indicará cómo ingresar con una cuenta vinculada a tus estudios.</p></details>
+        <details><summary>¿Cómo consulto por un estudio o un turno? {% include 'core/includes/icon.html' with name='plus' %}</summary><p>Llamanos al <a href="tel:+543704422272">0370 442-2272, interno 2</a>, o escribinos a <a href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a>. Indicá el estudio solicitado y los datos de contacto de tu odontólogo.</p></details>
+    </div></div>
+</section>
+<section class="section contact-section" id="contacto" aria-labelledby="contact-title">
+    <div class="container contact-panel"><div><p class="eyebrow">ESTAMOS CERCA</p><h2 id="contact-title">Hablemos de tu<br>próximo estudio.</h2><p>Consultanos por los servicios, la solicitud de estudios o el acceso a la plataforma.</p><a class="button" href="tel:+543704422272">{% include 'core/includes/icon.html' with name='phone' %} Llamar al centro</a></div><address class="contact-details">
+        <div>{% include 'core/includes/icon.html' with name='pin' %}<span><small>VISITANOS</small><strong>Mitre 479</strong><span>Ciudad de Formosa, Argentina</span><a href="https://www.google.com/maps/search/?api=1&amp;query=Mitre%20479%2C%20Formosa%2C%20Argentina" target="_blank" rel="noopener noreferrer">Cómo llegar <span aria-hidden="true">↗</span></a></span></div>
+        <div>{% include 'core/includes/icon.html' with name='phone' %}<span><small>LLAMANOS</small><a href="tel:+543704422272">0370 442-2272 · interno 2</a></span></div>
+        <div>{% include 'core/includes/icon.html' with name='mail' %}<span><small>ESCRIBINOS</small><a href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a></span></div>
+    </address></div>
+</section>
+{% endblock %}

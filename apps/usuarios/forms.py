@@ -1,7 +1,7 @@
 """Formularios para gestión de cuentas de odontólogos derivantes."""
 
 from django import forms
-from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.password_validation import password_validators_help_text_html, validate_password
 from django.db import transaction
 
 from apps.core.enums import EstadoCuenta, RolUsuario
@@ -19,6 +19,19 @@ class OdontologoCreacionAdminForm(forms.Form):
     apellido = forms.CharField(label="Apellido", max_length=100)
     matricula = forms.CharField(label="Matrícula", max_length=50)
     telefono = forms.CharField(label="Teléfono", max_length=30, required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Ayudas visuales compartidas por el alta administrativa y el autorregistro."""
+        super().__init__(*args, **kwargs)
+        autocomplete = {
+            "nombre": "given-name", "apellido": "family-name",
+            "email": "email", "telefono": "tel", "username": "username",
+            "password": "new-password", "password_confirm": "new-password",
+        }
+        for name, value in autocomplete.items():
+            self.fields[name].widget.attrs["autocomplete"] = value
+        self.fields["telefono"].widget.attrs["inputmode"] = "tel"
+        self.fields["password"].help_text = password_validators_help_text_html()
 
     def clean_username(self):
         username = self.cleaned_data["username"]
@@ -120,6 +133,14 @@ class OdontologoEdicionForm(forms.Form):
 
     def __init__(self, *args, odontologo=None, **kwargs):
         super().__init__(*args, **kwargs)
+        # Solo presentación: ayuda al navegador sin cambiar las validaciones del perfil.
+        autocomplete = {
+            "nombre": "given-name", "apellido": "family-name",
+            "email": "email", "telefono": "tel",
+        }
+        for name, value in autocomplete.items():
+            self.fields[name].widget.attrs["autocomplete"] = value
+        self.fields["telefono"].widget.attrs["inputmode"] = "tel"
         self.odontologo = odontologo
         if odontologo:
             self.fields["nombre"].initial = odontologo.nombre

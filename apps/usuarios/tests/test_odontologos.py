@@ -53,6 +53,27 @@ class GestionOdontologosTestCase(TestCase):
         self.assertEqual(nuevo.usuario.estado, EstadoCuenta.HABILITADA)
         self.assertTrue(nuevo.usuario.is_active)
 
+    def test_alta_desde_una_carga_regresa_a_la_confirmacion(self):
+        self.client.login(username="admin_test", password=self.password)
+        retorno = "/estudios/importaciones/25/"
+
+        response = self.client.post(
+            reverse("odontologo_crear"),
+            {
+                "next": retorno,
+                "username": "derivante_carga",
+                "email": "carga@test.com",
+                "password": self.password,
+                "password_confirm": self.password,
+                "nombre": "Sofía",
+                "apellido": "Martínez",
+                "matricula": "MAT-025",
+            },
+        )
+
+        self.assertRedirects(response, retorno, fetch_redirect_response=False)
+        self.assertTrue(Odontologo.objects.filter(matricula="MAT-025").exists())
+
     # --- Test: Autorregistro crea con estado PENDIENTE ---
 
     def test_autoregistro_crea_cuenta_pendiente(self):
@@ -222,5 +243,5 @@ class GestionOdontologosTestCase(TestCase):
         self.assertContains(response, reverse("odontologo_autoregistro"))
 
         self.client.login(username="admin_test", password=self.password)
-        response = self.client.get(reverse("dashboard_admin"))
+        response = self.client.get(reverse("dashboard_admin"), follow=True)
         self.assertContains(response, reverse("odontologo_lista"))

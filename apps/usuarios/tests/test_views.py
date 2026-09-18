@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.core.enums import EstadoCuenta, RolUsuario
+from apps.pacientes.models import Paciente
 
 
 User = get_user_model()
@@ -36,6 +37,12 @@ class AccesosRolesTestCase(TestCase):
             rol=RolUsuario.PACIENTE,
             estado=EstadoCuenta.HABILITADA,
         )
+        Paciente.objects.create(
+            usuario=self.pac_user,
+            nombre="Paciente",
+            apellido="De prueba",
+            dni="39000000",
+        )
 
     def test_acceso_anonimo_denegado(self):
         """Un usuario sin loguear es redirigido al login."""
@@ -43,11 +50,29 @@ class AccesosRolesTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith(reverse("login")))
 
-    def test_admin_accede_su_dashboard(self):
+    def test_acceso_anterior_del_admin_redirige_a_carga_rapida(self):
         self.client.login(username="admin_test", password=self.password)
-        response = self.client.get(reverse("dashboard_admin"))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "usuarios/dashboard_admin.html")
+        response = self.client.get(reverse("dashboard_admin"), follow=True)
+        self.assertRedirects(response, reverse("importacion_crear"))
+        self.assertTemplateUsed(response, "estudios/importacion_crear.html")
+
+    def test_login_admin_termina_en_carga_rapida(self):
+        response = self.client.post(reverse("login"), {
+            "username": "admin_test", "password": self.password,
+        }, follow=True)
+        self.assertEqual(response.redirect_chain, [
+            (reverse("redireccion_roles"), 302),
+            (reverse("importacion_crear"), 302),
+        ])
+        self.assertTemplateUsed(response, "estudios/importacion_crear.html")
+
+    def test_login_admin_con_next_anterior_tambien_abre_carga_rapida(self):
+        response = self.client.post(reverse("login"), {
+            "username": "admin_test", "password": self.password,
+            "next": reverse("dashboard_admin"),
+        }, follow=True)
+        self.assertRedirects(response, reverse("importacion_crear"))
+        self.assertTemplateUsed(response, "estudios/importacion_crear.html")
 
     def test_admin_rechazado_en_dashboard_odontologo(self):
         """El administrador no debería acceder a vistas exclusivas de odontólogo."""

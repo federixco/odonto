@@ -1,15 +1,50 @@
-{% extends "base.html" %}
-
-{% block title %}Registro de Odontólogo - SISETMA{% endblock %}
-
-{% block content %}
-<h2>Registro de Odontólogo</h2>
-<p>Completá tus datos profesionales. Tu cuenta quedará <strong>pendiente de habilitación</strong> por un administrador del centro.</p>
-
-<form method="post">
+{% extends 'core/auth_base.html' %}
+{% block title %}Registro de odontólogos | D.O.C.{% endblock %}
+{% block auth_layout %}registration-layout{% endblock %}
+{% block auth_eyebrow %}PARA ODONTÓLOGOS DERIVANTES{% endblock %}
+{% block auth_heading %}Tu consultorio,<br><span>más cerca de D.O.C.</span>{% endblock %}
+{% block auth_description %}Solicitá tu cuenta profesional para ingresar a la plataforma de estudios del centro.{% endblock %}
+{% block auth_aside %}
+<ol class="registration-steps">
+    <li><span>01</span><div><strong>Completá tus datos</strong><p>Información personal, matrícula y datos de contacto.</p></div></li>
+    <li><span>02</span><div><strong>Esperá la habilitación</strong><p>El centro revisará tu solicitud antes de habilitar el ingreso.</p></div></li>
+    <li><span>03</span><div><strong>Ingresá a tu cuenta</strong><p>Usá el nombre de usuario y la contraseña que elegiste.</p></div></li>
+</ol>
+<p class="registration-patient-note">¿Sos paciente? <a href="{% url 'core:landing' %}#contacto">Comunicate con el centro</a> para solicitar acceso a tus estudios.</p>
+{% endblock %}
+{% block auth_icon %}{% include 'core/includes/icon.html' with name='people' %}{% endblock %}
+{% block auth_card %}
+<h2 id="auth-title">Creá tu cuenta profesional</h2>
+<p class="auth-description">Completá el formulario para solicitar acceso.</p>
+<div class="registration-notice">{% include 'core/includes/icon.html' with name='lock' %}<p>Tu cuenta quedará <strong>pendiente de habilitación</strong> por el centro.</p></div>
+<form method="post" action="{% url 'odontologo_autoregistro' %}" class="auth-form registration-form">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Registrarme</button>
-    <a href="{% url 'login' %}">Ya tengo cuenta</a>
+    {% if form.errors %}<div class="form-errors" role="alert"><p>Revisá los campos indicados para continuar.</p>{{ form.non_field_errors }}</div>{% endif %}
+    <fieldset>
+        <legend><span>01</span> Datos profesionales</legend>
+        <div class="form-grid">
+            {% include 'core/includes/form_field.html' with field=form.nombre %}
+            {% include 'core/includes/form_field.html' with field=form.apellido %}
+            {% include 'core/includes/form_field.html' with field=form.matricula %}
+            {% include 'core/includes/form_field.html' with field=form.telefono %}
+            {% include 'core/includes/form_field.html' with field=form.email full_width=True %}
+        </div>
+    </fieldset>
+    <fieldset>
+        <legend><span>02</span> Acceso a la cuenta</legend>
+        <div class="form-grid">
+            {% include 'core/includes/form_field.html' with field=form.username full_width=True %}
+            {% include 'core/includes/form_field.html' with field=form.password password=True separate_help=True %}
+            {% include 'core/includes/form_field.html' with field=form.password_confirm password=True %}
+        </div>
+        {% if form.password.help_text %}
+        <details class="password-guidance">
+            <summary>Requisitos de la contraseña {% include 'core/includes/icon.html' with name='plus' %}</summary>
+            <div id="{{ form.password.auto_id }}_helptext" class="field-help">{{ form.password.help_text }}</div>
+        </details>
+        {% endif %}
+    </fieldset>
+    <button class="button login-submit" type="submit">Solicitar mi cuenta {% include 'core/includes/icon.html' with name='arrow' %}</button>
 </form>
+<p class="auth-bottom-link">¿Ya tenés una cuenta? <a href="{% url 'login' %}">Iniciá sesión</a>.</p>
 {% endblock %}

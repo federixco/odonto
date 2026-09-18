@@ -1,18 +1,24 @@
-{% extends "base.html" %}
-
-{% block title %}Iniciar Sesión - SISETMA{% endblock %}
-
+{% extends 'core/public_base.html' %}
+{% load static %}
+{% block title %}Acceder a estudios | D.O.C.{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block body_class %}login-page{% endblock %}
 {% block content %}
-<h2>Iniciar Sesión</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Ingresar</button>
-</form>
-
-<p><a href="{% url 'password_reset' %}">¿Olvidaste tu contraseña?</a></p>
-<p>
-    ¿Sos odontólogo derivante?
-    <a href="{% url 'odontologo_autoregistro' %}">Registrate para solicitar acceso</a>.
-</p>
+<section class="login-section container" aria-labelledby="login-title">
+    <div class="login-intro"><p class="eyebrow">BIENVENIDO A D.O.C.</p><h1>Tu espacio de<br>estudios <span>odontológicos.</span></h1><p>Un acceso personal para acompañar el trabajo de cada profesional y la atención de cada paciente.</p><div class="login-emblem" aria-hidden="true"><img src="{% static 'core/images/doc-isotipo.svg' %}" alt="" width="140" height="140"></div><a class="text-link" href="{% url 'core:landing' %}"><span aria-hidden="true">←</span> Volver al sitio de D.O.C.</a></div>
+    <div class="login-card"><span class="login-icon">{% include 'core/includes/icon.html' with name='lock' %}</span><h2 id="login-title">Acceder a estudios</h2><p>Ingresá con tu nombre de usuario y contraseña.</p>
+        {% if user.is_authenticated %}<p class="notice">Ya tenés una sesión iniciada. <a href="{% url 'redireccion_roles' %}">Ir a mi cuenta</a>.</p>{% endif %}
+        <form method="post" action="{% url 'login' %}" class="login-form">
+            {% csrf_token %}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+            <div class="form-field"><label for="{{ form.username.id_for_label }}">Nombre de usuario</label>{{ form.username }}{{ form.username.errors }}</div>
+            <div class="form-field"><label for="{{ form.password.id_for_label }}">Contraseña</label><div class="password-field">{{ form.password }}<button type="button" class="password-toggle" data-password-toggle aria-controls="{{ form.password.id_for_label }}" aria-pressed="false" hidden>Mostrar</button></div>{{ form.password.errors }}</div>
+            <a class="forgot-link" href="{% url 'password_reset' %}">¿Olvidaste tu contraseña?</a>
+            <button class="button login-submit" type="submit">Iniciar sesión {% include 'core/includes/icon.html' with name='arrow' %}</button>
+        </form>
+        <div class="login-registration"><strong>¿Sos odontólogo derivante?</strong><a href="{% url 'odontologo_autoregistro' %}">Registrate para solicitar acceso <span aria-hidden="true">↗</span></a></div>
+        <p class="login-help">Si sos paciente y necesitás una cuenta, <a href="{% url 'core:landing' %}#contacto">comunicate con el centro</a>.</p>
+    </div>
+</section>
 {% endblock %}

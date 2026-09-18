@@ -2,13 +2,17 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
-from apps.core.enums import EstadoCuenta, RolUsuario
+from apps.core.enums import EstadoCuenta, EstadoEstudio, RolUsuario
 from apps.core.mixins import AdminRequeridoMixin, OdontologoRequeridoMixin, PacienteRequeridoMixin
+from apps.estudios.models import Estudio
+from apps.pacientes.models import Paciente
 from apps.usuarios.forms import (
     OdontologoAutoregistroForm,
     OdontologoCreacionAdminForm,
@@ -19,10 +23,10 @@ from apps.usuarios.models import Odontologo
 
 @login_required
 def redireccion_roles_view(request):
-    """Enruta al usuario a su dashboard principal luego de iniciar sesión."""
+    """Enruta al usuario a su pantalla principal luego de iniciar sesión."""
     rol = request.user.rol
     if rol == RolUsuario.ADMINISTRADOR:
-        return redirect("dashboard_admin")
+        return redirect("importacion_crear")
     if rol == RolUsuario.ODONTOLOGO:
         return redirect("dashboard_odontologo")
     if rol == RolUsuario.PACIENTE:
@@ -32,16 +36,54 @@ def redireccion_roles_view(request):
 
 # --- Dashboards por rol ---
 
-class DashboardAdminView(AdminRequeridoMixin, TemplateView):
-    template_name = "usuarios/dashboard_admin.html"
+class DashboardAdminView(AdminRequeridoMixin, View):
+    """Conserva la URL anterior sin mostrar una pantalla intermedia."""
+
+    def get(self, request, *args, **kwargs):
+        return redirect("importacion_crear")
 
 
 class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
     template_name = "usuarios/dashboard_odontologo.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            odontologo = self.request.user.odontologo
+        except Exception:
+            raise PermissionDenied("La cuenta no está vinculada a un odontólogo.")
+        
+        context["odontologo"] = odontologo
+        
+        # Obtener autorizaciones vigentes y estudios publicados
+        from apps.core.enums import EstadoAcceso, EstadoEstudio
+        from apps.estudios.models import Estudio
+        
+        estudios = Estudio.objects.filter(
+            autorizaciones__odontologo=odontologo,
+            autorizaciones__estado_acceso=EstadoAcceso.VIGENTE,
+            estado=EstadoEstudio.PUBLICADO
+        ).select_related('paciente').order_by('-fecha_estudio', '-created_at')
+        
+        context["estudios"] = estudios
+        return context
+
 
 class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
     template_name = "usuarios/dashboard_paciente.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            paciente = self.request.user.paciente
+        except Paciente.DoesNotExist:
+            raise PermissionDenied("La cuenta no está vinculada a una ficha clínica.")
+        context["paciente"] = paciente
+        context["estudios"] = Estudio.objects.filter(
+            paciente=paciente,
+            estado=EstadoEstudio.PUBLICADO,
+        ).order_by("-fecha_estudio", "-created_at")
+        return context
 
 
 # --- Gestión de odontólogos (Admin) ---
@@ -49,17 +91,35 @@ class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
 class CrearOdontologoView(AdminRequeridoMixin, View):
     """Alta de odontólogo por el Administrador."""
 
+    def _retorno_seguro(self, request):
+        destino = request.POST.get("next") or request.GET.get("next", "")
+        if destino and url_has_allowed_host_and_scheme(
+            destino,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return destino
+        return ""
+
     def get(self, request):
         form = OdontologoCreacionAdminForm()
-        return render(request, "usuarios/odontologo_crear.html", {"form": form})
+        return render(
+            request,
+            "usuarios/odontologo_crear.html",
+            {"form": form, "next_url": self._retorno_seguro(request)},
+        )
 
     def post(self, request):
         form = OdontologoCreacionAdminForm(request.POST)
         if form.is_valid():
             odontologo = form.save()
             messages.success(request, f"Odontólogo {odontologo} creado exitosamente.")
-            return redirect("odontologo_lista")
-        return render(request, "usuarios/odontologo_crear.html", {"form": form})
+            return redirect(self._retorno_seguro(request) or "odontologo_lista")
+        return render(
+            request,
+            "usuarios/odontologo_crear.html",
+            {"form": form, "next_url": self._retorno_seguro(request)},
+        )
 
 
 class ListaOdontologosView(AdminRequeridoMixin, ListView):
