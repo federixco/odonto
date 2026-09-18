@@ -1,0 +1,34 @@
+<details class="folder-group" open>
+    <summary class="folder-summary">
+        <span class="folder-info">
+            <span class="folder-icon folder-icon-sub">{% include 'core/includes/icon.html' with name='cube' %}</span>
+            <span class="folder-text">
+                <strong>{{ node.nombre }}</strong>
+                <small>{{ node.total_archivos_recursivo }} archivo{{ node.total_archivos_recursivo|pluralize }} · {{ node.tamano_total|filesizeformat }}</small>
+            </span>
+        </span>
+        <span class="folder-arrow" aria-hidden="true">▸</span>
+    </summary>
+    <div class="folder-root-children" style="margin-left: 17px; padding-left: 15px; border-left: 2px solid #e7eeee;">
+        {% for subname, subnode in node.subcarpetas.items %}
+            {% include 'estudios/_folder_node.html' with node=subnode %}
+        {% endfor %}
+        
+        {% if node.archivos %}
+        <ul class="study-file-list folder-file-list">
+            {% for archivo in node.archivos %}
+            <li class="file-item-row" id="archivo-row-{{ archivo.pk }}">
+                <span class="file-format">{{ archivo.formato }}</span>
+                <span class="file-description">
+                    <strong>{{ archivo.nombre_archivo }}</strong>
+                    <small>{{ archivo.tamano|filesizeformat }} · {{ archivo.get_estado_display }}</small>
+                </span>
+                <button type="button" class="button button-small button-danger btn-eliminar-archivo" data-archivo-id="{{ archivo.pk }}" data-archivo-nombre="{{ archivo.nombre_archivo }}" style="margin-left:auto; font-size:0.7rem; padding: 4px 8px; background: #fff0f0; color: #d00; border: 1px solid #ffcccc; cursor: pointer;">
+                    Eliminar
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</details>

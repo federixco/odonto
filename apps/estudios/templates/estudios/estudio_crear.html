@@ -1,0 +1,44 @@
+{% extends 'core/admin_base.html' %}
+
+{% block title %}Nuevo estudio | D.O.C.{% endblock %}
+
+{% block content %}
+<header class="admin-page-heading">
+    <div>
+        <p class="eyebrow">GESTIÓN DE ESTUDIOS</p>
+        <h1>Preparar un <span>nuevo estudio.</span></h1>
+        <p>Primero registrá sus datos; después podrás cargar uno o varios archivos.</p>
+    </div>
+</header>
+
+<div class="admin-form-layout">
+    <section class="admin-card form-card" aria-labelledby="form-title">
+        <h2 id="form-title">Datos del estudio</h2>
+        <form method="post" novalidate class="admin-form">
+            {% csrf_token %}
+            {% include 'core/includes/form_field.html' with field=form.paciente %}
+            {% include 'core/includes/form_field.html' with field=form.tipo %}
+            {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
+            {% include 'core/includes/form_field.html' with field=form.observaciones %}
+            <div class="admin-form-actions">
+                <button type="submit" class="button">Continuar a los archivos</button>
+                <a href="{% url 'paciente_lista' %}" class="button button-secondary">Cancelar</a>
+            </div>
+        </form>
+    </section>
+
+    <aside class="admin-guide form-guide" aria-labelledby="guide-title">
+        <span class="panel-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span>
+        <h2 id="guide-title">El estudio comienza como borrador</h2>
+        <p>No será visible para odontólogos ni pacientes mientras los archivos no estén completos y verificados.</p>
+        <div class="admin-tip">
+            <strong>Paciente obligatorio</strong>
+            <p>La ficha debe existir antes de iniciar la carga.</p>
+        </div>
+        <div class="admin-tip">
+            <strong>Publicación posterior</strong>
+            <p>Cargar los archivos no publica automáticamente el estudio.</p>
+        </div>
+    </aside>
+</div>
+{% endblock %}

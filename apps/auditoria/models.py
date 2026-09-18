@@ -22,7 +22,7 @@ class LogActividad(models.Model):
 
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="logs_actividad", db_column="id_usuario")
     estudio = models.ForeignKey("estudios.Estudio", null=True, blank=True, on_delete=models.SET_NULL, related_name="logs_actividad", db_column="id_estudio")
-    tipo_evento = models.CharField(max_length=20, choices=TipoEvento.choices)
+    tipo_evento = models.CharField(max_length=30, choices=TipoEvento.choices)
     fecha_hora = models.DateTimeField(auto_now_add=True)
     resultado = models.CharField(max_length=255)
     detalles = models.TextField(blank=True)
