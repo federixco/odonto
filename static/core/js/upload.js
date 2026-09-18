@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const progressText = document.getElementById("progress-text");
     const uploadSuccess = document.getElementById("upload-success");
     const uploadError = document.getElementById("upload-error");
+    const replacementSelect = document.getElementById("replacement-file-select");
+    const manualUpload = document.querySelector(".manual-upload-option");
     const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
     const maxRetries = 3;
 
@@ -66,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function subirArchivo(file, onProgress) {
+    async function subirArchivo(file, onProgress, archivoReemplazado = null) {
         let archivoId = null;
         try {
             const initResponse = await fetch(`/archivos/iniciar/${estudioId}/`, {
@@ -78,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify({
                     nombre_archivo: file.name,
                     tamano: file.size,
+                    archivo_reemplazado: archivoReemplazado,
                 }),
             });
             if (!initResponse.ok) {
@@ -131,9 +134,15 @@ document.addEventListener("DOMContentLoaded", () => {
     async function procesarArchivos(fileList) {
         const files = Array.from(fileList);
         if (!files.length) return;
+        const archivoReemplazado = replacementSelect?.value || null;
+        if (archivoReemplazado && files.length !== 1) {
+            mostrarError("Para reemplazar una versión seleccioná exactamente un archivo.");
+            return;
+        }
 
         selectButton.disabled = true;
         fileInput.disabled = true;
+        if (replacementSelect) replacementSelect.disabled = true;
         uploadError.hidden = true;
         uploadSuccess.hidden = true;
         progressContainer.hidden = false;
@@ -150,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
                     progressBar.style.width = `${porcentaje}%`;
                     progressTrack.setAttribute("aria-valuenow", String(porcentaje));
-                });
+                }, archivoReemplazado);
                 bytesCompletados += file.size;
             }
             progressBar.style.width = "100%";
@@ -163,6 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
             progressContainer.hidden = true;
             selectButton.disabled = false;
             fileInput.disabled = false;
+            if (replacementSelect) replacementSelect.disabled = false;
         }
     }
 
@@ -178,30 +188,14 @@ document.addEventListener("DOMContentLoaded", () => {
         dropZone.classList.remove("is-dragging");
         procesarArchivos(event.dataTransfer.files);
     });
-    // Delete file logic
-    const deleteButtons = document.querySelectorAll('.btn-eliminar-archivo');
-    deleteButtons.forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const archivoId = btn.dataset.archivoId;
-            const archivoNombre = btn.dataset.archivoNombre;
-            if (!confirm('¿Seguro que deseas eliminar el archivo "' + archivoNombre + '"?')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('/archivos/eliminar/' + archivoId + '/', {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrfToken }
-                });
-                
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Error al eliminar el archivo.');
-                }
-            } catch (err) {
-                alert('Error de conexión al intentar eliminar.');
-            }
+
+    document.querySelectorAll("[data-replacement-target]").forEach((button) => {
+        button.addEventListener("click", () => {
+            if (!replacementSelect || !manualUpload) return;
+            replacementSelect.value = button.dataset.replacementTarget;
+            manualUpload.open = true;
+            manualUpload.scrollIntoView({behavior: "smooth", block: "center"});
+            selectButton.focus({preventScroll: true});
         });
     });
 });

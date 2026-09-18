@@ -27,6 +27,7 @@ class EstadoArchivo(models.TextChoices):
     COMPLETO = "COMPLETO", "Completo"
     INCORRECTO = "INCORRECTO", "Incorrecto"
     REEMPLAZADO = "REEMPLAZADO", "Reemplazado"
+    PURGADO = "PURGADO", "Purgado del almacenamiento"
 
 
 class EstadoAcceso(models.TextChoices):

@@ -88,6 +88,34 @@ class EstudioModelTests(TestCase):
 
         estudio = Estudio.objects.get(pk=estudio_id)
         self.assertEqual(estudio.estado, EstadoEstudio.ELIMINADO)
+        self.assertIsNotNone(estudio.fecha_eliminacion)
+
+    def test_reemplazo_conserva_archivo_anterior_y_su_trazabilidad(self):
+        archivo_anterior = self.crear_archivo(EstadoArchivo.INCORRECTO)
+        archivo_nuevo = Archivo.objects.create(
+            estudio=self.estudio,
+            nombre_archivo="estudio-corregido.dcm",
+            formato=FormatoArchivo.DICOM,
+            categoria=CategoriaArchivo.DICOM,
+            ruta_almacenamiento="estudios/estudio-corregido.dcm",
+            tamano=2048,
+            hash_sha256="b" * 64,
+            estado=EstadoArchivo.COMPLETO,
+        )
+
+        self.estudio.marcar_en_revision()
+        self.estudio.reemplazar_archivo(archivo_anterior.pk, archivo_nuevo)
+        archivo_anterior.refresh_from_db()
+        archivo_nuevo.refresh_from_db()
+
+        self.assertEqual(archivo_anterior.estado, EstadoArchivo.REEMPLAZADO)
+        self.assertEqual(archivo_nuevo.archivo_reemplazado, archivo_anterior)
+        self.assertEqual(self.estudio.archivos.count(), 2)
+        self.assertTrue(self.estudio.validar_carga())
+
+        self.estudio.publicar()
+        self.estudio.refresh_from_db()
+        self.assertEqual(self.estudio.estado, EstadoEstudio.PUBLICADO)
 
 
 class ImportacionEstudioModelTests(TestCase):

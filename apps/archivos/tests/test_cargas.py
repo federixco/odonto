@@ -9,15 +9,18 @@ from django.urls import reverse
 from apps.auditoria.models import LogActividad
 from apps.core.enums import (
     CategoriaArchivo,
+    EstadoAcceso,
     EstadoArchivo,
     EstadoCuenta,
+    EstadoEstudio,
     FormatoArchivo,
     RolUsuario,
     TipoEvento,
 )
+from apps.accesos.models import Autorizacion
 from apps.estudios.models import Estudio
 from apps.pacientes.models import Paciente
-from apps.usuarios.models import Usuario
+from apps.usuarios.models import Odontologo, Usuario
 
 from ..models import Archivo
 
@@ -207,3 +210,110 @@ class CargaArchivosTests(TestCase):
         archivo.refresh_from_db()
         self.assertEqual(archivo.estado, EstadoArchivo.INCORRECTO)
         self.assertIsNone(archivo.upload_id)
+
+    @patch("apps.archivos.views.eliminar_objeto")
+    def test_marcar_incorrecto_revoca_acceso_sin_borrar_el_objeto(self, eliminar):
+        cuenta = Usuario.objects.create_user(
+            username="derivante_correccion",
+            email="derivante.correccion@example.com",
+            password="Clave-Segura-2026!",
+            rol=RolUsuario.ODONTOLOGO,
+            estado=EstadoCuenta.HABILITADA,
+        )
+        odontologo = Odontologo.objects.create(
+            usuario=cuenta,
+            nombre="Ana",
+            apellido="Derivante",
+            matricula="MP-CORR-1",
+        )
+        autorizacion = Autorizacion.objects.create(
+            estudio=self.estudio,
+            odontologo=odontologo,
+        )
+        archivo = self.crear_archivo_cargando(
+            estado=EstadoArchivo.COMPLETO,
+            upload_id=None,
+            hash_sha256="c" * 64,
+        )
+        self.estudio.estado = EstadoEstudio.PUBLICADO
+        self.estudio.fecha_publicacion = "2026-09-01T12:00:00Z"
+        self.estudio.save(update_fields=["estado", "fecha_publicacion"])
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("archivo_marcar_incorrecto", args=[archivo.pk])
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("estudio_detalle", args=[self.estudio.pk]),
+        )
+        archivo.refresh_from_db()
+        self.estudio.refresh_from_db()
+        autorizacion.refresh_from_db()
+        self.assertEqual(archivo.estado, EstadoArchivo.INCORRECTO)
+        self.assertEqual(self.estudio.estado, EstadoEstudio.EN_REVISION)
+        self.assertEqual(autorizacion.estado_acceso, EstadoAcceso.REVOCADO)
+        self.assertEqual(autorizacion.revocado_por, self.admin)
+        eliminar.assert_not_called()
+        self.assertTrue(
+            LogActividad.objects.filter(
+                estudio=self.estudio,
+                tipo_evento=TipoEvento.CORRECCION,
+            ).exists()
+        )
+
+    @patch("apps.archivos.views.calcular_sha256_objeto")
+    @patch("apps.archivos.views.completar_multipart_upload")
+    @patch("apps.archivos.views.generar_urls_prefirmadas")
+    @patch("apps.archivos.views.iniciar_multipart_upload")
+    def test_reemplazo_completado_conserva_ambas_versiones(
+        self,
+        iniciar,
+        generar,
+        completar,
+        calcular,
+    ):
+        anterior = self.crear_archivo_cargando(
+            estado=EstadoArchivo.INCORRECTO,
+            upload_id=None,
+            hash_sha256="d" * 64,
+        )
+        self.estudio.estado = EstadoEstudio.EN_REVISION
+        self.estudio.save(update_fields=["estado"])
+        iniciar.return_value = "upload-reemplazo"
+        generar.return_value = [{"part_number": 1, "url": "https://storage/parte"}]
+        completar.return_value = {"tamano": 1024, "etag": "etag-reemplazo"}
+        calcular.return_value = "e" * 64
+        self.client.force_login(self.admin)
+
+        iniciar_response = self.post_json(
+            reverse("archivo_iniciar", args=[self.estudio.pk]),
+            {
+                "nombre_archivo": "tomografia-corregida.dcm",
+                "tamano": 1024,
+                "archivo_reemplazado": anterior.pk,
+            },
+        )
+        self.assertEqual(iniciar_response.status_code, 200)
+        nuevo = Archivo.objects.get(pk=iniciar_response.json()["archivo_id"])
+
+        completar_response = self.post_json(
+            reverse("archivo_completar", args=[nuevo.pk]),
+            {"partes": [{"PartNumber": 1, "ETag": '"etag-parte"'}]},
+        )
+
+        self.assertEqual(completar_response.status_code, 200)
+        anterior.refresh_from_db()
+        nuevo.refresh_from_db()
+        self.assertEqual(anterior.estado, EstadoArchivo.REEMPLAZADO)
+        self.assertEqual(nuevo.estado, EstadoArchivo.COMPLETO)
+        self.assertEqual(nuevo.archivo_reemplazado, anterior)
+        self.assertEqual(self.estudio.archivos.count(), 2)
+        self.assertTrue(
+            LogActividad.objects.filter(
+                estudio=self.estudio,
+                tipo_evento=TipoEvento.CORRECCION,
+                resultado="Archivo reemplazado",
+            ).exists()
+        )

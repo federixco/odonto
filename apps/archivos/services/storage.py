@@ -6,6 +6,12 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 
+def _codigo_error_s3(error):
+    """Extrae el código estable de una respuesta de error S3."""
+
+    return str(error.response.get("Error", {}).get("Code", ""))
+
+
 def get_s3_client():
     """Construye el cliente sin exponer las credenciales al navegador."""
 
@@ -30,10 +36,43 @@ def get_s3_client():
     )
 
 
+def asegurar_bucket():
+    """Crea el bucket privado si un MinIO recién iniciado todavía no lo tiene."""
+
+    try:
+        from botocore.exceptions import ClientError
+    except ImportError as error:
+        raise ImproperlyConfigured(
+            "La integración S3 requiere instalar las dependencias de requirements.txt."
+        ) from error
+
+    s3 = get_s3_client()
+    try:
+        s3.head_bucket(Bucket=settings.AWS_STORAGE_BUCKET_NAME)
+    except ClientError as error:
+        if _codigo_error_s3(error) not in {"404", "NoSuchBucket", "NotFound"}:
+            raise
+        parametros = {"Bucket": settings.AWS_STORAGE_BUCKET_NAME}
+        region = settings.AWS_S3_REGION_NAME
+        if region and region != "us-east-1" and not settings.AWS_S3_ENDPOINT_URL:
+            parametros["CreateBucketConfiguration"] = {
+                "LocationConstraint": region,
+            }
+        try:
+            s3.create_bucket(**parametros)
+        except ClientError as create_error:
+            if _codigo_error_s3(create_error) not in {
+                "BucketAlreadyExists",
+                "BucketAlreadyOwnedByYou",
+            }:
+                raise
+    return s3
+
+
 def iniciar_multipart_upload(clave_objeto, content_type="application/octet-stream"):
     """Inicia una carga multipartes y devuelve su identificador interno."""
 
-    respuesta = get_s3_client().create_multipart_upload(
+    respuesta = asegurar_bucket().create_multipart_upload(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=clave_objeto,
         ContentType=content_type,
@@ -131,14 +170,23 @@ def abortar_multipart_upload(clave_objeto, upload_id):
             UploadId=upload_id,
         )
         return True
-    except Exception:
+    except Exception as error:
+        codigo = getattr(error, "response", {}).get("Error", {}).get("Code")
+        if str(codigo) in {"404", "NoSuchBucket", "NoSuchUpload", "NotFound"}:
+            return True
         return False
 
 
 def eliminar_objeto(clave_objeto):
-    """Elimina un objeto inválido que llegó a completarse físicamente."""
+    """Elimina un objeto; si el bucket ya no existe, el objetivo ya se cumplió."""
 
-    get_s3_client().delete_object(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-    )
+    try:
+        get_s3_client().delete_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=clave_objeto,
+        )
+    except Exception as error:
+        codigo = getattr(error, "response", {}).get("Error", {}).get("Code")
+        if str(codigo) not in {"404", "NoSuchBucket", "NoSuchKey", "NotFound"}:
+            raise
+    return True
