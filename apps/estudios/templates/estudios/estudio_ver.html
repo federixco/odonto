@@ -12,18 +12,35 @@
                 <p>{{ estudio.tipo }} &middot; {{ estudio.fecha_estudio|date:'d/m/Y' }} &middot; {{ total_archivos }} archivos</p>
             </div>
             
-            <div class="view-mode-selector" style="position: relative; display: inline-block;">
-                <button class="button button-secondary" id="view-mode-btn" aria-haspopup="true" aria-expanded="false" style="display: flex; gap: 0.5rem; align-items: center;">
-                    {% include 'core/includes/icon.html' with name='grid' %} Ver
-                </button>
-                <div class="view-mode-menu" id="view-mode-menu" hidden style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #dcdfe4; border-radius: 8px; margin-top: 0.5rem; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 150px;">
-                    <button class="view-option" data-view="view-list" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Lista</button>
-                    <button class="view-option" data-view="view-details" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Detalles</button>
-                    <button class="view-option is-active" data-view="view-tiles" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px; font-weight: 600;">Mosaicos</button>
-                    <button class="view-option" data-view="view-icons" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Iconos grandes</button>
+            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                {% if tree %}
+                <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #007788; color: white; padding: 0.55rem 1.15rem; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.88rem;" title="Descargar toda la carpeta del estudio en un archivo ZIP">
+                    {% include 'core/includes/icon.html' with name='download' %} Descargar carpeta completa (.zip)
+                </a>
+                {% endif %}
+
+                <div class="view-mode-selector" style="position: relative; display: inline-block;">
+                    <button class="button button-secondary" id="view-mode-btn" aria-haspopup="true" aria-expanded="false" style="display: flex; gap: 0.5rem; align-items: center;">
+                        {% include 'core/includes/icon.html' with name='grid' %} Ver
+                    </button>
+                    <div class="view-mode-menu" id="view-mode-menu" hidden style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #dcdfe4; border-radius: 8px; margin-top: 0.5rem; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 150px;">
+                        <button class="view-option" data-view="view-list" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Lista</button>
+                        <button class="view-option" data-view="view-details" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Detalles</button>
+                        <button class="view-option is-active" data-view="view-tiles" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px; font-weight: 600;">Mosaicos</button>
+                        <button class="view-option" data-view="view-icons" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Iconos grandes</button>
+                    </div>
                 </div>
             </div>
         </div>
+
+        {% if request.user.rol == 'PACIENTE' %}
+        <div style="background: #f0f7f9; border: 1px solid #cce5eb; border-radius: 10px; padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #1e3a47; display: flex; align-items: center; gap: 0.75rem;">
+            <span style="color: var(--teal); font-size: 1.25rem; line-height: 1;">
+                {% include 'core/includes/icon.html' with name='lock' %}
+            </span>
+            <span><strong>Modo visualización para paciente:</strong> podés previsualizar imágenes y documentos con el botón <strong>Ver</strong>. Las descargas de archivos crudos están reservadas a los odontólogos tratantes por resguardo médico.</span>
+        </div>
+        {% endif %}
 
         <div class="explorer-container view-tiles" id="explorer-container" style="background: white; border: 1px solid #dcdfe4; border-radius: 12px; padding: 1.5rem; min-height: 400px;">
             {% if tree %}
@@ -45,6 +62,7 @@
 /* Ocultar/mostrar detalles en los diferentes modos de vista */
 .explorer-container.view-list .file-detail-col { display: none; }
 .explorer-container.view-icons .file-detail-col { display: none; }
+.explorer-container.view-icons .file-actions { display: none; }
 
 /* === VISTA LISTA === */
 .explorer-container.view-list .explorer-file-list {
@@ -55,6 +73,7 @@
 .explorer-container.view-list .explorer-file-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     padding: 6px 12px;
     border-radius: 4px;
@@ -72,7 +91,7 @@
 }
 .explorer-container.view-details .explorer-file-item {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr auto;
     align-items: center;
     gap: 12px;
     padding: 8px 12px;
