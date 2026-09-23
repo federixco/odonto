@@ -41,13 +41,11 @@
                         </span>
                     {% endif %}
 
-                    {# Descarga exclusiva para Odontólogos y Administradores (bloqueada para pacientes) #}
-                    {% if request.user.rol == 'ADMINISTRADOR' or request.user.rol == 'ODONTOLOGO' %}
-                        {% if archivo.estado == 'COMPLETO' %}
-                        <a href="{% url 'archivo_descargar' archivo.pk %}" class="button button-small button-secondary" style="padding: 3px 8px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;" title="Descargar archivo original">
-                            {% include 'core/includes/icon.html' with name='download' %} Descargar
-                        </a>
-                        {% endif %}
+                    {# Descarga disponible para usuarios con acceso al estudio #}
+                    {% if archivo.estado == 'COMPLETO' %}
+                    <a href="{% url 'archivo_descargar' archivo.pk %}" class="button button-small button-secondary" style="padding: 3px 8px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;" title="Descargar archivo original">
+                        {% include 'core/includes/icon.html' with name='download' %} Descargar
+                    </a>
                     {% endif %}
                 </div>
 

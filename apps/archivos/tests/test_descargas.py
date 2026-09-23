@@ -147,11 +147,27 @@ class DescargasYPrevisualizacionTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn(reverse("login"), resp.url)
 
-    def test_paciente_tiene_bloqueada_la_descarga(self):
+    @patch("apps.archivos.views.generar_url_descarga")
+    def test_paciente_autorizado_puede_descargar_y_audita(self, mock_generar):
+        mock_generar.return_value = "http://s3.doc.local/presigned-paciente-download-url"
         self.client.login(username="paciente_doc", password=self.password)
         url = reverse("archivo_descargar", args=[self.archivo_dcm.pk])
         resp = self.client.get(url)
-        # Debe responder 403 Forbidden por PermissionDenied
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, "http://s3.doc.local/presigned-paciente-download-url")
+
+        # Verificar auditoría
+        log = LogActividad.objects.filter(
+            estudio=self.estudio,
+            usuario=self.user_paciente,
+            tipo_evento=TipoEvento.DESCARGA,
+        ).first()
+        self.assertIsNotNone(log)
+
+    def test_paciente_no_puede_descargar_estudio_ajeno(self):
+        self.client.login(username="paciente_ajeno", password=self.password)
+        url = reverse("archivo_descargar", args=[self.archivo_dcm.pk])
+        resp = self.client.get(url)
         self.assertEqual(resp.status_code, 403)
 
     def test_odontologo_no_autorizado_bloqueado(self):

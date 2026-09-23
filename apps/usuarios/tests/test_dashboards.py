@@ -124,7 +124,7 @@ class TablerosEtapa4Tests(TestCase):
         self.assertContains(resp, "Mendoza, Lucas")
         self.assertNotContains(resp, "Ríos, María")
 
-    def test_dashboard_paciente_aislamiento_y_sin_descargas(self):
+    def test_dashboard_paciente_aislamiento(self):
         self.client.login(username="paciente_uno", password=self.password)
         resp = self.client.get(reverse("dashboard_paciente"))
         self.assertEqual(resp.status_code, 200)
@@ -132,5 +132,3 @@ class TablerosEtapa4Tests(TestCase):
         self.assertContains(resp, "Panorámica Digital")
         # No debe ver estudios de María
         self.assertNotContains(resp, "Tomografía Cone Beam")
-        # No debe contener enlaces de descarga
-        self.assertNotContains(resp, "descargar")

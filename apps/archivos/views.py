@@ -431,11 +431,18 @@ class DescargarArchivoView(View):
         if not estudio:
             raise Http404("El archivo no está asociado a ningún estudio.")
 
-        # Validación estricta por rol
+        # Validación de permisos por rol
         rol = request.user.rol
         if rol == RolUsuario.PACIENTE:
-            # Los pacientes tienen estrictamente prohibida la descarga de archivos clínicos
-            raise PermissionDenied("Por resguardo de confidencialidad médica, los pacientes no pueden descargar archivos.")
+            if estudio.estado != EstadoEstudio.PUBLICADO:
+                raise PermissionDenied("El estudio no se encuentra publicado.")
+            try:
+                paciente = request.user.paciente
+            except Exception:
+                raise PermissionDenied("La cuenta no está asociada a una ficha clínica.")
+
+            if estudio.paciente_id != paciente.pk:
+                raise PermissionDenied("No tenés acceso a los archivos de este estudio.")
 
         elif rol == RolUsuario.ODONTOLOGO:
             # Debe existir una autorización vigente para este estudio y odontólogo
