@@ -1,42 +1,213 @@
 {% extends 'core/public_base.html' %}
+{% load static %}
 {% block title %}Mi Consultorio | D.O.C.{% endblock %}
 {% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
-{% block body_class %}patient-page{% endblock %}
+{% block body_class %}patient-page odontologo-portal{% endblock %}
 {% block content %}
-<section class="patient-portal section">
-    <div class="container">
-        <div class="patient-heading">
+<section class="patient-portal section" style="padding-top: 2rem; padding-bottom: 3.5rem;">
+    <div class="container" style="max-width: 1160px;">
+        
+        <!-- Header del Profesional -->
+        <div class="patient-heading" style="margin-bottom: 2rem; align-items: flex-start;">
             <div>
-                <p class="eyebrow">MI CONSULTORIO</p>
-                <h1>Dr/a. <span>{{ odontologo.apellido }}.</span></h1>
-                <p>Acá podés consultar los estudios que solicitaste a D.O.C.</p>
+                <p class="eyebrow" style="letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; color: var(--teal); margin-bottom: 0.35rem;">
+                    CONSULTORIO VIRTUAL DERIVANTE
+                </p>
+                <h1 style="font-size: clamp(1.8rem, 3.5vw, 2.6rem); margin-bottom: 0.5rem; line-height: 1.2;">
+                    Dr/a. <span>{% if odontologo %}{{ odontologo.nombre }} {{ odontologo.apellido }}{% else %}{{ request.user.username }}{% endif %}.</span>
+                </h1>
+                <div class="pro-meta-chips" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 0.5rem; font-size: 0.88rem; color: var(--muted);">
+                    {% if odontologo.matricula %}
+                    <span class="pro-badge-matricula" style="background: #eaf1f7; color: #1a4b84; font-weight: 600; padding: 3px 10px; border-radius: 6px;">
+                        M.P. {{ odontologo.matricula }}
+                    </span>
+                    <span>&bull;</span>
+                    {% endif %}
+                    <span>{{ odontologo.usuario.email|default:request.user.email|default:'Sin correo registrado' }}</span>
+                    <span>&bull;</span>
+                    <span class="badge-status-habilitada" style="background: #e6f4ea; color: #137333; font-weight: 600; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">
+                        Profesional Habilitado
+                    </span>
+                </div>
             </div>
-            <form action="{% url 'logout' %}" method="post">
-                {% csrf_token %}
-                <button class="button button-secondary" type="submit">{% include 'core/includes/icon.html' with name='logout' %} Cerrar sesión</button>
+            
+            <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 0.5rem;">
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button class="button button-secondary" type="submit" style="display: flex; align-items: center; gap: 0.5rem;">
+                        {% include 'core/includes/icon.html' with name='logout' %} Cerrar sesión
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tarjetas de Métricas Rápidas (KPIs) -->
+        <div class="pro-metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <div class="pro-metric-card" style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 4px 14px rgba(0,0,0,0.02);">
+                <div style="font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.35rem;">
+                    Estudios Autorizados
+                </div>
+                <div style="font-size: 2rem; font-weight: 700; color: #102c57;">
+                    {{ total_estudios }}
+                </div>
+                <div style="font-size: 0.78rem; color: #5a6b7c; margin-top: 0.25rem;">
+                    Disponibles en tu consultorio
+                </div>
+            </div>
+
+            <div class="pro-metric-card" style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 4px 14px rgba(0,0,0,0.02);">
+                <div style="font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.35rem;">
+                    Pacientes Atendidos
+                </div>
+                <div style="font-size: 2rem; font-weight: 700; color: #007788;">
+                    {{ total_pacientes }}
+                </div>
+                <div style="font-size: 0.78rem; color: #5a6b7c; margin-top: 0.25rem;">
+                    Con estudios derivados
+                </div>
+            </div>
+
+            <div class="pro-metric-card" style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 4px 14px rgba(0,0,0,0.02);">
+                <div style="font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.35rem;">
+                    Nuevos (Últimos 30 días)
+                </div>
+                <div style="font-size: 2rem; font-weight: 700; color: #2e7d32;">
+                    {{ estudios_recientes }}
+                </div>
+                <div style="font-size: 0.78rem; color: #5a6b7c; margin-top: 0.25rem;">
+                    Publicados recientemente
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Búsqueda y Filtros -->
+        <div class="pro-search-bar" style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; margin-bottom: 2rem; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+            <form method="get" action="{% url 'dashboard_odontologo' %}" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr 1fr auto auto; gap: 0.75rem; align-items: end;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151;">Buscar Paciente</label>
+                    <input type="text" name="q" value="{{ filtro_q }}" placeholder="Nombre, apellido o DNI..." 
+                           style="width: 100%; padding: 0.55rem 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem;" />
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151;">Tipo de Estudio</label>
+                    <select name="tipo" style="width: 100%; padding: 0.55rem 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background: white;">
+                        <option value="">Todos los tipos</option>
+                        {% for t in tipos_disponibles %}
+                        <option value="{{ t }}" {% if filtro_tipo == t %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151;">Desde</label>
+                    <input type="date" name="fecha_desde" value="{{ filtro_fecha_desde }}" 
+                           style="width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.85rem;" />
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151;">Hasta</label>
+                    <input type="date" name="fecha_hasta" value="{{ filtro_fecha_hasta }}" 
+                           style="width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.85rem;" />
+                </div>
+
+                <div>
+                    <button type="submit" class="button" style="padding: 0.6rem 1.25rem; font-size: 0.9rem;">
+                        Filtrar
+                    </button>
+                </div>
+
+                {% if hay_filtros %}
+                <div>
+                    <a href="{% url 'dashboard_odontologo' %}" class="button button-secondary" style="padding: 0.6rem 1rem; font-size: 0.85rem;" title="Limpiar todos los filtros">
+                        Limpiar
+                    </a>
+                </div>
+                {% endif %}
             </form>
         </div>
         
+        <!-- Listado de Estudios Autorizados -->
         {% if estudios %}
-        <div class="patient-study-grid">
+        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <p style="font-size: 0.9rem; color: var(--muted); margin: 0;">
+                Mostrando <strong>{{ estudios|length }}</strong> estudio{{ estudios|length|pluralize }} disponible{{ estudios|length|pluralize }}
+                {% if hay_filtros %}<span style="color: var(--teal); font-weight: 600;">(con filtros aplicados)</span>{% endif %}
+            </p>
+        </div>
+
+        <div class="patient-study-grid" style="grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem;">
             {% for estudio in estudios %}
-            <article class="patient-study-card">
-                <span class="patient-study-date">{{ estudio.fecha_estudio|date:'d/m/Y' }}</span>
-                <h2>{{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }}</h2>
-                <p>{{ estudio.tipo }} &middot; DNI: {{ estudio.paciente.dni }}</p>
-                <div style="margin-top: 1rem;">
-                    <a href="{% url 'estudio_ver' estudio.pk %}" class="button button-small" style="width: 100%; text-align: center;">Ver archivos &rarr;</a>
+            <article class="patient-study-card" style="display: flex; flex-direction: column; justify-content: space-between; min-height: 250px; padding: 1.5rem; border-radius: 14px;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <span class="patient-study-date" style="font-size: 0.82rem; font-weight: 700; color: #007788;">
+                            {{ estudio.fecha_estudio|date:'d/m/Y' }}
+                        </span>
+                        <span style="font-size: 0.75rem; background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 10px;">
+                            Autorizado
+                        </span>
+                    </div>
+
+                    <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0 0 0.35rem 0; color: #111827;">
+                        {{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }}
+                    </h2>
+                    
+                    <p style="font-size: 0.85rem; color: #4b5563; margin: 0 0 0.85rem 0;">
+                        <strong>DNI:</strong> {{ estudio.paciente.dni }} &middot; <strong>Estudio:</strong> {{ estudio.tipo }}
+                    </p>
+
+                    {% if estudio.observaciones %}
+                    <p style="font-size: 0.8rem; color: #6b7280; line-height: 1.5; margin: 0 0 0.85rem 0; background: #f9fafb; padding: 0.5rem 0.75rem; border-radius: 6px; border-left: 3px solid #cbd5e1;">
+                        {{ estudio.observaciones|truncatechars:120 }}
+                    </p>
+                    {% endif %}
+
+                    <!-- Formatos disponibles en el estudio -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem;">
+                        {% for arch in estudio.archivos.all|slice:":4" %}
+                        <span style="font-size: 0.68rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb;">
+                            {{ arch.formato }}
+                        </span>
+                        {% empty %}
+                        <span style="font-size: 0.72rem; color: #9ca3af;">Sin archivos cargados</span>
+                        {% endfor %}
+                        {% if estudio.archivos.count > 4 %}
+                        <span style="font-size: 0.68rem; color: #6b7280; padding: 1px 4px;">+{{ estudio.archivos.count|add:"-4" }} más</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #f3f4f6;">
+                    <a href="{% url 'estudio_ver' estudio.pk %}" class="button button-small" style="width: 100%; text-align: center; display: block; padding: 0.6rem 1rem;">
+                        Ver y descargar archivos &rarr;
+                    </a>
                 </div>
             </article>
             {% endfor %}
         </div>
         {% else %}
-        <section class="patient-empty">
-            <span class="panel-icon">{% include 'core/includes/icon.html' with name='check' %}</span>
-            <h2>Todavía no hay estudios disponibles</h2>
-            <p>Cuando el centro publique un estudio derivado por vos, va a aparecer acá.</p>
+        <section class="patient-empty" style="background: white; border: 1px solid var(--line); border-radius: 14px; padding: 3.5rem 2rem; text-align: center;">
+            <span class="panel-icon" style="font-size: 2.5rem; color: #9ca3af;">
+                {% include 'core/includes/icon.html' with name='check' %}
+            </span>
+            {% if hay_filtros %}
+            <h2 style="font-size: 1.4rem; margin-top: 1rem; color: #1f2937;">No se encontraron estudios con los filtros seleccionados</h2>
+            <p style="color: #6b7280; max-width: 480px; margin: 0.5rem auto 1.5rem auto;">
+                Probá modificando el texto de búsqueda o los rangos de fecha para ver más resultados.
+            </p>
+            <a href="{% url 'dashboard_odontologo' %}" class="button button-secondary">
+                Limpiar filtros
+            </a>
+            {% else %}
+            <h2 style="font-size: 1.4rem; margin-top: 1rem; color: #1f2937;">Todavía no hay estudios disponibles en tu consultorio</h2>
+            <p style="color: #6b7280; max-width: 500px; margin: 0.5rem auto 0 auto;">
+                Cuando el centro de diagnóstico D.O.C. publique un estudio derivado por vos y te asigne la autorización de acceso, vas a poder consultarlo y descargar sus archivos desde acá.
+            </p>
+            {% endif %}
         </section>
         {% endif %}
     </div>
 </section>
 {% endblock %}
+

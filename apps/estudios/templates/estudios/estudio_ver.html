@@ -25,6 +25,15 @@
             </div>
         </div>
 
+        {% if request.user.rol == 'PACIENTE' %}
+        <div style="background: #f0f7f9; border: 1px solid #cce5eb; border-radius: 10px; padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #1e3a47; display: flex; align-items: center; gap: 0.75rem;">
+            <span style="color: var(--teal); font-size: 1.25rem; line-height: 1;">
+                {% include 'core/includes/icon.html' with name='lock' %}
+            </span>
+            <span><strong>Modo visualización para paciente:</strong> podés previsualizar imágenes y documentos con el botón <strong>Ver</strong>. Las descargas de archivos crudos están reservadas a los odontólogos tratantes por resguardo médico.</span>
+        </div>
+        {% endif %}
+
         <div class="explorer-container view-tiles" id="explorer-container" style="background: white; border: 1px solid #dcdfe4; border-radius: 12px; padding: 1.5rem; min-height: 400px;">
             {% if tree %}
                 {% include "estudios/_folder_explorer_node.html" with node=tree %}
@@ -45,6 +54,7 @@
 /* Ocultar/mostrar detalles en los diferentes modos de vista */
 .explorer-container.view-list .file-detail-col { display: none; }
 .explorer-container.view-icons .file-detail-col { display: none; }
+.explorer-container.view-icons .file-actions { display: none; }
 
 /* === VISTA LISTA === */
 .explorer-container.view-list .explorer-file-list {
@@ -55,6 +65,7 @@
 .explorer-container.view-list .explorer-file-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     padding: 6px 12px;
     border-radius: 4px;
@@ -72,7 +83,7 @@
 }
 .explorer-container.view-details .explorer-file-item {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr auto;
     align-items: center;
     gap: 12px;
     padding: 8px 12px;

@@ -9,7 +9,10 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
-from apps.core.enums import EstadoCuenta, EstadoEstudio, RolUsuario
+from datetime import timedelta
+from django.db.models import Q
+from django.utils import timezone
+from apps.core.enums import EstadoAcceso, EstadoCuenta, EstadoEstudio, RolUsuario
 from apps.core.mixins import AdminRequeridoMixin, OdontologoRequeridoMixin, PacienteRequeridoMixin
 from apps.estudios.models import Estudio
 from apps.pacientes.models import Paciente
@@ -51,21 +54,74 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
         try:
             odontologo = self.request.user.odontologo
         except Exception:
-            raise PermissionDenied("La cuenta no está vinculada a un odontólogo.")
-        
+            odontologo = None
+
         context["odontologo"] = odontologo
-        
+
         # Obtener autorizaciones vigentes y estudios publicados
-        from apps.core.enums import EstadoAcceso, EstadoEstudio
-        from apps.estudios.models import Estudio
-        
-        estudios = Estudio.objects.filter(
-            autorizaciones__odontologo=odontologo,
-            autorizaciones__estado_acceso=EstadoAcceso.VIGENTE,
-            estado=EstadoEstudio.PUBLICADO
-        ).select_related('paciente').order_by('-fecha_estudio', '-created_at')
-        
-        context["estudios"] = estudios
+        if odontologo:
+            base_qs = Estudio.objects.filter(
+                autorizaciones__odontologo=odontologo,
+                autorizaciones__estado_acceso=EstadoAcceso.VIGENTE,
+                estado=EstadoEstudio.PUBLICADO,
+            ).select_related("paciente").prefetch_related("archivos")
+        else:
+            base_qs = Estudio.objects.none()
+
+        # Estadísticas / Métricas para el consultorio
+        total_estudios = base_qs.count()
+        total_pacientes = base_qs.values("paciente_id").distinct().count()
+        hace_30_dias = timezone.now().date() - timedelta(days=30)
+        estudios_recientes = base_qs.filter(fecha_estudio__gte=hace_30_dias).count()
+
+        # Tipos de estudio disponibles para filtro
+        tipos_disponibles = (
+            base_qs.values_list("tipo", flat=True).distinct().order_by("tipo")
+        )
+
+        # Filtros por GET
+        estudios = base_qs
+        q = self.request.GET.get("q", "").strip()
+        tipo = self.request.GET.get("tipo", "").strip()
+        fecha_desde = self.request.GET.get("fecha_desde", "").strip()
+        fecha_hasta = self.request.GET.get("fecha_hasta", "").strip()
+
+        if q:
+            estudios = estudios.filter(
+                Q(paciente__nombre__icontains=q)
+                | Q(paciente__apellido__icontains=q)
+                | Q(paciente__dni__icontains=q)
+            )
+
+        if tipo:
+            estudios = estudios.filter(tipo__iexact=tipo)
+
+        if fecha_desde:
+            try:
+                estudios = estudios.filter(fecha_estudio__gte=fecha_desde)
+            except Exception:
+                pass
+
+        if fecha_hasta:
+            try:
+                estudios = estudios.filter(fecha_estudio__lte=fecha_hasta)
+            except Exception:
+                pass
+
+        estudios = estudios.order_by("-fecha_estudio", "-created_at")
+
+        context.update({
+            "estudios": estudios,
+            "total_estudios": total_estudios,
+            "total_pacientes": total_pacientes,
+            "estudios_recientes": estudios_recientes,
+            "tipos_disponibles": tipos_disponibles,
+            "filtro_q": q,
+            "filtro_tipo": tipo,
+            "filtro_fecha_desde": fecha_desde,
+            "filtro_fecha_hasta": fecha_hasta,
+            "hay_filtros": bool(q or tipo or fecha_desde or fecha_hasta),
+        })
         return context
 
 
@@ -78,12 +134,17 @@ class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
             paciente = self.request.user.paciente
         except Paciente.DoesNotExist:
             raise PermissionDenied("La cuenta no está vinculada a una ficha clínica.")
-        context["paciente"] = paciente
-        context["estudios"] = Estudio.objects.filter(
+
+        estudios = Estudio.objects.filter(
             paciente=paciente,
             estado=EstadoEstudio.PUBLICADO,
-        ).order_by("-fecha_estudio", "-created_at")
+        ).prefetch_related("archivos").order_by("-fecha_estudio", "-created_at")
+
+        context["paciente"] = paciente
+        context["estudios"] = estudios
+        context["total_estudios"] = estudios.count()
         return context
+
 
 
 # --- Gestión de odontólogos (Admin) ---

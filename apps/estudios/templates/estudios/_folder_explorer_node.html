@@ -26,6 +26,31 @@
                     {{ archivo.formato }} · {{ archivo.get_estado_display }}
                     {% if archivo.archivo_reemplazado_id %}<small>Versión de reemplazo</small>{% endif %}
                 </div>
+                
+                <div class="file-actions" style="display: flex; gap: 0.4rem; align-items: center; justify-content: flex-end;">
+                    {# Previsualización para formatos compatibles en navegador #}
+                    {% if archivo.formato == 'JPG' or archivo.formato == 'PNG' or archivo.formato == 'TIFF' or archivo.formato == 'PDF' %}
+                        {% if archivo.estado == 'COMPLETO' %}
+                        <a href="{% url 'archivo_previsualizar' archivo.pk %}" target="_blank" rel="noopener noreferrer" class="button button-small" style="padding: 3px 8px; font-size: 0.78rem; background: #eef5f8; color: #007788; border: 1px solid #c2e0e8; display: inline-flex; align-items: center; gap: 4px;" title="Previsualizar en el navegador">
+                            {% include 'core/includes/icon.html' with name='eye' %} Ver
+                        </a>
+                        {% endif %}
+                    {% elif archivo.formato == 'GALILEOS' or archivo.formato == 'SIDEXIS' %}
+                        <span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: 600;" title="Paquete para visor externo instalado en la computadora del profesional">
+                            Visor Externo
+                        </span>
+                    {% endif %}
+
+                    {# Descarga exclusiva para Odontólogos y Administradores (bloqueada para pacientes) #}
+                    {% if request.user.rol == 'ADMINISTRADOR' or request.user.rol == 'ODONTOLOGO' %}
+                        {% if archivo.estado == 'COMPLETO' %}
+                        <a href="{% url 'archivo_descargar' archivo.pk %}" class="button button-small button-secondary" style="padding: 3px 8px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;" title="Descargar archivo original">
+                            {% include 'core/includes/icon.html' with name='download' %} Descargar
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
                 {% if request.user.rol == 'ADMINISTRADOR' and estudio.estado != 'ELIMINADO' %}
                 <div class="file-correction-actions">
                     {% if archivo.estado == 'COMPLETO' %}

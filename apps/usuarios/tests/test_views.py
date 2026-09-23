@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from apps.core.enums import EstadoCuenta, RolUsuario
 from apps.pacientes.models import Paciente
+from apps.usuarios.models import Odontologo
 
 
 User = get_user_model()
@@ -36,6 +37,12 @@ class AccesosRolesTestCase(TestCase):
             email="pac@test.com",
             rol=RolUsuario.PACIENTE,
             estado=EstadoCuenta.HABILITADA,
+        )
+        Odontologo.objects.create(
+            usuario=self.odon_user,
+            nombre="Odontólogo",
+            apellido="De prueba",
+            matricula="MP-9999",
         )
         Paciente.objects.create(
             usuario=self.pac_user,
