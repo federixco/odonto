@@ -7,16 +7,19 @@ import math
 import uuid
 from pathlib import Path, PurePosixPath
 
+import tempfile
+import zipfile
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, ListView
+from django.views.generic.detail import SingleObjectMixin
 
 from apps.archivos.models import Archivo
 from apps.archivos.services.storage import (
@@ -25,6 +28,7 @@ from apps.archivos.services.storage import (
     completar_multipart_upload,
     eliminar_objeto,
     generar_urls_prefirmadas,
+    get_s3_client,
     iniciar_multipart_upload,
 )
 from apps.accesos.models import Autorizacion
@@ -769,3 +773,54 @@ class VerEstudioView(EstudioAccesoMixin, DetailView):
             contexto["tree"] = tree
             
         return contexto
+
+
+class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
+    """Permite descargar la carpeta completa (raíz) del estudio en un archivo ZIP.
+    Disponible para Administradores, Odontólogos con autorización vigente y Pacientes titulares.
+    """
+
+    model = Estudio
+
+    def get(self, request, *args, **kwargs):
+        estudio = self.get_object()
+
+        archivos = estudio.archivos.filter(
+            estado=EstadoArchivo.COMPLETO,
+            archivo_reemplazado__isnull=True,
+        ).order_by("ruta_relativa", "nombre_archivo")
+
+        if not archivos.exists():
+            messages.error(request, "El estudio no contiene archivos disponibles para descargar.")
+            return redirect("estudio_ver", pk=estudio.pk)
+
+        # Registrar evento de auditoría para la descarga de la carpeta completa
+        LogActividad.objects.create(
+            usuario=request.user,
+            estudio=estudio,
+            tipo_evento=TipoEvento.DESCARGA,
+            resultado="Descarga de carpeta completa",
+            detalles=f"Descarga de carpeta raíz del estudio #{estudio.pk} ({archivos.count()} archivos).",
+        )
+
+        s3 = get_s3_client()
+        bucket = settings.AWS_STORAGE_BUCKET_NAME
+
+        temp_file = tempfile.TemporaryFile()
+        with zipfile.ZipFile(temp_file, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for archivo in archivos:
+                arcname = archivo.ruta_relativa if archivo.ruta_relativa else archivo.nombre_archivo
+                try:
+                    obj = s3.get_object(Bucket=bucket, Key=archivo.ruta_almacenamiento)
+                    zf.writestr(arcname, obj["Body"].read())
+                except Exception as e:
+                    logger.warning("Error al empaquetar archivo %s en ZIP del estudio %s: %s", archivo.pk, estudio.pk, e)
+                    continue
+
+        temp_file.seek(0)
+        paciente_str = f"{estudio.paciente.apellido}_{estudio.paciente.nombre}".replace(" ", "_")
+        nombre_zip = f"Estudio_{paciente_str}_{estudio.pk}.zip"
+        nombre_zip = "".join(c for c in nombre_zip if c.isalnum() or c in "._-")
+
+        return FileResponse(temp_file, as_attachment=True, filename=nombre_zip, content_type="application/zip")
+

@@ -1,5 +1,6 @@
 """Pruebas de descarga segura y previsualización de archivos (Etapa 4)."""
 
+import io
 from datetime import date
 from unittest.mock import Mock, patch
 from django.contrib.auth import get_user_model
@@ -226,3 +227,53 @@ class DescargasYPrevisualizacionTests(TestCase):
         url = reverse("archivo_previsualizar", args=[self.archivo_pdf.pk])
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 403)
+
+    @patch("apps.estudios.views.get_s3_client")
+    def test_descargar_estudio_completo_odontologo_autorizado(self, mock_s3_getter):
+        mock_client = Mock()
+        mock_client.get_object.return_value = {"Body": io.BytesIO(b"fake file content")}
+        mock_s3_getter.return_value = mock_client
+
+        self.client.login(username="odon_doc", password=self.password)
+        url = reverse("estudio_descargar_completo", args=[self.estudio.pk])
+        resp = self.client.get(url)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/zip", resp.headers.get("Content-Type", ""))
+        self.assertIn(f"Estudio_Garc", resp.headers.get("Content-Disposition", ""))
+        self.assertIn(f"{self.estudio.pk}.zip", resp.headers.get("Content-Disposition", ""))
+
+        # Verificar auditoría
+        log = LogActividad.objects.filter(
+            estudio=self.estudio,
+            usuario=self.user_odon,
+            tipo_evento=TipoEvento.DESCARGA,
+        ).first()
+        self.assertIsNotNone(log)
+        self.assertIn("Descarga de carpeta raíz", log.detalles)
+
+    @patch("apps.estudios.views.get_s3_client")
+    def test_descargar_estudio_completo_paciente_autorizado(self, mock_s3_getter):
+        mock_client = Mock()
+        mock_client.get_object.return_value = {"Body": io.BytesIO(b"fake file content")}
+        mock_s3_getter.return_value = mock_client
+
+        self.client.login(username="paciente_doc", password=self.password)
+        url = reverse("estudio_descargar_completo", args=[self.estudio.pk])
+        resp = self.client.get(url)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/zip", resp.headers.get("Content-Type", ""))
+
+    def test_descargar_estudio_completo_paciente_ajeno_bloqueado(self):
+        self.client.login(username="paciente_ajeno", password=self.password)
+        url = reverse("estudio_descargar_completo", args=[self.estudio.pk])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 403)
+
+    def test_descargar_estudio_completo_odontologo_no_autorizado_bloqueado(self):
+        self.client.login(username="odon_ajeno", password=self.password)
+        url = reverse("estudio_descargar_completo", args=[self.estudio.pk])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 403)
+

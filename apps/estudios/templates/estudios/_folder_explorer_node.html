@@ -5,7 +5,16 @@
         {{ node.nombre }}
     </summary>
     {% else %}
-    <summary style="display: none;"></summary>
+    <div class="explorer-root-banner" style="display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0.9rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #1e293b; font-size: 0.92rem;">
+            <span class="explorer-folder-icon">{% include 'core/includes/icon.html' with name='folder' %}</span>
+            <span>Carpeta principal (raíz)</span>
+            <span style="font-size: 0.78rem; font-weight: 400; color: #64748b;">({{ node.total_archivos_recursivo }} archivos &middot; {{ node.tamano_total|filesizeformat }})</span>
+        </div>
+        <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button button-small" style="display: inline-flex; align-items: center; gap: 0.4rem; background: #007788; color: white; padding: 5px 12px; font-size: 0.8rem; border-radius: 6px; text-decoration: none; font-weight: 600;" title="Descargar toda la carpeta del estudio en formato .zip">
+            {% include 'core/includes/icon.html' with name='download' %} Descargar carpeta entera (.zip)
+        </a>
+    </div>
     {% endif %}
     
     <div class="explorer-folder-body">
@@ -39,13 +48,6 @@
                         <span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: 600;" title="Paquete para visor externo instalado en la computadora del profesional">
                             Visor Externo
                         </span>
-                    {% endif %}
-
-                    {# Descarga disponible para usuarios con acceso al estudio #}
-                    {% if archivo.estado == 'COMPLETO' %}
-                    <a href="{% url 'archivo_descargar' archivo.pk %}" class="button button-small button-secondary" style="padding: 3px 8px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px;" title="Descargar archivo original">
-                        {% include 'core/includes/icon.html' with name='download' %} Descargar
-                    </a>
                     {% endif %}
                 </div>
 
