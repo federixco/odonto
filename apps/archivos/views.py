@@ -415,9 +415,7 @@ class EliminarArchivoView(AdminRequeridoMixin, View):
 
 
 class DescargarArchivoView(View):
-    """Permite descargar un archivo únicamente a administradores y odontólogos con autorización vigente.
-    Bloquea categóricamente a pacientes y usuarios no autorizados (403 Forbidden).
-    """
+    """Entrega únicamente archivos completos de un estudio autorizado."""
 
     def get(self, request, archivo_id):
         if not request.user.is_authenticated:
@@ -426,6 +424,7 @@ class DescargarArchivoView(View):
         archivo = get_object_or_404(
             Archivo.objects.select_related("estudio", "estudio__paciente"),
             pk=archivo_id,
+            estado=EstadoArchivo.COMPLETO,
         )
         estudio = archivo.estudio
         if not estudio:
@@ -505,6 +504,7 @@ class PrevisualizarArchivoView(View):
         archivo = get_object_or_404(
             Archivo.objects.select_related("estudio", "estudio__paciente"),
             pk=archivo_id,
+            estado=EstadoArchivo.COMPLETO,
         )
         estudio = archivo.estudio
         if not estudio:

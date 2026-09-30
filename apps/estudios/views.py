@@ -48,6 +48,7 @@ from .services.importador import analizar_importacion
 logger = logging.getLogger(__name__)
 S3_MIN_PART_SIZE = 5 * 1024 * 1024
 S3_MAX_PARTS = 10_000
+ZIP_CHUNK_SIZE = 1024 * 1024
 
 
 def _leer_json(request):
@@ -450,8 +451,12 @@ class IniciarArchivoImportadoView(AdminRequeridoMixin, View):
         upload_id = None
         try:
             upload_id = iniciar_multipart_upload(clave, content_type)
-            archivo = Archivo.objects.create(importacion=lote, nombre_archivo=nombre, ruta_relativa=ruta, formato=formato, categoria=categoria, ruta_almacenamiento=clave, tamano=tamano, upload_id=upload_id, content_type=content_type, cantidad_partes=partes)
-            return JsonResponse({"archivo_id": archivo.pk, "part_size": settings.S3_MULTIPART_PART_SIZE, "partes": generar_urls_prefirmadas(clave, upload_id, partes)})
+            # Si falla la firma, la fila se revierte y la ruta queda disponible
+            # para otro intento. S3 se compensa fuera de la transacción.
+            with transaction.atomic():
+                archivo = Archivo.objects.create(importacion=lote, nombre_archivo=nombre, ruta_relativa=ruta, formato=formato, categoria=categoria, ruta_almacenamiento=clave, tamano=tamano, upload_id=upload_id, content_type=content_type, cantidad_partes=partes)
+                urls = generar_urls_prefirmadas(clave, upload_id, partes)
+            return JsonResponse({"archivo_id": archivo.pk, "part_size": settings.S3_MULTIPART_PART_SIZE, "partes": urls})
         except Exception:
             logger.exception("No se pudo iniciar archivo importado.")
             if upload_id: abortar_multipart_upload(clave, upload_id)
@@ -484,6 +489,11 @@ class AnalizarImportacionView(AdminRequeridoMixin, View):
         lote = get_object_or_404(ImportacionEstudio, pk=importacion_id, iniciada_por=request.user)
         try:
             lote.marcar_procesando()
+        except ValidationError as error:
+            # Rechazar una transición no debe convertir una importación ya
+            # confirmada en ERROR ni borrar su estado administrativo.
+            return JsonResponse({"error": " ".join(error.messages)}, status=409)
+        try:
             lote = analizar_importacion(lote)
             return JsonResponse({"status": "ok", "detalle_url": f"/estudios/importaciones/{lote.pk}/"})
         except Exception as error:
@@ -573,20 +583,31 @@ class RegistrarPacienteDetectadoView(AdminRequeridoMixin, View):
 
 class ConfirmarImportacionView(AdminRequeridoMixin, View):
     def post(self, request, importacion_id):
-        lote = get_object_or_404(ImportacionEstudio, pk=importacion_id, iniciada_por=request.user, estado=EstadoImportacion.PENDIENTE_CONFIRMACION)
-        form = ConfirmarImportacionForm(request.POST, importacion=lote)
-        if not form.is_valid():
-            contexto = {
-                "importacion": lote,
-                "form": form,
-                "mostrar_registro_paciente": not lote.paciente_sugerido_id,
-            }
-            if not lote.paciente_sugerido_id:
-                contexto["paciente_form"] = RegistrarPacienteDetectadoForm(
-                    importacion=lote
-                )
-            return render(request, "estudios/importacion_detalle.html", contexto)
+        # Adquirir el bloqueo antes de crear Estudio evita duplicados ante dos
+        # POST que hayan observado el mismo lote pendiente.
         with transaction.atomic():
+            lote = get_object_or_404(
+                ImportacionEstudio.objects.select_for_update(),
+                pk=importacion_id,
+                iniciada_por=request.user,
+            )
+            if lote.estudio_id or lote.estado != EstadoImportacion.PENDIENTE_CONFIRMACION:
+                return JsonResponse(
+                    {"error": "La importación no está pendiente de confirmación."},
+                    status=409,
+                )
+            if not lote.esta_completa() or lote.archivos.filter(estudio__isnull=False).exists():
+                return JsonResponse({"error": "Los archivos no están disponibles para confirmar."}, status=409)
+            form = ConfirmarImportacionForm(request.POST, importacion=lote)
+            if not form.is_valid():
+                contexto = {
+                    "importacion": lote,
+                    "form": form,
+                    "mostrar_registro_paciente": not lote.paciente_sugerido_id,
+                }
+                if not lote.paciente_sugerido_id:
+                    contexto["paciente_form"] = RegistrarPacienteDetectadoForm(importacion=lote)
+                return render(request, "estudios/importacion_detalle.html", contexto)
             estudio = form.save()
             lote.confirmar(estudio)
             derivante = form.cleaned_data.get("derivante")
@@ -787,40 +808,69 @@ class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
 
         archivos = estudio.archivos.filter(
             estado=EstadoArchivo.COMPLETO,
-            archivo_reemplazado__isnull=True,
         ).order_by("ruta_relativa", "nombre_archivo")
 
         if not archivos.exists():
             messages.error(request, "El estudio no contiene archivos disponibles para descargar.")
             return redirect("estudio_ver", pk=estudio.pk)
 
-        # Registrar evento de auditoría para la descarga de la carpeta completa
-        LogActividad.objects.create(
-            usuario=request.user,
-            estudio=estudio,
-            tipo_evento=TipoEvento.DESCARGA,
-            resultado="Descarga de carpeta completa",
-            detalles=f"Descarga de carpeta raíz del estudio #{estudio.pk} ({archivos.count()} archivos).",
-        )
+        temp_file = None
+        try:
+            s3 = get_s3_client()
+            temp_file = tempfile.TemporaryFile()
+            nombres = set()
+            cantidad = 0
+            with zipfile.ZipFile(temp_file, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for archivo in archivos.iterator(chunk_size=100):
+                    arcname = _ruta_importada_valida(archivo.ruta_relativa or archivo.nombre_archivo)
+                    if not arcname or arcname in nombres:
+                        raise ValueError("El estudio contiene rutas de descarga inválidas o repetidas.")
+                    nombres.add(arcname)
+                    obj = s3.get_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=archivo.ruta_almacenamiento)
+                    cuerpo = obj["Body"]
+                    try:
+                        escritos = 0
+                        # Zip64 permite entradas grandes. Leer por bloques evita
+                        # cargar una tomografía completa en RAM.
+                        with zf.open(arcname, mode="w", force_zip64=True) as destino:
+                            while bloque := cuerpo.read(ZIP_CHUNK_SIZE):
+                                escritos += len(bloque)
+                                if escritos > archivo.tamano:
+                                    raise ValueError("El tamaño almacenado no coincide con el archivo.")
+                                destino.write(bloque)
+                        if escritos != archivo.tamano:
+                            raise ValueError("El archivo almacenado está incompleto.")
+                    finally:
+                        cuerpo.close()
+                    cantidad += 1
 
-        s3 = get_s3_client()
-        bucket = settings.AWS_STORAGE_BUCKET_NAME
-
-        temp_file = tempfile.TemporaryFile()
-        with zipfile.ZipFile(temp_file, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for archivo in archivos:
-                arcname = archivo.ruta_relativa if archivo.ruta_relativa else archivo.nombre_archivo
-                try:
-                    obj = s3.get_object(Bucket=bucket, Key=archivo.ruta_almacenamiento)
-                    zf.writestr(arcname, obj["Body"].read())
-                except Exception as e:
-                    logger.warning("Error al empaquetar archivo %s en ZIP del estudio %s: %s", archivo.pk, estudio.pk, e)
-                    continue
-
-        temp_file.seek(0)
-        paciente_str = f"{estudio.paciente.apellido}_{estudio.paciente.nombre}".replace(" ", "_")
-        nombre_zip = f"Estudio_{paciente_str}_{estudio.pk}.zip"
-        nombre_zip = "".join(c for c in nombre_zip if c.isalnum() or c in "._-")
-
-        return FileResponse(temp_file, as_attachment=True, filename=nombre_zip, content_type="application/zip")
+            temp_file.seek(0)
+            paciente_str = f"{estudio.paciente.apellido}_{estudio.paciente.nombre}".replace(" ", "_")
+            nombre_zip = f"Estudio_{paciente_str}_{estudio.pk}.zip"
+            nombre_zip = "".join(c for c in nombre_zip if c.isalnum() or c in "._-")
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.DESCARGA,
+                resultado="Paquete ZIP preparado",
+                detalles=f"Descarga de carpeta raíz del estudio #{estudio.pk} ({cantidad} archivos).",
+            )
+            # FileResponse se encarga de cerrar el temporal al terminar o
+            # interrumpirse la respuesta, sin mantener el ZIP en memoria.
+            return FileResponse(temp_file, as_attachment=True, filename=nombre_zip, content_type="application/zip")
+        except Exception:
+            if temp_file is not None:
+                temp_file.close()
+            logger.exception("No se pudo preparar el ZIP del estudio %s.", estudio.pk)
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.DESCARGA,
+                resultado="Error al preparar paquete ZIP",
+                detalles=f"No se entregó un paquete parcial del estudio #{estudio.pk}.",
+            )
+            return JsonResponse(
+                {"error": "No se pudo preparar la descarga completa. Intentá nuevamente o avisá al centro."},
+                status=502,
+            )
 

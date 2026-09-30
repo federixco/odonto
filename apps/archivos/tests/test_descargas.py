@@ -1,6 +1,7 @@
 """Pruebas de descarga segura y previsualización de archivos (Etapa 4)."""
 
 import io
+import zipfile
 from datetime import date
 from unittest.mock import Mock, patch
 from django.contrib.auth import get_user_model
@@ -231,7 +232,8 @@ class DescargasYPrevisualizacionTests(TestCase):
     @patch("apps.estudios.views.get_s3_client")
     def test_descargar_estudio_completo_odontologo_autorizado(self, mock_s3_getter):
         mock_client = Mock()
-        mock_client.get_object.return_value = {"Body": io.BytesIO(b"fake file content")}
+        self.estudio.archivos.update(tamano=len(b"fake file content"))
+        mock_client.get_object.side_effect = lambda **kwargs: {"Body": io.BytesIO(b"fake file content")}
         mock_s3_getter.return_value = mock_client
 
         self.client.login(username="odon_doc", password=self.password)
@@ -242,6 +244,11 @@ class DescargasYPrevisualizacionTests(TestCase):
         self.assertIn("application/zip", resp.headers.get("Content-Type", ""))
         self.assertIn(f"Estudio_Garc", resp.headers.get("Content-Disposition", ""))
         self.assertIn(f"{self.estudio.pk}.zip", resp.headers.get("Content-Disposition", ""))
+        with zipfile.ZipFile(io.BytesIO(b"".join(resp.streaming_content))) as paquete:
+            self.assertEqual(set(paquete.namelist()), {"informe_clinico.pdf", "tomografia.dcm"})
+            for nombre in paquete.namelist():
+                self.assertEqual(paquete.read(nombre), b"fake file content")
+        resp.close()
 
         # Verificar auditoría
         log = LogActividad.objects.filter(
@@ -255,7 +262,8 @@ class DescargasYPrevisualizacionTests(TestCase):
     @patch("apps.estudios.views.get_s3_client")
     def test_descargar_estudio_completo_paciente_autorizado(self, mock_s3_getter):
         mock_client = Mock()
-        mock_client.get_object.return_value = {"Body": io.BytesIO(b"fake file content")}
+        self.estudio.archivos.update(tamano=len(b"fake file content"))
+        mock_client.get_object.side_effect = lambda **kwargs: {"Body": io.BytesIO(b"fake file content")}
         mock_s3_getter.return_value = mock_client
 
         self.client.login(username="paciente_doc", password=self.password)
@@ -264,6 +272,7 @@ class DescargasYPrevisualizacionTests(TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn("application/zip", resp.headers.get("Content-Type", ""))
+        resp.close()
 
     def test_descargar_estudio_completo_paciente_ajeno_bloqueado(self):
         self.client.login(username="paciente_ajeno", password=self.password)
@@ -276,4 +285,127 @@ class DescargasYPrevisualizacionTests(TestCase):
         url = reverse("estudio_descargar_completo", args=[self.estudio.pk])
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 403)
+
+    @patch("apps.archivos.views.generar_url_previsualizacion")
+    @patch("apps.archivos.views.generar_url_descarga")
+    def test_versiones_no_disponibles_no_generan_urls_para_ningun_rol(self, descarga, preview):
+        for estado in (EstadoArchivo.CARGANDO, EstadoArchivo.INCORRECTO,
+                       EstadoArchivo.REEMPLAZADO, EstadoArchivo.PURGADO):
+            self.archivo_pdf.estado = estado
+            self.archivo_pdf.save(update_fields=["estado"])
+            for usuario in (self.admin, self.user_odon, self.user_paciente):
+                self.client.force_login(usuario)
+                for ruta in ("archivo_descargar", "archivo_previsualizar"):
+                    with self.subTest(estado=estado, rol=usuario.rol, ruta=ruta):
+                        response = self.client.get(reverse(ruta, args=[self.archivo_pdf.pk]))
+                        self.assertEqual(response.status_code, 404)
+        descarga.assert_not_called()
+        preview.assert_not_called()
+        self.assertFalse(LogActividad.objects.exists())
+
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_entrega_el_reemplazo_y_conserva_la_estructura(self, obtener_s3):
+        self.archivo_pdf.estado = EstadoArchivo.REEMPLAZADO
+        self.archivo_pdf.save(update_fields=["estado"])
+        nuevo = Archivo.objects.create(
+            estudio=self.estudio, nombre_archivo="informe_clinico.pdf",
+            ruta_relativa="informes/informe_clinico.pdf", formato=FormatoArchivo.PDF,
+            categoria=CategoriaArchivo.IMAGEN_DOCUMENTO,
+            ruta_almacenamiento="estudios/1/informe-corregido.pdf", tamano=9,
+            estado=EstadoArchivo.COMPLETO, archivo_reemplazado=self.archivo_pdf,
+        )
+        self.archivo_dcm.tamano = 5
+        self.archivo_dcm.save(update_fields=["tamano"])
+        cuerpos = {nuevo.ruta_almacenamiento: b"corregido",
+                   self.archivo_dcm.ruta_almacenamiento: b"DICOM"}
+        s3 = obtener_s3.return_value
+        s3.get_object.side_effect = lambda **kw: {"Body": io.BytesIO(cuerpos[kw["Key"]])}
+        self.client.force_login(self.user_odon)
+        response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content))) as paquete:
+            self.assertEqual(set(paquete.namelist()), {"informes/informe_clinico.pdf", "tomografia.dcm"})
+            self.assertEqual(paquete.read("informes/informe_clinico.pdf"), b"corregido")
+            self.assertEqual(paquete.read("tomografia.dcm"), b"DICOM")
+        response.close()
+
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_no_devuelve_paquete_parcial_si_falla_un_objeto(self, obtener_s3):
+        cuerpo = io.BytesIO(b"PDF")
+        self.archivo_pdf.tamano = 3
+        self.archivo_pdf.save(update_fields=["tamano"])
+        obtener_s3.return_value.get_object.side_effect = [
+            {"Body": cuerpo}, RuntimeError("Objeto faltante simulado"),
+        ]
+        self.client.force_login(self.user_odon)
+        with self.assertLogs("apps.estudios.views", level="ERROR"):
+            response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.headers["Content-Type"], "application/json")
+        self.assertTrue(cuerpo.closed)
+        self.assertEqual(LogActividad.objects.get().resultado, "Error al preparar paquete ZIP")
+
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_rechaza_objeto_truncado(self, obtener_s3):
+        cuerpo = io.BytesIO(b"contenido demasiado corto")
+        obtener_s3.return_value.get_object.return_value = {"Body": cuerpo}
+        self.client.force_login(self.user_paciente)
+        with self.assertLogs("apps.estudios.views", level="ERROR"):
+            response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 502)
+        self.assertTrue(cuerpo.closed)
+        self.assertFalse(LogActividad.objects.filter(resultado="Paquete ZIP preparado").exists())
+
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_lee_por_bloques_y_cierra_cuerpos_y_temporal(self, obtener_s3):
+        import tempfile
+
+        from apps.estudios.views import ZIP_CHUNK_SIZE
+
+        class CuerpoAcotado(io.BytesIO):
+            def read(self, cantidad=-1):
+                if cantidad <= 0 or cantidad > ZIP_CHUNK_SIZE:
+                    raise AssertionError("Lectura de archivo sin límite de memoria")
+                return super().read(cantidad)
+
+        contenido = b"x" * (ZIP_CHUNK_SIZE * 2 + 37)
+        self.estudio.archivos.update(tamano=len(contenido))
+        cuerpos = []
+
+        def obtener_objeto(**kwargs):
+            cuerpo = CuerpoAcotado(contenido)
+            cuerpos.append(cuerpo)
+            return {"Body": cuerpo}
+
+        obtener_s3.return_value.get_object.side_effect = obtener_objeto
+        self.client.force_login(self.admin)
+        temporal = tempfile.TemporaryFile()
+        with patch("apps.estudios.views.tempfile.TemporaryFile", return_value=temporal):
+            response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(cuerpo.closed for cuerpo in cuerpos))
+        with zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content))) as paquete:
+            for nombre in paquete.namelist():
+                self.assertEqual(paquete.read(nombre), contenido)
+        response.close()
+        self.assertTrue(temporal.closed)
+
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_cierra_cuerpo_y_temporal_si_falla_la_lectura(self, obtener_s3):
+        import tempfile
+
+        class CuerpoInterrumpido(io.BytesIO):
+            def read(self, cantidad=-1):
+                raise OSError("Corte de transferencia simulado")
+
+        cuerpo = CuerpoInterrumpido(b"PDF")
+        obtener_s3.return_value.get_object.return_value = {"Body": cuerpo}
+        temporal = tempfile.TemporaryFile()
+        self.client.force_login(self.admin)
+        with patch("apps.estudios.views.tempfile.TemporaryFile", return_value=temporal):
+            with self.assertLogs("apps.estudios.views", level="ERROR"):
+                response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 502)
+        self.assertTrue(cuerpo.closed)
+        self.assertTrue(temporal.closed)
 
