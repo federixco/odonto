@@ -4,6 +4,7 @@ import json
 import logging
 import math
 import uuid
+from time import monotonic
 from pathlib import Path
 
 from django.conf import settings
@@ -25,6 +26,7 @@ from apps.core.enums import (
     TipoEvento,
 )
 from apps.core.mixins import AdminRequeridoMixin
+from apps.core.carga_log import registrar_carga
 from apps.estudios.models import Estudio
 
 from .models import Archivo
@@ -225,6 +227,8 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
         )
         upload_id = None
         archivo = None
+        inicio = monotonic()
+        registrar_carga("archivo_inicio_solicitado", estudio_id=estudio.pk, bytes_total=tamano, partes=cantidad_partes)
         try:
             upload_id = iniciar_multipart_upload(clave_objeto, content_type)
             archivo = Archivo.objects.create(
@@ -245,7 +249,9 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
                 upload_id,
                 cantidad_partes,
             )
-        except Exception:
+        except Exception as error:
+            registrar_carga("archivo_inicio_error", estudio_id=estudio.pk,
+                            archivo_id=archivo.pk if archivo else None, error=error)
             logger.exception("No se pudo iniciar la carga multipartes.")
             if upload_id:
                 abortar_multipart_upload(clave_objeto, upload_id)
@@ -259,6 +265,8 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
                 status=502,
             )
 
+        registrar_carga("archivo_carga_habilitada", estudio_id=estudio.pk, archivo_id=archivo.pk,
+                        bytes_total=tamano, partes=cantidad_partes, duracion_ms=round((monotonic() - inicio) * 1000))
         return JsonResponse(
             {
                 "archivo_id": archivo.pk,
@@ -286,6 +294,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
             return JsonResponse({"error": "La lista de partes es inválida."}, status=400)
 
         objeto_completado = False
+        inicio = monotonic()
+        registrar_carga("archivo_verificacion_iniciada", estudio_id=archivo.estudio_id, archivo_id=archivo.pk)
         try:
             resultado = completar_multipart_upload(
                 archivo.ruta_almacenamiento,
@@ -294,6 +304,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
             )
             objeto_completado = True
             if resultado["tamano"] != archivo.tamano:
+                registrar_carga("archivo_tamano_incorrecto", estudio_id=archivo.estudio_id,
+                                archivo_id=archivo.pk, error=ValueError())
                 eliminar_objeto(archivo.ruta_almacenamiento)
                 Archivo.objects.filter(pk=archivo.pk).update(
                     estado=EstadoArchivo.INCORRECTO,
@@ -335,7 +347,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
                         else f"Archivo {archivo.pk}; {archivo.tamano} bytes."
                     ),
                 )
-        except Exception:
+        except Exception as error:
+            registrar_carga("archivo_verificacion_error", estudio_id=archivo.estudio_id, archivo_id=archivo.pk, error=error)
             logger.exception("No se pudo completar o verificar la carga multipartes.")
             if objeto_completado:
                 try:
@@ -356,6 +369,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
                 status=502,
             )
 
+        registrar_carga("archivo_completo", estudio_id=archivo.estudio_id, archivo_id=archivo.pk,
+                        bytes_total=archivo.tamano, duracion_ms=round((monotonic() - inicio) * 1000))
         return JsonResponse({"status": "ok", "archivo_id": archivo.pk})
 
 

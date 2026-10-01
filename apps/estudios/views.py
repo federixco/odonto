@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import uuid
+from time import monotonic
 from pathlib import Path, PurePosixPath
 
 import tempfile
@@ -22,6 +23,7 @@ from django.views.generic import DetailView, ListView
 from django.views.generic.detail import SingleObjectMixin
 
 from apps.archivos.models import Archivo
+from apps.core.carga_log import registrar_carga
 from apps.archivos.services.storage import (
     abortar_multipart_upload,
     calcular_sha256_objeto,
@@ -427,6 +429,7 @@ class IniciarImportacionView(AdminRequeridoMixin, View):
         if not 1 <= cantidad <= getattr(settings, "IMPORTACION_MAX_ARCHIVOS", 5000) or tamano <= 0 or tamano > getattr(settings, "IMPORTACION_MAX_TAMANO_TOTAL", 10 * 1024**3):
             return JsonResponse({"error": "La carpeta supera los límites permitidos o está vacía."}, status=400)
         lote = ImportacionEstudio.objects.create(iniciada_por=request.user, nombre_carpeta=nombre.strip(), cantidad_archivos=cantidad, tamano_total=tamano)
+        registrar_carga("importacion_iniciada", importacion_id=lote.pk, cantidad=cantidad, bytes_total=tamano)
         LogActividad.objects.create(usuario=request.user, tipo_evento=TipoEvento.IMPORTACION_INICIADA, resultado="Importación iniciada", detalles=f"Importación {lote.pk}: {cantidad} archivos, {tamano} bytes.")
         return JsonResponse({"importacion_id": lote.pk, "detalle_url": f"/estudios/importaciones/{lote.pk}/"})
 
@@ -449,6 +452,8 @@ class IniciarArchivoImportadoView(AdminRequeridoMixin, View):
         if partes > S3_MAX_PARTS: return JsonResponse({"error": "El archivo requiere demasiadas partes."}, status=400)
         clave = f"importaciones/{lote.pk}/archivos/{uuid.uuid4().hex}{extension}"
         upload_id = None
+        inicio = monotonic()
+        registrar_carga("archivo_inicio_solicitado", importacion_id=lote.pk, bytes_total=tamano, partes=partes)
         try:
             upload_id = iniciar_multipart_upload(clave, content_type)
             # Si falla la firma, la fila se revierte y la ruta queda disponible
@@ -456,8 +461,11 @@ class IniciarArchivoImportadoView(AdminRequeridoMixin, View):
             with transaction.atomic():
                 archivo = Archivo.objects.create(importacion=lote, nombre_archivo=nombre, ruta_relativa=ruta, formato=formato, categoria=categoria, ruta_almacenamiento=clave, tamano=tamano, upload_id=upload_id, content_type=content_type, cantidad_partes=partes)
                 urls = generar_urls_prefirmadas(clave, upload_id, partes)
+            registrar_carga("archivo_carga_habilitada", importacion_id=lote.pk, archivo_id=archivo.pk,
+                            bytes_total=tamano, partes=partes, duracion_ms=round((monotonic() - inicio) * 1000))
             return JsonResponse({"archivo_id": archivo.pk, "part_size": settings.S3_MULTIPART_PART_SIZE, "partes": urls})
-        except Exception:
+        except Exception as error:
+            registrar_carga("archivo_inicio_error", importacion_id=lote.pk, error=error)
             logger.exception("No se pudo iniciar archivo importado.")
             if upload_id: abortar_multipart_upload(clave, upload_id)
             return JsonResponse({"error": "No se pudo iniciar la carga del archivo."}, status=502)
@@ -469,14 +477,19 @@ class CompletarArchivoImportadoView(AdminRequeridoMixin, View):
         partes = _partes_validas((_leer_json(request) or {}).get("partes"), archivo.cantidad_partes)
         if partes is None: return JsonResponse({"error": "La lista de partes es inválida."}, status=400)
         completo = False
+        inicio = monotonic()
+        registrar_carga("archivo_verificacion_iniciada", importacion_id=importacion_id, archivo_id=archivo.pk)
         try:
             resultado = completar_multipart_upload(archivo.ruta_almacenamiento, archivo.upload_id, partes); completo = True
             if resultado["tamano"] != archivo.tamano: raise ValueError("El tamaño recibido no coincide.")
             archivo.hash_sha256 = calcular_sha256_objeto(archivo.ruta_almacenamiento)
             archivo.estado = EstadoArchivo.COMPLETO; archivo.upload_id = None
             archivo.save(update_fields=["hash_sha256", "estado", "upload_id", "updated_at"])
+            registrar_carga("archivo_completo", importacion_id=importacion_id, archivo_id=archivo.pk,
+                            bytes_total=archivo.tamano, duracion_ms=round((monotonic() - inicio) * 1000))
             return JsonResponse({"status": "ok", "archivo_id": archivo.pk})
-        except Exception:
+        except Exception as error:
+            registrar_carga("archivo_verificacion_error", importacion_id=importacion_id, archivo_id=archivo.pk, error=error)
             logger.exception("No se pudo completar archivo importado.")
             if completo: eliminar_objeto(archivo.ruta_almacenamiento)
             else: abortar_multipart_upload(archivo.ruta_almacenamiento, archivo.upload_id)
@@ -490,13 +503,18 @@ class AnalizarImportacionView(AdminRequeridoMixin, View):
         try:
             lote.marcar_procesando()
         except ValidationError as error:
+            registrar_carga("analisis_rechazado", importacion_id=lote.pk, error=error)
             # Rechazar una transición no debe convertir una importación ya
             # confirmada en ERROR ni borrar su estado administrativo.
             return JsonResponse({"error": " ".join(error.messages)}, status=409)
         try:
+            inicio = monotonic()
+            registrar_carga("analisis_iniciado", importacion_id=lote.pk, cantidad=lote.cantidad_archivos)
             lote = analizar_importacion(lote)
+            registrar_carga("analisis_completo", importacion_id=lote.pk, duracion_ms=round((monotonic() - inicio) * 1000))
             return JsonResponse({"status": "ok", "detalle_url": f"/estudios/importaciones/{lote.pk}/"})
         except Exception as error:
+            registrar_carga("analisis_error", importacion_id=lote.pk, error=error)
             logger.exception("No se pudo analizar importación %s.", lote.pk)
             lote.marcar_error(error)
             return JsonResponse({"error": "No se pudo analizar la carpeta. Revisá los archivos o intentá nuevamente."}, status=422)
@@ -610,6 +628,7 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
                 return render(request, "estudios/importacion_detalle.html", contexto)
             estudio = form.save()
             lote.confirmar(estudio)
+            transaction.on_commit(lambda: registrar_carga("importacion_confirmada", importacion_id=lote.pk, estudio_id=estudio.pk))
             derivante = form.cleaned_data.get("derivante")
             if derivante:
                 Autorizacion.objects.create(

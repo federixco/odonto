@@ -17,6 +17,7 @@ from django.db import transaction
 
 from apps.archivos.services.storage import leer_objeto
 from apps.core.enums import CategoriaArchivo, FormatoArchivo
+from apps.core.carga_log import registrar_carga
 from apps.pacientes.models import Paciente
 
 
@@ -249,7 +250,8 @@ def _dicom_detectado(importacion):
         dataset = pydicom.dcmread(
             BytesIO(contenido), stop_before_pixels=True, force=False
         )
-    except Exception:
+    except Exception as error:
+        registrar_carga("parser_dicom_error", importacion_id=importacion.pk, archivo_id=archivo.pk, error=error)
         return {
             "formato": "DICOM",
             "software_origen": "",
@@ -316,7 +318,8 @@ def _galileos_detectado(importacion):
     contenido = leer_objeto(archivo.ruta_almacenamiento, LIMITE_LECTURA_GWG)
     try:
         datos = _datos_desde_gwg16(contenido)
-    except (UnicodeDecodeError, ET.ParseError, ValueError, zlib.error):
+    except (UnicodeDecodeError, ET.ParseError, ValueError, zlib.error) as error:
+        registrar_carga("parser_gwg16_error", importacion_id=importacion.pk, archivo_id=archivo.pk, error=error)
         return {
             "formato": "GALILEOS",
             "software_origen": "GALILEOS / GALAXIS",
@@ -379,6 +382,12 @@ def analizar_importacion(importacion):
     """Analiza una importación completa y deja el lote listo para confirmación."""
 
     datos = _dicom_detectado(importacion) or _formato_no_dicom(importacion)
+    # Solo códigos fijos: nunca el JSON de metadatos ni sus advertencias clínicas.
+    formato_log = datos.get("formato")
+    if formato_log not in {"DICOM", "GALILEOS", "STL", "PLY", "RADIOGRAFIA"}:
+        formato_log = "DESCONOCIDO"
+    registrar_carga(f"deteccion_{formato_log.lower()}", importacion_id=importacion.pk,
+                    cantidad=len(datos.get("advertencias", [])))
     paciente = None
     identificador = datos.get("identificador_paciente", "")
     if identificador:
