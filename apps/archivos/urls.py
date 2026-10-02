@@ -2,9 +2,11 @@ from django.urls import path
 from .views import (
     CancelarArchivoView,
     CompletarArchivoView,
+    DescargarArchivoView,
     EliminarArchivoView,
     IniciarArchivoView,
     MarcarArchivoIncorrectoView,
+    PrevisualizarArchivoView,
 )
 
 urlpatterns = [
@@ -14,5 +16,7 @@ urlpatterns = [
     path("completar/<int:archivo_id>/", CompletarArchivoView.as_view(), name="archivo_completar"),
     path("cancelar/<int:archivo_id>/", CancelarArchivoView.as_view(), name="archivo_cancelar"),
     path("<int:archivo_id>/marcar-incorrecto/", MarcarArchivoIncorrectoView.as_view(), name="archivo_marcar_incorrecto"),
+    path("<int:archivo_id>/descargar/", DescargarArchivoView.as_view(), name="archivo_descargar"),
+    path("<int:archivo_id>/ver/", PrevisualizarArchivoView.as_view(), name="archivo_previsualizar"),
     path("eliminar/<int:archivo_id>/", EliminarArchivoView.as_view(), name="archivo_eliminar"),
 ]

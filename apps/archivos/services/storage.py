@@ -190,3 +190,44 @@ def eliminar_objeto(clave_objeto):
         if str(codigo) not in {"404", "NoSuchBucket", "NoSuchKey", "NotFound"}:
             raise
     return True
+
+
+def generar_url_descarga(clave_objeto, nombre_archivo=None, expiracion=None):
+    """Genera una URL prefirmada temporal para descargar el objeto con cabecera attachment."""
+    if expiracion is None:
+        expiracion = settings.AWS_S3_PRESIGNED_EXPIRATION
+    params = {
+        "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+        "Key": clave_objeto,
+    }
+    if nombre_archivo:
+        from urllib.parse import quote
+        params["ResponseContentDisposition"] = f'attachment; filename="{nombre_archivo}"; filename*=UTF-8\'\'{quote(nombre_archivo)}'
+    else:
+        params["ResponseContentDisposition"] = "attachment"
+
+    return get_s3_client().generate_presigned_url(
+        ClientMethod="get_object",
+        Params=params,
+        ExpiresIn=expiracion,
+    )
+
+
+def generar_url_previsualizacion(clave_objeto, content_type=None, expiracion=None):
+    """Genera una URL prefirmada temporal para previsualizar el objeto en el navegador."""
+    if expiracion is None:
+        expiracion = settings.AWS_S3_PRESIGNED_EXPIRATION
+    params = {
+        "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+        "Key": clave_objeto,
+        "ResponseContentDisposition": "inline",
+    }
+    if content_type:
+        params["ResponseContentType"] = content_type
+
+    return get_s3_client().generate_presigned_url(
+        ClientMethod="get_object",
+        Params=params,
+        ExpiresIn=expiracion,
+    )
+

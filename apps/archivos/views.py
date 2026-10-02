@@ -4,12 +4,14 @@ import json
 import logging
 import math
 import uuid
+from time import monotonic
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 
@@ -20,9 +22,11 @@ from apps.core.enums import (
     EstadoArchivo,
     EstadoEstudio,
     FormatoArchivo,
+    RolUsuario,
     TipoEvento,
 )
 from apps.core.mixins import AdminRequeridoMixin
+from apps.core.carga_log import registrar_carga
 from apps.estudios.models import Estudio
 
 from .models import Archivo
@@ -31,6 +35,8 @@ from .services.storage import (
     calcular_sha256_objeto,
     completar_multipart_upload,
     eliminar_objeto,
+    generar_url_descarga,
+    generar_url_previsualizacion,
     generar_urls_prefirmadas,
     iniciar_multipart_upload,
 )
@@ -221,6 +227,8 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
         )
         upload_id = None
         archivo = None
+        inicio = monotonic()
+        registrar_carga("archivo_inicio_solicitado", estudio_id=estudio.pk, bytes_total=tamano, partes=cantidad_partes)
         try:
             upload_id = iniciar_multipart_upload(clave_objeto, content_type)
             archivo = Archivo.objects.create(
@@ -241,7 +249,9 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
                 upload_id,
                 cantidad_partes,
             )
-        except Exception:
+        except Exception as error:
+            registrar_carga("archivo_inicio_error", estudio_id=estudio.pk,
+                            archivo_id=archivo.pk if archivo else None, error=error)
             logger.exception("No se pudo iniciar la carga multipartes.")
             if upload_id:
                 abortar_multipart_upload(clave_objeto, upload_id)
@@ -255,6 +265,8 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
                 status=502,
             )
 
+        registrar_carga("archivo_carga_habilitada", estudio_id=estudio.pk, archivo_id=archivo.pk,
+                        bytes_total=tamano, partes=cantidad_partes, duracion_ms=round((monotonic() - inicio) * 1000))
         return JsonResponse(
             {
                 "archivo_id": archivo.pk,
@@ -282,6 +294,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
             return JsonResponse({"error": "La lista de partes es inválida."}, status=400)
 
         objeto_completado = False
+        inicio = monotonic()
+        registrar_carga("archivo_verificacion_iniciada", estudio_id=archivo.estudio_id, archivo_id=archivo.pk)
         try:
             resultado = completar_multipart_upload(
                 archivo.ruta_almacenamiento,
@@ -290,6 +304,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
             )
             objeto_completado = True
             if resultado["tamano"] != archivo.tamano:
+                registrar_carga("archivo_tamano_incorrecto", estudio_id=archivo.estudio_id,
+                                archivo_id=archivo.pk, error=ValueError())
                 eliminar_objeto(archivo.ruta_almacenamiento)
                 Archivo.objects.filter(pk=archivo.pk).update(
                     estado=EstadoArchivo.INCORRECTO,
@@ -331,7 +347,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
                         else f"Archivo {archivo.pk}; {archivo.tamano} bytes."
                     ),
                 )
-        except Exception:
+        except Exception as error:
+            registrar_carga("archivo_verificacion_error", estudio_id=archivo.estudio_id, archivo_id=archivo.pk, error=error)
             logger.exception("No se pudo completar o verificar la carga multipartes.")
             if objeto_completado:
                 try:
@@ -352,6 +369,8 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
                 status=502,
             )
 
+        registrar_carga("archivo_completo", estudio_id=archivo.estudio_id, archivo_id=archivo.pk,
+                        bytes_total=archivo.tamano, duracion_ms=round((monotonic() - inicio) * 1000))
         return JsonResponse({"status": "ok", "archivo_id": archivo.pk})
 
 
@@ -408,3 +427,151 @@ class EliminarArchivoView(AdminRequeridoMixin, View):
         except ValueError as error:
             return JsonResponse({"error": str(error)}, status=409)
         return JsonResponse({"status": "marcado_incorrecto"})
+
+
+class DescargarArchivoView(View):
+    """Entrega únicamente archivos completos de un estudio autorizado."""
+
+    def get(self, request, archivo_id):
+        if not request.user.is_authenticated:
+            return redirect("login")
+
+        archivo = get_object_or_404(
+            Archivo.objects.select_related("estudio", "estudio__paciente"),
+            pk=archivo_id,
+            estado=EstadoArchivo.COMPLETO,
+        )
+        estudio = archivo.estudio
+        if not estudio:
+            raise Http404("El archivo no está asociado a ningún estudio.")
+
+        # Validación de permisos por rol
+        rol = request.user.rol
+        if rol == RolUsuario.PACIENTE:
+            if estudio.estado != EstadoEstudio.PUBLICADO:
+                raise PermissionDenied("El estudio no se encuentra publicado.")
+            try:
+                paciente = request.user.paciente
+            except Exception:
+                raise PermissionDenied("La cuenta no está asociada a una ficha clínica.")
+
+            if estudio.paciente_id != paciente.pk:
+                raise PermissionDenied("No tenés acceso a los archivos de este estudio.")
+
+        elif rol == RolUsuario.ODONTOLOGO:
+            # Debe existir una autorización vigente para este estudio y odontólogo
+            if estudio.estado != EstadoEstudio.PUBLICADO:
+                raise PermissionDenied("El estudio no está publicado.")
+
+            from apps.accesos.models import Autorizacion
+            try:
+                odontologo = request.user.odontologo
+            except Exception:
+                raise PermissionDenied("La cuenta no está asociada a un odontólogo.")
+
+            autorizado = Autorizacion.objects.filter(
+                estudio=estudio,
+                odontologo=odontologo,
+                estado_acceso=EstadoAcceso.VIGENTE,
+            ).exists()
+            if not autorizado:
+                raise PermissionDenied("No tenés autorización vigente para descargar archivos de este estudio.")
+
+        elif rol == RolUsuario.ADMINISTRADOR:
+            # El administrador del centro tiene acceso completo
+            pass
+        else:
+            raise PermissionDenied("Rol no autorizado.")
+
+        # Registrar auditoría de descarga
+        LogActividad.objects.create(
+            usuario=request.user,
+            estudio=estudio,
+            tipo_evento=TipoEvento.DESCARGA,
+            resultado="Descarga iniciada",
+            detalles=f"Descarga de archivo {archivo.nombre_archivo} ({archivo.pk}) de {archivo.tamano} bytes.",
+        )
+
+        # Generar URL prefirmada con cabecera attachment
+        url_descarga = generar_url_descarga(
+            clave_objeto=archivo.ruta_almacenamiento,
+            nombre_archivo=archivo.nombre_archivo,
+        )
+        return HttpResponseRedirect(url_descarga)
+
+
+class PrevisualizarArchivoView(View):
+    """Permite previsualizar en el navegador archivos compatibles (JPG, PNG, TIFF, PDF).
+    Accesible por Administrador, Odontólogo autorizado, y Paciente titular de la ficha clínica.
+    """
+
+    FORMATOS_PREVISUALIZABLES = {
+        FormatoArchivo.JPG,
+        FormatoArchivo.PNG,
+        FormatoArchivo.TIFF,
+        FormatoArchivo.PDF,
+    }
+
+    def get(self, request, archivo_id):
+        if not request.user.is_authenticated:
+            return redirect("login")
+
+        archivo = get_object_or_404(
+            Archivo.objects.select_related("estudio", "estudio__paciente"),
+            pk=archivo_id,
+            estado=EstadoArchivo.COMPLETO,
+        )
+        estudio = archivo.estudio
+        if not estudio:
+            raise Http404("El archivo no está asociado a ningún estudio.")
+
+        if archivo.formato not in self.FORMATOS_PREVISUALIZABLES:
+            raise Http404("Este formato de archivo no admite previsualización directa en el navegador.")
+
+        rol = request.user.rol
+        if rol == RolUsuario.ADMINISTRADOR:
+            pass
+        elif rol == RolUsuario.ODONTOLOGO:
+            if estudio.estado != EstadoEstudio.PUBLICADO:
+                raise PermissionDenied("El estudio no está publicado.")
+            from apps.accesos.models import Autorizacion
+            try:
+                odontologo = request.user.odontologo
+            except Exception:
+                raise PermissionDenied("La cuenta no está asociada a un odontólogo.")
+
+            autorizado = Autorizacion.objects.filter(
+                estudio=estudio,
+                odontologo=odontologo,
+                estado_acceso=EstadoAcceso.VIGENTE,
+            ).exists()
+            if not autorizado:
+                raise PermissionDenied("No tenés autorización vigente para visualizar este estudio.")
+        elif rol == RolUsuario.PACIENTE:
+            if estudio.estado != EstadoEstudio.PUBLICADO:
+                raise PermissionDenied("El estudio no está publicado.")
+            try:
+                paciente = request.user.paciente
+            except Exception:
+                raise PermissionDenied("La cuenta no está asociada a una ficha de paciente.")
+
+            if estudio.paciente_id != paciente.pk:
+                raise PermissionDenied("No podés acceder a estudios que no te pertenecen.")
+        else:
+            raise PermissionDenied("Rol no autorizado.")
+
+        # Registrar auditoría de visualización
+        LogActividad.objects.create(
+            usuario=request.user,
+            estudio=estudio,
+            tipo_evento=TipoEvento.VISUALIZACION,
+            resultado="Visualización de archivo",
+            detalles=f"Previsualización de {archivo.nombre_archivo} ({archivo.pk}).",
+        )
+
+        url_inline = generar_url_previsualizacion(
+            clave_objeto=archivo.ruta_almacenamiento,
+            content_type=archivo.content_type,
+        )
+        return HttpResponseRedirect(url_inline)
+

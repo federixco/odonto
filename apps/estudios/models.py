@@ -269,51 +269,67 @@ class ImportacionEstudio(models.Model):
     def marcar_procesando(self):
         """Inicia el análisis solamente después de completar todas las cargas."""
 
-        if not self.esta_completa():
-            raise ValidationError(
-                "La importación tiene archivos incompletos y no puede procesarse."
-            )
-        self.estado = EstadoImportacion.PROCESANDO
-        self.save(update_fields=["estado", "updated_at"])
+        with transaction.atomic():
+            # Consultar el estado persistido también protege contra una instancia
+            # anterior a la confirmación y dos solicitudes de análisis simultáneas.
+            lote = type(self).objects.select_for_update().get(pk=self.pk)
+            if lote.estudio_id or lote.estado not in {
+                EstadoImportacion.CARGANDO,
+                EstadoImportacion.ERROR,
+            }:
+                raise ValidationError("La importación no admite un nuevo análisis.")
+            if not lote.esta_completa():
+                raise ValidationError(
+                    "La importación tiene archivos incompletos y no puede procesarse."
+                )
+            lote.estado = EstadoImportacion.PROCESANDO
+            lote.save(update_fields=["estado", "updated_at"])
+        self.estado = lote.estado
 
     def marcar_pendiente_confirmacion(self):
         """Expone el resultado detectado para que el administrador lo revise."""
 
-        if self.estado != EstadoImportacion.PROCESANDO:
-            raise ValidationError(
-                "Solo una importación en procesamiento puede quedar pendiente."
-            )
-        self.estado = EstadoImportacion.PENDIENTE_CONFIRMACION
-        self.save(update_fields=["estado", "updated_at"])
+        with transaction.atomic():
+            lote = type(self).objects.select_for_update().get(pk=self.pk)
+            if lote.estudio_id or lote.estado != EstadoImportacion.PROCESANDO:
+                raise ValidationError(
+                    "Solo una importación en procesamiento puede quedar pendiente."
+                )
+            lote.estado = EstadoImportacion.PENDIENTE_CONFIRMACION
+            lote.save(update_fields=["estado", "updated_at"])
+        self.estado = lote.estado
 
     def confirmar(self, estudio):
         """Vincula el estudio validado y finaliza la importación."""
 
         if estudio.pk is None:
             raise ValidationError("El estudio debe estar guardado antes de confirmar.")
-        if self.estado != EstadoImportacion.PENDIENTE_CONFIRMACION:
-            raise ValidationError(
-                "La importación debe estar pendiente de confirmación."
-            )
-        if not self.esta_completa():
-            raise ValidationError(
-                "No se puede confirmar una importación con archivos incompletos."
-            )
         with transaction.atomic():
+            lote = type(self).objects.select_for_update().get(pk=self.pk)
+            if lote.estudio_id or lote.estado != EstadoImportacion.PENDIENTE_CONFIRMACION:
+                raise ValidationError("La importación no está pendiente de confirmación.")
+            if not lote.esta_completa():
+                raise ValidationError(
+                    "No se puede confirmar una importación con archivos incompletos."
+                )
+            if lote.archivos.filter(estudio__isnull=False).exists():
+                raise ValidationError("Los archivos ya están asociados a un estudio.")
             # Conservamos la importación como trazabilidad y además vinculamos
             # sus archivos al estudio, para que el resto del sistema continúe
             # usando la relación Estudio -> Archivo ya existente.
-            self.archivos.update(estudio=estudio)
-            self.estudio = estudio
-            self.estado = EstadoImportacion.CONFIRMADA
-            self.full_clean()
-            self.save(
+            lote.archivos.update(estudio=estudio)
+            lote.estudio = estudio
+            lote.estado = EstadoImportacion.CONFIRMADA
+            lote.full_clean()
+            lote.save(
                 update_fields=[
                     "estudio",
                     "estado",
                     "updated_at",
                 ]
             )
+        self.estudio = estudio
+        self.estado = lote.estado
         return estudio
 
     def cancelar(self):

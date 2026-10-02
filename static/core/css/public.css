@@ -450,3 +450,16 @@ details > summary::-webkit-details-marker { display: none; }
     .auth-section .auth-card h2 { font-size: 1.7rem; }
     .auth-section .login-submit { font-size: .84rem; padding-inline: 17px; }
 }
+
+/* Adaptabilidad para el buscador del consultorio derivante */
+@media (max-width: 960px) {
+    .pro-search-bar form {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+@media (max-width: 600px) {
+    .pro-search-bar form {
+        grid-template-columns: 1fr !important;
+    }
+}
+

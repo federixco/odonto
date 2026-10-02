@@ -147,3 +147,26 @@ S3_HASH_CHUNK_SIZE = _env_int("S3_HASH_CHUNK_SIZE", 8 * 1024 * 1024)
 IMPORTACION_MAX_ARCHIVOS = _env_int("IMPORTACION_MAX_ARCHIVOS", 5000)
 IMPORTACION_MAX_TAMANO_TOTAL = _env_int("IMPORTACION_MAX_TAMANO_TOTAL", 10 * 1024 * 1024 * 1024)
 
+# Diagnóstico opt-in de pruebas: 5 MiB por archivo y tres copias anteriores.
+CARGA_LOG_ENABLED = _env_bool("CARGA_LOG_ENABLED", False)
+if CARGA_LOG_ENABLED:
+    (BASE_DIR / "logs").mkdir(exist_ok=True)
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"cargas": {"format": "{asctime} {levelname} {message}", "style": "{"}},
+        "handlers": {
+            "cargas": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "filename": str(BASE_DIR / "logs" / "cargas.log"),
+                "maxBytes": 5 * 1024 * 1024,
+                "backupCount": 3,
+                "encoding": "utf-8",
+                "delay": True,
+                "formatter": "cargas",
+                "level": "INFO",
+            },
+        },
+        "loggers": {"doc.cargas": {"handlers": ["cargas"], "level": "INFO", "propagate": False}},
+    }
+

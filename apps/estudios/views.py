@@ -5,26 +5,32 @@ import json
 import logging
 import math
 import uuid
+from time import monotonic
 from pathlib import Path, PurePosixPath
 
+import tempfile
+import zipfile
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, ListView
+from django.views.generic.detail import SingleObjectMixin
 
 from apps.archivos.models import Archivo
+from apps.core.carga_log import registrar_carga
 from apps.archivos.services.storage import (
     abortar_multipart_upload,
     calcular_sha256_objeto,
     completar_multipart_upload,
     eliminar_objeto,
     generar_urls_prefirmadas,
+    get_s3_client,
     iniciar_multipart_upload,
 )
 from apps.accesos.models import Autorizacion
@@ -44,6 +50,7 @@ from .services.importador import analizar_importacion
 logger = logging.getLogger(__name__)
 S3_MIN_PART_SIZE = 5 * 1024 * 1024
 S3_MAX_PARTS = 10_000
+ZIP_CHUNK_SIZE = 1024 * 1024
 
 
 def _leer_json(request):
@@ -422,6 +429,7 @@ class IniciarImportacionView(AdminRequeridoMixin, View):
         if not 1 <= cantidad <= getattr(settings, "IMPORTACION_MAX_ARCHIVOS", 5000) or tamano <= 0 or tamano > getattr(settings, "IMPORTACION_MAX_TAMANO_TOTAL", 10 * 1024**3):
             return JsonResponse({"error": "La carpeta supera los límites permitidos o está vacía."}, status=400)
         lote = ImportacionEstudio.objects.create(iniciada_por=request.user, nombre_carpeta=nombre.strip(), cantidad_archivos=cantidad, tamano_total=tamano)
+        registrar_carga("importacion_iniciada", importacion_id=lote.pk, cantidad=cantidad, bytes_total=tamano)
         LogActividad.objects.create(usuario=request.user, tipo_evento=TipoEvento.IMPORTACION_INICIADA, resultado="Importación iniciada", detalles=f"Importación {lote.pk}: {cantidad} archivos, {tamano} bytes.")
         return JsonResponse({"importacion_id": lote.pk, "detalle_url": f"/estudios/importaciones/{lote.pk}/"})
 
@@ -444,11 +452,20 @@ class IniciarArchivoImportadoView(AdminRequeridoMixin, View):
         if partes > S3_MAX_PARTS: return JsonResponse({"error": "El archivo requiere demasiadas partes."}, status=400)
         clave = f"importaciones/{lote.pk}/archivos/{uuid.uuid4().hex}{extension}"
         upload_id = None
+        inicio = monotonic()
+        registrar_carga("archivo_inicio_solicitado", importacion_id=lote.pk, bytes_total=tamano, partes=partes)
         try:
             upload_id = iniciar_multipart_upload(clave, content_type)
-            archivo = Archivo.objects.create(importacion=lote, nombre_archivo=nombre, ruta_relativa=ruta, formato=formato, categoria=categoria, ruta_almacenamiento=clave, tamano=tamano, upload_id=upload_id, content_type=content_type, cantidad_partes=partes)
-            return JsonResponse({"archivo_id": archivo.pk, "part_size": settings.S3_MULTIPART_PART_SIZE, "partes": generar_urls_prefirmadas(clave, upload_id, partes)})
-        except Exception:
+            # Si falla la firma, la fila se revierte y la ruta queda disponible
+            # para otro intento. S3 se compensa fuera de la transacción.
+            with transaction.atomic():
+                archivo = Archivo.objects.create(importacion=lote, nombre_archivo=nombre, ruta_relativa=ruta, formato=formato, categoria=categoria, ruta_almacenamiento=clave, tamano=tamano, upload_id=upload_id, content_type=content_type, cantidad_partes=partes)
+                urls = generar_urls_prefirmadas(clave, upload_id, partes)
+            registrar_carga("archivo_carga_habilitada", importacion_id=lote.pk, archivo_id=archivo.pk,
+                            bytes_total=tamano, partes=partes, duracion_ms=round((monotonic() - inicio) * 1000))
+            return JsonResponse({"archivo_id": archivo.pk, "part_size": settings.S3_MULTIPART_PART_SIZE, "partes": urls})
+        except Exception as error:
+            registrar_carga("archivo_inicio_error", importacion_id=lote.pk, error=error)
             logger.exception("No se pudo iniciar archivo importado.")
             if upload_id: abortar_multipart_upload(clave, upload_id)
             return JsonResponse({"error": "No se pudo iniciar la carga del archivo."}, status=502)
@@ -460,14 +477,19 @@ class CompletarArchivoImportadoView(AdminRequeridoMixin, View):
         partes = _partes_validas((_leer_json(request) or {}).get("partes"), archivo.cantidad_partes)
         if partes is None: return JsonResponse({"error": "La lista de partes es inválida."}, status=400)
         completo = False
+        inicio = monotonic()
+        registrar_carga("archivo_verificacion_iniciada", importacion_id=importacion_id, archivo_id=archivo.pk)
         try:
             resultado = completar_multipart_upload(archivo.ruta_almacenamiento, archivo.upload_id, partes); completo = True
             if resultado["tamano"] != archivo.tamano: raise ValueError("El tamaño recibido no coincide.")
             archivo.hash_sha256 = calcular_sha256_objeto(archivo.ruta_almacenamiento)
             archivo.estado = EstadoArchivo.COMPLETO; archivo.upload_id = None
             archivo.save(update_fields=["hash_sha256", "estado", "upload_id", "updated_at"])
+            registrar_carga("archivo_completo", importacion_id=importacion_id, archivo_id=archivo.pk,
+                            bytes_total=archivo.tamano, duracion_ms=round((monotonic() - inicio) * 1000))
             return JsonResponse({"status": "ok", "archivo_id": archivo.pk})
-        except Exception:
+        except Exception as error:
+            registrar_carga("archivo_verificacion_error", importacion_id=importacion_id, archivo_id=archivo.pk, error=error)
             logger.exception("No se pudo completar archivo importado.")
             if completo: eliminar_objeto(archivo.ruta_almacenamiento)
             else: abortar_multipart_upload(archivo.ruta_almacenamiento, archivo.upload_id)
@@ -480,9 +502,19 @@ class AnalizarImportacionView(AdminRequeridoMixin, View):
         lote = get_object_or_404(ImportacionEstudio, pk=importacion_id, iniciada_por=request.user)
         try:
             lote.marcar_procesando()
+        except ValidationError as error:
+            registrar_carga("analisis_rechazado", importacion_id=lote.pk, error=error)
+            # Rechazar una transición no debe convertir una importación ya
+            # confirmada en ERROR ni borrar su estado administrativo.
+            return JsonResponse({"error": " ".join(error.messages)}, status=409)
+        try:
+            inicio = monotonic()
+            registrar_carga("analisis_iniciado", importacion_id=lote.pk, cantidad=lote.cantidad_archivos)
             lote = analizar_importacion(lote)
+            registrar_carga("analisis_completo", importacion_id=lote.pk, duracion_ms=round((monotonic() - inicio) * 1000))
             return JsonResponse({"status": "ok", "detalle_url": f"/estudios/importaciones/{lote.pk}/"})
         except Exception as error:
+            registrar_carga("analisis_error", importacion_id=lote.pk, error=error)
             logger.exception("No se pudo analizar importación %s.", lote.pk)
             lote.marcar_error(error)
             return JsonResponse({"error": "No se pudo analizar la carpeta. Revisá los archivos o intentá nuevamente."}, status=422)
@@ -569,22 +601,34 @@ class RegistrarPacienteDetectadoView(AdminRequeridoMixin, View):
 
 class ConfirmarImportacionView(AdminRequeridoMixin, View):
     def post(self, request, importacion_id):
-        lote = get_object_or_404(ImportacionEstudio, pk=importacion_id, iniciada_por=request.user, estado=EstadoImportacion.PENDIENTE_CONFIRMACION)
-        form = ConfirmarImportacionForm(request.POST, importacion=lote)
-        if not form.is_valid():
-            contexto = {
-                "importacion": lote,
-                "form": form,
-                "mostrar_registro_paciente": not lote.paciente_sugerido_id,
-            }
-            if not lote.paciente_sugerido_id:
-                contexto["paciente_form"] = RegistrarPacienteDetectadoForm(
-                    importacion=lote
-                )
-            return render(request, "estudios/importacion_detalle.html", contexto)
+        # Adquirir el bloqueo antes de crear Estudio evita duplicados ante dos
+        # POST que hayan observado el mismo lote pendiente.
         with transaction.atomic():
+            lote = get_object_or_404(
+                ImportacionEstudio.objects.select_for_update(),
+                pk=importacion_id,
+                iniciada_por=request.user,
+            )
+            if lote.estudio_id or lote.estado != EstadoImportacion.PENDIENTE_CONFIRMACION:
+                return JsonResponse(
+                    {"error": "La importación no está pendiente de confirmación."},
+                    status=409,
+                )
+            if not lote.esta_completa() or lote.archivos.filter(estudio__isnull=False).exists():
+                return JsonResponse({"error": "Los archivos no están disponibles para confirmar."}, status=409)
+            form = ConfirmarImportacionForm(request.POST, importacion=lote)
+            if not form.is_valid():
+                contexto = {
+                    "importacion": lote,
+                    "form": form,
+                    "mostrar_registro_paciente": not lote.paciente_sugerido_id,
+                }
+                if not lote.paciente_sugerido_id:
+                    contexto["paciente_form"] = RegistrarPacienteDetectadoForm(importacion=lote)
+                return render(request, "estudios/importacion_detalle.html", contexto)
             estudio = form.save()
             lote.confirmar(estudio)
+            transaction.on_commit(lambda: registrar_carga("importacion_confirmada", importacion_id=lote.pk, estudio_id=estudio.pk))
             derivante = form.cleaned_data.get("derivante")
             if derivante:
                 Autorizacion.objects.create(
@@ -769,3 +813,83 @@ class VerEstudioView(EstudioAccesoMixin, DetailView):
             contexto["tree"] = tree
             
         return contexto
+
+
+class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
+    """Permite descargar la carpeta completa (raíz) del estudio en un archivo ZIP.
+    Disponible para Administradores, Odontólogos con autorización vigente y Pacientes titulares.
+    """
+
+    model = Estudio
+
+    def get(self, request, *args, **kwargs):
+        estudio = self.get_object()
+
+        archivos = estudio.archivos.filter(
+            estado=EstadoArchivo.COMPLETO,
+        ).order_by("ruta_relativa", "nombre_archivo")
+
+        if not archivos.exists():
+            messages.error(request, "El estudio no contiene archivos disponibles para descargar.")
+            return redirect("estudio_ver", pk=estudio.pk)
+
+        temp_file = None
+        try:
+            s3 = get_s3_client()
+            temp_file = tempfile.TemporaryFile()
+            nombres = set()
+            cantidad = 0
+            with zipfile.ZipFile(temp_file, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+                for archivo in archivos.iterator(chunk_size=100):
+                    arcname = _ruta_importada_valida(archivo.ruta_relativa or archivo.nombre_archivo)
+                    if not arcname or arcname in nombres:
+                        raise ValueError("El estudio contiene rutas de descarga inválidas o repetidas.")
+                    nombres.add(arcname)
+                    obj = s3.get_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=archivo.ruta_almacenamiento)
+                    cuerpo = obj["Body"]
+                    try:
+                        escritos = 0
+                        # Zip64 permite entradas grandes. Leer por bloques evita
+                        # cargar una tomografía completa en RAM.
+                        with zf.open(arcname, mode="w", force_zip64=True) as destino:
+                            while bloque := cuerpo.read(ZIP_CHUNK_SIZE):
+                                escritos += len(bloque)
+                                if escritos > archivo.tamano:
+                                    raise ValueError("El tamaño almacenado no coincide con el archivo.")
+                                destino.write(bloque)
+                        if escritos != archivo.tamano:
+                            raise ValueError("El archivo almacenado está incompleto.")
+                    finally:
+                        cuerpo.close()
+                    cantidad += 1
+
+            temp_file.seek(0)
+            paciente_str = f"{estudio.paciente.apellido}_{estudio.paciente.nombre}".replace(" ", "_")
+            nombre_zip = f"Estudio_{paciente_str}_{estudio.pk}.zip"
+            nombre_zip = "".join(c for c in nombre_zip if c.isalnum() or c in "._-")
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.DESCARGA,
+                resultado="Paquete ZIP preparado",
+                detalles=f"Descarga de carpeta raíz del estudio #{estudio.pk} ({cantidad} archivos).",
+            )
+            # FileResponse se encarga de cerrar el temporal al terminar o
+            # interrumpirse la respuesta, sin mantener el ZIP en memoria.
+            return FileResponse(temp_file, as_attachment=True, filename=nombre_zip, content_type="application/zip")
+        except Exception:
+            if temp_file is not None:
+                temp_file.close()
+            logger.exception("No se pudo preparar el ZIP del estudio %s.", estudio.pk)
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.DESCARGA,
+                resultado="Error al preparar paquete ZIP",
+                detalles=f"No se entregó un paquete parcial del estudio #{estudio.pk}.",
+            )
+            return JsonResponse(
+                {"error": "No se pudo preparar la descarga completa. Intentá nuevamente o avisá al centro."},
+                status=502,
+            )
+

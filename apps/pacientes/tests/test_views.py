@@ -117,7 +117,6 @@ class PacientesViewsTests(TestCase):
         self.assertContains(response, self.publicado.tipo)
         self.assertNotContains(response, self.borrador.tipo)
         self.assertNotContains(response, self.ajeno.tipo)
-        self.assertNotContains(response, "Descargar")
 
     def test_cuenta_paciente_sin_ficha_no_accede_al_portal(self):
         sin_ficha = Usuario.objects.create_user(
