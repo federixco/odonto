@@ -49,7 +49,7 @@
             <div><dt>Archivos</dt><dd>{{ importacion.archivos.count }} completos</dd><small>{{ importacion.datos_detectados.software_origen|default:'Origen no identificado' }}</small></div>
         </dl>
 
-        <details class="detected-edit detected-edit-prominent" {% if form.errors %}open{% endif %}>
+        <details class="detected-edit detected-edit-prominent" {% if form.errors or importacion.requiere_revision_estudios %}open{% endif %}>
             <summary>
                 <span class="detected-edit-icon">{% include 'core/includes/icon.html' with name='edit' %}</span>
                 <span><strong>¿Hay un dato incorrecto?</strong><small>Corregir paciente o datos detectados antes de asociar el odontólogo.</small></span>
@@ -67,6 +67,8 @@
         </details>
 
         {% include 'estudios/derivante_selector.html' %}
+
+        {% include 'estudios/revision_estudios.html' %}
 
         <div class="review-actions">
             <button type="submit" class="button review-confirm-button">Confirmar estudio</button>
@@ -114,6 +116,7 @@
                 {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
                 {% include 'core/includes/form_field.html' with field=form.observaciones %}
                 {% include 'estudios/derivante_selector.html' %}
+                {% include 'estudios/revision_estudios.html' %}
                 <div class="admin-form-actions"><button type="submit" class="button button-secondary">Usar esta ficha y confirmar</button></div>
             </form>
         </details>

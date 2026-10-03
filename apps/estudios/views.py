@@ -1,6 +1,6 @@
 from apps.pacientes.models import Paciente
 from apps.usuarios.models import Odontologo
-from django.db.models import Count
+from django.db.models import Count, Sum
 import json
 import logging
 import math
@@ -9,6 +9,7 @@ from time import monotonic
 from pathlib import Path, PurePosixPath
 
 import tempfile
+import shutil
 import zipfile
 from django.conf import settings
 from django.contrib import messages
@@ -36,7 +37,6 @@ from apps.accesos.models import Autorizacion
 from apps.auditoria.models import LogActividad
 from apps.core.enums import CategoriaArchivo, EstadoAcceso, EstadoArchivo, EstadoCuenta, EstadoEstudio, EstadoImportacion, FormatoArchivo, TipoEvento
 from apps.core.mixins import AdminRequeridoMixin, EstudioAccesoMixin
-from apps.usuarios.models import Odontologo
 from .forms import (
     ConfirmarImportacionForm,
     EstudioForm,
@@ -656,7 +656,7 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
                     contexto["paciente_form"] = RegistrarPacienteDetectadoForm(importacion=lote)
                 return render(request, "estudios/importacion_detalle.html", contexto)
             estudio = form.save()
-            lote.confirmar(estudio)
+            lote.confirmar(estudio, estudios_revisados=form.cleaned_data["estudios_revisados"])
             transaction.on_commit(lambda: registrar_carga("importacion_confirmada", importacion_id=lote.pk, estudio_id=estudio.pk))
             derivante = form.cleaned_data.get("derivante")
             if derivante:
@@ -668,7 +668,7 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
                     estudio.publicar()
                 except ValidationError:
                     pass
-            LogActividad.objects.create(usuario=request.user, estudio=estudio, tipo_evento=TipoEvento.IMPORTACION_CONFIRMADA, resultado="Estudio creado desde importación", detalles=f"Importación {lote.pk} confirmada.")
+            LogActividad.objects.create(usuario=request.user, estudio=estudio, tipo_evento=TipoEvento.IMPORTACION_CONFIRMADA, resultado="Estudio creado desde importación", detalles=f"Importación {lote.pk} confirmada. Revisión de estudios distintos: {lote.requiere_revision_estudios}.")
         if derivante:
             messages.success(
                 request,
@@ -815,6 +815,7 @@ class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
 
     model = Estudio
 
+    @transferencia_exclusiva(lambda request, **kwargs: "preparacion-zip")
     def get(self, request, *args, **kwargs):
         estudio = self.get_object()
 
@@ -827,12 +828,25 @@ class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
             return redirect("estudio_ver", pk=estudio.pk)
 
         temp_file = None
+        s3 = None
         try:
+            # Un solo armado por base de datos (entre procesos del VPS). Los
+            # ZIP ya preparados siguen descargándose sin retener este bloqueo.
+            resumen = archivos.aggregate(total=Sum("tamano"), cantidad=Count("pk"))
+            total, cantidad_archivos = resumen["total"] or 0, resumen["cantidad"]
+            if total > settings.ZIP_MAX_TAMANO_TOTAL or cantidad_archivos > settings.ZIP_MAX_ARCHIVOS:
+                return JsonResponse({"error": "El estudio supera el límite de preparación ZIP. Descargá sus archivos individualmente o consultá al centro."}, status=413)
+            directorio = settings.ZIP_TEMP_DIR or tempfile.gettempdir()
+            # DEFLATE puede expandir datos ya comprimidos: margen conservador
+            # más cabeceras por entrada; no promete sustituir una cuota de disco.
+            necesarios = total + total // 100 + cantidad_archivos * 65536 + settings.ZIP_RESERVA_DISCO
+            if shutil.disk_usage(directorio).free < necesarios:
+                return JsonResponse({"error": "No hay espacio temporal suficiente para preparar la descarga. Avisá al centro."}, status=507)
             s3 = get_s3_client()
-            temp_file = tempfile.TemporaryFile()
+            temp_file = tempfile.TemporaryFile(dir=directorio)
             nombres = set()
             cantidad = 0
-            with zipfile.ZipFile(temp_file, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            with zipfile.ZipFile(temp_file, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as zf:
                 for archivo in archivos.iterator(chunk_size=100):
                     arcname = _ruta_importada_valida(archivo.ruta_relativa or archivo.nombre_archivo)
                     if not arcname or arcname in nombres:
@@ -885,4 +899,7 @@ class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
                 {"error": "No se pudo preparar la descarga completa. Intentá nuevamente o avisá al centro."},
                 status=502,
             )
+        finally:
+            if s3 is not None:
+                s3.close()
 

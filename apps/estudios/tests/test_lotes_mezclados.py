@@ -151,3 +151,64 @@ class LotesMezcladosTests(TestCase):
         with self.assertRaises(ValidationError):
             self.lote.confirmar(estudio)
         self.assertIsNone(self.lote.archivos.get(nombre_archivo="a.dcm").estudio_id)
+
+    def agregar_dicom_estudio(self, nombre, uid, fecha, serie="1.2.3.1"):
+        dataset = pydicom.dcmread(BytesIO(dicom_de_prueba()))
+        dataset.StudyInstanceUID = uid
+        dataset.StudyDate = fecha
+        dataset.SeriesInstanceUID = serie
+        buffer = BytesIO()
+        pydicom.dcmwrite(buffer, dataset)
+        self.agregar_archivo(nombre, buffer.getvalue())
+
+    def test_series_distintas_del_mismo_estudio_no_piden_revision(self):
+        self.agregar_dicom_estudio("a.dcm", "1.2.3", "20260910", "1.2.3.1")
+        self.agregar_dicom_estudio("b.dcm", "1.2.3", "20260910", "1.2.3.2")
+        self.analizar()
+        self.assertFalse(self.lote.requiere_revision_estudios)
+        self.assertEqual(self.lote.datos_detectados["fecha_estudio"], "2026-09-10")
+
+    def test_distintos_estudios_no_se_confirman_silenciosamente(self):
+        self.agregar_dicom_estudio("a.dcm", "1.2.3", "20260910")
+        self.agregar_dicom_estudio("b.dcm", "1.2.4", "20260911")
+        self.analizar()
+        self.assertTrue(self.lote.requiere_revision_estudios)
+        self.assertFalse(self.lote.pacientes_mezclados)
+        self.assertNotIn("fecha_estudio", self.lote.datos_detectados)
+        self.assertEqual(self.lote.datos_detectados["validacion_estudios"]["cantidad_estudios"], 2)
+        datos = {"paciente": self.paciente.pk, "tipo": "DICOM", "fecha_estudio": "2026-09-10"}
+        response = self.client.post(reverse("importacion_confirmar", args=[self.lote.pk]), datos)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("estudios_revisados", response.context["form"].errors)
+        self.assertFalse(Estudio.objects.exists())
+        self.assertFalse(self.lote.archivos.filter(estudio__isnull=False).exists())
+        datos["estudios_revisados"] = "on"
+        response = self.client.post(reverse("importacion_confirmar", args=[self.lote.pk]), datos)
+        self.assertEqual(response.status_code, 302)
+        self.lote.refresh_from_db()
+        self.assertTrue(self.lote.datos_detectados["revision_estudios_confirmada"])
+        self.assertEqual(Estudio.objects.count(), 1)
+        self.assertEqual(self.lote.archivos.filter(estudio=self.lote.estudio).count(), 2)
+
+    def test_modelo_exige_revision_aunque_no_se_use_formulario(self):
+        self.agregar_dicom_estudio("a.dcm", "1.2.3", "20260910")
+        self.agregar_dicom_estudio("b.dcm", "1.2.4", "20260910")
+        self.analizar()
+        estudio = Estudio.objects.create(paciente=self.paciente, tipo="DICOM", fecha_estudio="2026-09-10")
+        with self.assertRaises(ValidationError):
+            self.lote.confirmar(estudio)
+        self.assertFalse(self.lote.archivos.filter(estudio__isnull=False).exists())
+
+    def test_dicomdir_con_varios_estudios_advierte(self):
+        dataset = pydicom.dcmread(BytesIO(dicomdir_de_prueba()))
+        otro = Dataset()
+        otro.DirectoryRecordType = "STUDY"
+        otro.StudyInstanceUID = "1.2.4"
+        otro.StudyDate = "20260911"
+        dataset.DirectoryRecordSequence.append(otro)
+        buffer = BytesIO()
+        pydicom.dcmwrite(buffer, dataset)
+        self.agregar_archivo("DICOMDIR", buffer.getvalue(), FormatoArchivo.OTRO)
+        self.analizar()
+        self.assertTrue(self.lote.requiere_revision_estudios)
+        self.assertNotIn("fecha_estudio", self.lote.datos_detectados)

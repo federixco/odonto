@@ -251,6 +251,10 @@ class ImportacionEstudio(models.Model):
     def pacientes_mezclados(self):
         return (self.datos_detectados or {}).get("validacion_pacientes", {}).get("estado") == "mezclado"
 
+    @property
+    def requiere_revision_estudios(self):
+        return bool((self.datos_detectados or {}).get("validacion_estudios", {}).get("requiere_revision"))
+
     def clean(self):
         """Garantiza que solo la cuenta administrativa origine el lote."""
 
@@ -308,7 +312,7 @@ class ImportacionEstudio(models.Model):
             lote.save(update_fields=["estado", "updated_at"])
         self.estado = lote.estado
 
-    def confirmar(self, estudio):
+    def confirmar(self, estudio, *, estudios_revisados=False):
         """Vincula el estudio validado y finaliza la importación."""
 
         if estudio.pk is None:
@@ -319,6 +323,8 @@ class ImportacionEstudio(models.Model):
                 raise ValidationError("La importación no está pendiente de confirmación.")
             if lote.pacientes_mezclados:
                 raise ValidationError("La carpeta contiene identidades incompatibles. Cargá una carpeta por paciente.")
+            if lote.requiere_revision_estudios and estudios_revisados is not True:
+                raise ValidationError("Revisá expresamente los estudios distintos antes de agruparlos.")
             if not lote.esta_completa():
                 raise ValidationError(
                     "No se puede confirmar una importación con archivos incompletos."
@@ -331,11 +337,17 @@ class ImportacionEstudio(models.Model):
             lote.archivos.update(estudio=estudio)
             lote.estudio = estudio
             lote.estado = EstadoImportacion.CONFIRMADA
+            if lote.requiere_revision_estudios:
+                lote.datos_detectados = {
+                    **lote.datos_detectados,
+                    "revision_estudios_confirmada": True,
+                }
             lote.full_clean()
             lote.save(
                 update_fields=[
                     "estudio",
                     "estado",
+                    "datos_detectados",
                     "updated_at",
                 ]
             )

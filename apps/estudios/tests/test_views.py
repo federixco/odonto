@@ -264,7 +264,10 @@ class EstudioViewsTests(TestCase):
         self.assertContains(response, "Corregir paciente o datos detectados")
         self.assertContains(response, "Elegí el odontólogo derivante")
         self.assertContains(response, "Nombre, apellido, matrícula o correo")
-        self.assertContains(response, "Torres, Ana")
+        self.assertNotContains(response, "Torres, Ana")
+        profesionales = self.client.get(reverse("selector_odontologos"), {"q": "Torres"})
+        self.assertEqual(profesionales.status_code, 200)
+        self.assertEqual(profesionales.json()["resultados"][0]["id"], self.derivante.pk)
         contenido = response.content.decode()
         self.assertLess(
             contenido.index("¿Hay un dato incorrecto?"),

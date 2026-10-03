@@ -2,6 +2,7 @@
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accesos.models import Autorizacion
 from apps.archivos.models import Archivo
@@ -18,6 +19,8 @@ class PaginacionRecursosTests(TestCase):
         self.client.force_login(self.admin)
 
     def estudio(self, **extra):
+        if extra.get("estado") == EstadoEstudio.PUBLICADO:
+            extra.setdefault("fecha_publicacion", timezone.now())
         return Estudio.objects.create(paciente=self.paciente, tipo="DICOM", fecha_estudio="2026-09-10", **extra)
 
     def archivos(self, estudio, cantidad):
@@ -67,7 +70,7 @@ class PaginacionRecursosTests(TestCase):
         estudio = self.estudio(estado=EstadoEstudio.PUBLICADO)
         self.archivos(estudio, 105)
         Archivo.objects.filter(estudio=estudio, nombre_archivo="0000.dcm").update(estado=EstadoArchivo.REEMPLAZADO)
-        cuenta = Usuario.objects.create_user(username="paciente_paginas", password="clave-test", rol=RolUsuario.PACIENTE, estado=EstadoCuenta.HABILITADA)
+        cuenta = Usuario.objects.create_user(username="paciente_paginas", email="paciente@example.test", password="clave-test", rol=RolUsuario.PACIENTE, estado=EstadoCuenta.HABILITADA)
         self.paciente.usuario = cuenta
         self.paciente.save(update_fields=["usuario"])
         self.client.force_login(cuenta)
@@ -77,7 +80,7 @@ class PaginacionRecursosTests(TestCase):
         self.assertNotContains(response, 'title="0000.dcm"')
 
     def test_tablero_derivante_precarga_solo_cuatro_archivos(self):
-        cuenta = Usuario.objects.create_user(username="doc_paginas", password="clave-test", rol=RolUsuario.ODONTOLOGO, estado=EstadoCuenta.HABILITADA)
+        cuenta = Usuario.objects.create_user(username="doc_paginas", email="doc@example.test", password="clave-test", rol=RolUsuario.ODONTOLOGO, estado=EstadoCuenta.HABILITADA)
         profesional = Odontologo.objects.create(usuario=cuenta, nombre="Luis", apellido="Prueba", matricula="MP-1")
         estudio = self.estudio(estado=EstadoEstudio.PUBLICADO)
         Autorizacion.objects.create(estudio=estudio, odontologo=profesional)

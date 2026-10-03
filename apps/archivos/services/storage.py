@@ -12,6 +12,22 @@ _sesion_lectura = ContextVar("sesion_lectura_s3", default=None)
 
 
 @contextmanager
+def _cliente_lectura():
+    """El dueño de la sesión cierra el cliente, incluso si falla get_object."""
+    sesion = _sesion_lectura.get()
+    if sesion is not None:
+        if sesion["cliente"] is None:
+            sesion["cliente"] = get_s3_client()
+        yield sesion["cliente"]
+    else:
+        cliente = get_s3_client()
+        try:
+            yield cliente
+        finally:
+            cliente.close()
+
+
+@contextmanager
 def sesion_lectura():
     """Reutiliza conexiones durante un análisis, sin cache global de credenciales."""
     if _sesion_lectura.get() is not None:
@@ -61,7 +77,7 @@ def get_s3_client():
 
 
 def asegurar_bucket():
-    """Crea el bucket privado si un MinIO recién iniciado todavía no lo tiene."""
+    """Comprueba el bucket; solo desarrollo puede aprovisionarlo automáticamente."""
 
     try:
         from botocore.exceptions import ClientError
@@ -75,7 +91,11 @@ def asegurar_bucket():
         s3.head_bucket(Bucket=settings.AWS_STORAGE_BUCKET_NAME)
     except ClientError as error:
         if _codigo_error_s3(error) not in {"404", "NoSuchBucket", "NotFound"}:
+            s3.close()
             raise
+        if not settings.DEBUG:
+            s3.close()
+            raise ImproperlyConfigured("El bucket privado debe aprovisionarse antes de iniciar producción.") from error
         parametros = {"Bucket": settings.AWS_STORAGE_BUCKET_NAME}
         region = settings.AWS_S3_REGION_NAME
         if region and region != "us-east-1" and not settings.AWS_S3_ENDPOINT_URL:
@@ -89,6 +109,7 @@ def asegurar_bucket():
                 "BucketAlreadyExists",
                 "BucketAlreadyOwnedByYou",
             }:
+                s3.close()
                 raise
     return s3
 
@@ -96,12 +117,16 @@ def asegurar_bucket():
 def iniciar_multipart_upload(clave_objeto, content_type="application/octet-stream"):
     """Inicia una carga multipartes y devuelve su identificador interno."""
 
-    respuesta = asegurar_bucket().create_multipart_upload(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-        ContentType=content_type,
-    )
-    return respuesta["UploadId"]
+    cliente = asegurar_bucket()
+    try:
+        respuesta = cliente.create_multipart_upload(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=clave_objeto,
+            ContentType=content_type,
+        )
+        return respuesta["UploadId"]
+    finally:
+        cliente.close()
 
 
 def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
@@ -156,28 +181,17 @@ def completar_multipart_upload(clave_objeto, upload_id, partes):
 def calcular_sha256_objeto(clave_objeto, control=None):
     """Calcula el SHA-256 real leyendo el objeto por bloques, sin cargarlo en RAM."""
 
-    sesion = _sesion_lectura.get()
-    if sesion is not None:
-        if sesion["cliente"] is None:
-            sesion["cliente"] = get_s3_client()
-        cliente = sesion["cliente"]
-    else:
-        cliente = get_s3_client()
-    respuesta = cliente.get_object(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-    )
-    cuerpo = respuesta["Body"]
     digest = hashlib.sha256()
-    try:
-        while bloque := cuerpo.read(settings.S3_HASH_CHUNK_SIZE):
-            if control:
-                control()
-            digest.update(bloque)
-    finally:
-        cuerpo.close()
-        if sesion is None:
-            cliente.close()
+    with _cliente_lectura() as cliente:
+        respuesta = cliente.get_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=clave_objeto)
+        cuerpo = respuesta["Body"]
+        try:
+            while bloque := cuerpo.read(settings.S3_HASH_CHUNK_SIZE):
+                if control:
+                    control()
+                digest.update(bloque)
+        finally:
+            cuerpo.close()
     return digest.hexdigest()
 
 
@@ -189,23 +203,17 @@ def leer_objeto(clave_objeto, max_bytes):
     """
     if max_bytes <= 0:
         raise ValueError("max_bytes debe ser positivo.")
-    sesion = _sesion_lectura.get()
-    if sesion is None:
-        cliente = get_s3_client()
-    else:
-        if sesion["cliente"] is None:
-            sesion["cliente"] = get_s3_client()
-        cliente = sesion["cliente"]
-    respuesta = cliente.get_object(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-        Range=f"bytes=0-{max_bytes - 1}",
-    )
-    cuerpo = respuesta["Body"]
-    try:
-        return cuerpo.read(max_bytes)
-    finally:
-        cuerpo.close()
+    with _cliente_lectura() as cliente:
+        respuesta = cliente.get_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=clave_objeto,
+            Range=f"bytes=0-{max_bytes - 1}",
+        )
+        cuerpo = respuesta["Body"]
+        try:
+            return cuerpo.read(max_bytes)
+        finally:
+            cuerpo.close()
 
 
 def abortar_multipart_upload(clave_objeto, upload_id):

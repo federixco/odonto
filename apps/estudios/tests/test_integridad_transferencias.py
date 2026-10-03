@@ -132,14 +132,15 @@ class IntegridadTransferenciasTests(TestCase):
     def test_intento_duplicado_no_borra_archivo_existente(self, iniciar, firmar, abortar):
         self.lote.estado = EstadoImportacion.CARGANDO
         self.lote.save(update_fields=["estado"])
-        with self.assertLogs("apps.estudios.views", level="ERROR"):
-            response = self.client.post(
-                reverse("importacion_archivo_iniciar", args=[self.lote.pk]),
-                {"ruta_relativa": self.archivo.ruta_relativa, "tamano": 10}, content_type="application/json",
-            )
-        self.assertEqual(response.status_code, 502)
+        response = self.client.post(
+            reverse("importacion_archivo_iniciar", args=[self.lote.pk]),
+            {"ruta_relativa": self.archivo.ruta_relativa, "tamano": 10}, content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "completo")
         self.archivo.refresh_from_db()
         self.assertEqual(self.archivo.estado, EstadoArchivo.COMPLETO)
         self.assertEqual(self.lote.archivos.count(), 1)
         firmar.assert_not_called()
-        abortar.assert_called_once()
+        iniciar.assert_not_called()
+        abortar.assert_not_called()

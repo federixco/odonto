@@ -45,3 +45,29 @@ class IdentidadesLote:
             "registros_sin_identificador": self.sin_identificador,
             "campos_incompatibles": sorted(self.conflictos),
         }
+
+
+class EstudiosLote:
+    """Distingue estudios clínicos; una serie distinta NO es otro estudio.
+
+    El resumen guarda contadores, no una lista de identificadores clínicos.
+    Diferencias requieren revisión humana, no una separación automática.
+    """
+
+    def __init__(self):
+        self.uids = set()
+        self.fechas = set()
+
+    def agregar(self, uid, fecha):
+        uid = str(uid or "").strip()
+        if uid:
+            self.uids.add(uid)
+        if fecha:
+            self.fechas.add(fecha)
+
+    def resumen(self):
+        return {
+            "requiere_revision": len(self.uids) > 1 or len(self.fechas) > 1,
+            "cantidad_estudios": len(self.uids),
+            "cantidad_fechas": len(self.fechas),
+        }

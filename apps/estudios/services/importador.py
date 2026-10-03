@@ -21,7 +21,7 @@ from apps.archivos.models import Archivo
 from apps.core.enums import CategoriaArchivo, FormatoArchivo
 from apps.core.carga_log import registrar_carga
 from apps.pacientes.models import Paciente
-from .identidad import IdentidadesLote
+from .identidad import EstudiosLote, IdentidadesLote
 
 
 LIMITE_LECTURA_DICOM = 8 * 1024 * 1024
@@ -256,6 +256,7 @@ def _identidad_dataset(dataset):
 def _inspeccionar_lote(importacion, control=None):
     """Revisa todas las fuentes clínicas, una por vez, sin leer volúmenes completos."""
     identidades = IdentidadesLote()
+    estudios = EstudiosLote()
     datos_dicom = None
     datos_gwg = None
     extensiones = set()
@@ -266,7 +267,7 @@ def _inspeccionar_lote(importacion, control=None):
     hay_gwg = False
     prioridad = Case(When(ruta_relativa__iendswith="DICOMDIR", then=0), default=1, output_field=IntegerField())
     archivos = importacion.archivos.only(
-        "nombre_archivo", "ruta_relativa", "ruta_almacenamiento", "formato", "categoria", "series_instance_uid",
+        "nombre_archivo", "ruta_relativa", "ruta_almacenamiento", "formato", "categoria", "series_instance_uid", "tamano",
     ).order_by(prioridad, "pk")
 
     def guardar_actualizados():
@@ -331,11 +332,14 @@ def _inspeccionar_lote(importacion, control=None):
                 registrar_carga("parser_dicom_error", importacion_id=importacion.pk, archivo_id=archivo.pk, error=error)
             else:
                 detectados = _identidad_dataset(dataset)
+                estudios.agregar(getattr(dataset, "StudyInstanceUID", ""), _fecha_iso(getattr(dataset, "StudyDate", None)))
                 if not dicomdir or detectados["nombre_paciente"] or detectados["identificador_paciente"]:
                     identidades.agregar(detectados)
                 for registro in getattr(dataset, "DirectoryRecordSequence", []):
                     if str(getattr(registro, "DirectoryRecordType", "")).upper() == "PATIENT":
                         identidades.agregar(_identidad_dataset(registro))
+                    elif str(getattr(registro, "DirectoryRecordType", "")).upper() == "STUDY":
+                        estudios.agregar(getattr(registro, "StudyInstanceUID", ""), _fecha_iso(getattr(registro, "StudyDate", None)))
                 detectados.update({
                     "formato": "DICOM", "fecha_estudio": _fecha_iso(getattr(dataset, "StudyDate", None)),
                     "study_instance_uid": str(getattr(dataset, "StudyInstanceUID", "")).strip(),
@@ -405,6 +409,14 @@ def _inspeccionar_lote(importacion, control=None):
     validacion = identidades.resumen()
     validacion["archivos_inspeccionados"] = cantidad
     datos["validacion_pacientes"] = validacion
+    datos["validacion_estudios"] = estudios.resumen()
+    if datos["validacion_estudios"]["requiere_revision"]:
+        # No elegir silenciosamente la fecha del primero/último DICOM.
+        datos.pop("fecha_estudio", None)
+        datos.setdefault("advertencias", []).append(
+            "La carpeta contiene identificadores o fechas de estudios distintos del mismo paciente. "
+            "Revisá si deben cargarse por separado. Para agruparlos, elegí la fecha del registro y confirmá expresamente la revisión."
+        )
     if validacion["estado"] == "mezclado":
         for campo in ("nombre_paciente", "identificador_paciente", "fecha_nacimiento"):
             datos.pop(campo, None)

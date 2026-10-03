@@ -9,6 +9,7 @@ from apps.archivos.services.storage import (
     abortar_multipart_upload,
     asegurar_bucket,
     eliminar_objeto,
+    calcular_sha256_objeto,
     leer_objeto,
     sesion_lectura,
 )
@@ -27,6 +28,22 @@ def error_s3(codigo, operacion):
     AWS_S3_REGION_NAME="us-east-1",
 )
 class AlmacenamientoTests(SimpleTestCase):
+    @patch("apps.archivos.services.storage.get_s3_client")
+    def test_lectura_cierra_cliente_sin_sesion_externa(self, crear):
+        cliente = crear.return_value
+        cliente.get_object.return_value["Body"].read.return_value = b"cabecera"
+        self.assertEqual(leer_objeto("ficticio", 132), b"cabecera")
+        cliente.close.assert_called_once()
+        cliente.get_object.return_value["Body"].close.assert_called_once()
+
+    @patch("apps.archivos.services.storage.get_s3_client")
+    def test_fallo_de_get_object_cierra_cliente_en_lectura_y_hash(self, crear):
+        cliente = crear.return_value
+        cliente.get_object.side_effect = RuntimeError("Objeto ausente simulado")
+        for operacion in (lambda: leer_objeto("ficticio", 132), lambda: calcular_sha256_objeto("ficticio")):
+            with self.assertRaises(RuntimeError):
+                operacion()
+        self.assertEqual(cliente.close.call_count, 2)
     @patch("apps.archivos.services.storage.get_s3_client")
     def test_analisis_reutiliza_cliente_y_cierra_cada_cuerpo(self, crear):
         cliente = Mock()
@@ -55,6 +72,7 @@ class AlmacenamientoTests(SimpleTestCase):
         self.assertEqual(cliente.close.call_count, 2)
 
     @patch("apps.archivos.services.storage.get_s3_client")
+    @override_settings(DEBUG=True)
     def test_crea_bucket_si_minio_esta_vacio(self, get_s3_client):
         cliente = Mock()
         cliente.head_bucket.side_effect = error_s3("NoSuchBucket", "HeadBucket")
@@ -64,6 +82,18 @@ class AlmacenamientoTests(SimpleTestCase):
 
         self.assertIs(resultado, cliente)
         cliente.create_bucket.assert_called_once_with(Bucket="estudios-prueba")
+
+    @patch("apps.archivos.services.storage.get_s3_client")
+    @override_settings(DEBUG=False)
+    def test_produccion_no_aprovisiona_bucket(self, get_s3_client):
+        from django.core.exceptions import ImproperlyConfigured
+
+        cliente = get_s3_client.return_value
+        cliente.head_bucket.side_effect = error_s3("NoSuchBucket", "HeadBucket")
+        with self.assertRaises(ImproperlyConfigured):
+            asegurar_bucket()
+        cliente.create_bucket.assert_not_called()
+        cliente.close.assert_called_once()
 
     @patch("apps.archivos.services.storage.get_s3_client")
     def test_eliminar_es_exitoso_si_el_bucket_ya_no_existe(self, get_s3_client):

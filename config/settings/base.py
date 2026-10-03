@@ -147,6 +147,12 @@ S3_HASH_CHUNK_SIZE = _env_int("S3_HASH_CHUNK_SIZE", 8 * 1024 * 1024)
 IMPORTACION_MAX_ARCHIVOS = _env_int("IMPORTACION_MAX_ARCHIVOS", 5000)
 IMPORTACION_MAX_TAMANO_TOTAL = _env_int("IMPORTACION_MAX_TAMANO_TOTAL", 10 * 1024 * 1024 * 1024)
 
+# ZIP: I/O acotado, una preparación simultánea y capacidad temporal explícita.
+ZIP_MAX_TAMANO_TOTAL = _env_int("ZIP_MAX_TAMANO_TOTAL", 10 * 1024 * 1024 * 1024)
+ZIP_MAX_ARCHIVOS = _env_int("ZIP_MAX_ARCHIVOS", 5000)
+ZIP_RESERVA_DISCO = _env_int("ZIP_RESERVA_DISCO", 512 * 1024 * 1024)
+ZIP_TEMP_DIR = os.getenv("ZIP_TEMP_DIR") or None
+
 # Diagnóstico opt-in de pruebas: 5 MiB por archivo y tres copias anteriores.
 CARGA_LOG_ENABLED = _env_bool("CARGA_LOG_ENABLED", False)
 if CARGA_LOG_ENABLED:
