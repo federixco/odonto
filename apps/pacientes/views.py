@@ -1,7 +1,7 @@
 """Vistas administrativas de fichas clínicas de pacientes."""
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, ListView
@@ -16,6 +16,7 @@ class ListaPacientesView(AdminRequeridoMixin, ListView):
     model = Paciente
     template_name = "pacientes/paciente_lista.html"
     context_object_name = "pacientes"
+    paginate_by = 25
 
     def get_queryset(self):
         queryset = Paciente.objects.select_related("usuario")
@@ -26,7 +27,7 @@ class ListaPacientesView(AdminRequeridoMixin, ListView):
                 | Q(apellido__icontains=busqueda)
                 | Q(dni__icontains=busqueda)
             )
-        return queryset.order_by("apellido", "nombre")
+        return queryset.order_by("apellido", "nombre", "pk")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -53,7 +54,7 @@ class DetallePacienteView(AdminRequeridoMixin, DetailView):
     context_object_name = "paciente"
 
     def get_queryset(self):
-        return Paciente.objects.select_related("usuario").prefetch_related("estudios")
+        return Paciente.objects.select_related("usuario").annotate(total_estudios=Count("estudios"))
 
 
 class EditarPacienteView(AdminRequeridoMixin, View):

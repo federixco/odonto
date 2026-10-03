@@ -1,0 +1,19 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<nav aria-label="Paginación" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:1rem;padding:1rem;">
+    {% if page_obj.has_previous %}
+        {% if parametro == 'archivos_pagina' %}
+        <a class="button button-secondary button-small" href="{% querystring archivos_pagina=page_obj.previous_page_number %}">← Anterior</a>
+        {% else %}
+        <a class="button button-secondary button-small" href="{% querystring page=page_obj.previous_page_number %}">← Anterior</a>
+        {% endif %}
+    {% endif %}
+    <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ page_obj.paginator.count }}</span>
+    {% if page_obj.has_next %}
+        {% if parametro == 'archivos_pagina' %}
+        <a class="button button-secondary button-small" href="{% querystring archivos_pagina=page_obj.next_page_number %}">Siguiente →</a>
+        {% else %}
+        <a class="button button-secondary button-small" href="{% querystring page=page_obj.next_page_number %}">Siguiente →</a>
+        {% endif %}
+    {% endif %}
+</nav>
+{% endif %}

@@ -11,9 +11,6 @@
             <span>Carpeta principal (raíz)</span>
             <span style="font-size: 0.78rem; font-weight: 400; color: #64748b;">({{ node.total_archivos_recursivo }} archivos &middot; {{ node.tamano_total|filesizeformat }})</span>
         </div>
-        <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button button-small" style="display: inline-flex; align-items: center; gap: 0.4rem; background: #007788; color: white; padding: 5px 12px; font-size: 0.8rem; border-radius: 6px; text-decoration: none; font-weight: 600;" title="Descargar toda la carpeta del estudio en formato .zip">
-            {% include 'core/includes/icon.html' with name='download' %} Descargar carpeta entera (.zip)
-        </a>
     </div>
     {% endif %}
     

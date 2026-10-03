@@ -20,6 +20,30 @@ document.addEventListener("DOMContentLoaded", () => {
         review: document.getElementById("stage-review"),
     };
     const reintentos = 3;
+    let controller, pendiente = null, cancelando = false, leyendo = false;
+    const controles = document.createElement("div");
+    const cancelar = document.createElement("button"), reintentar = document.createElement("button");
+    cancelar.type = reintentar.type = "button";
+    cancelar.className = "button button-secondary"; reintentar.className = "button";
+    cancelar.textContent = "Cancelar carga"; reintentar.textContent = "Reintentar carga";
+    reintentar.hidden = true; controles.append(cancelar, reintentar); progress.append(controles);
+    reintentar.addEventListener("click", () => {if (pendiente && !cancelando) procesar(pendiente.files);});
+    cancelar.addEventListener("click", async () => {
+        if (!pendiente || !confirm("¿Cancelar y descartar esta carpeta?")) return;
+        cancelando = true; controller?.abort(); cancelar.disabled = reintentar.disabled = true;
+        try {
+            // Si se perdió la respuesta de inicio, recuperar el mismo lote por su UUID.
+            const lote = pendiente.lote || await jsonPost("/estudios/importaciones/iniciar/", pendiente.datos, true);
+            await jsonPost(`/estudios/importaciones/${lote.importacion_id}/cancelar/`, {}, true);
+            pendiente = null; cancelando = false;
+            progressText.textContent = "Importación cancelada. El worker limpiará sus archivos de MinIO.";
+            cancelar.hidden = reintentar.hidden = true;
+            button.disabled = input.disabled = false; input.value = "";
+        } catch (error) {
+            mostrarError("No se confirmó la cancelación. Volvé a pulsar Cancelar: " + error.message);
+            cancelar.disabled = false;
+        } finally {root.dataset.busy = "false";}
+    });
 
     const mostrarError = (mensaje) => {
         errorBox.textContent = mensaje;
@@ -43,22 +67,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function jsonPost(url, body) {
+    async function jsonPost(url, body, independiente = false) {
+      const activo = controller;
+      for (let intento = 0; intento < 3; intento += 1) {
+        try {
+        const signal = independiente ? AbortSignal.timeout(30000) : AbortSignal.any([activo.signal, AbortSignal.timeout(30000)]);
         const respuesta = await fetch(url, {
             method: "POST",
             headers: {"Content-Type": "application/json", "X-CSRFToken": csrf},
             body: JSON.stringify(body),
+            signal,
         });
         if (!respuesta.ok) {
-            throw new Error(await respuestaError(respuesta, "No se pudo continuar."));
+            let data = {}; try {data = await respuesta.json();} catch (_) {}
+            const error = new Error(data.error || "No se pudo continuar.");
+            error.reintentable = respuesta.status >= 500 || respuesta.status === 429 || data.reintentable === true;
+            throw error;
         }
-        return respuesta.json();
+        return await respuesta.json();
+        } catch (error) {
+            if ((!independiente && activo.signal.aborted) || error.name === "AbortError" || error.reintentable === false || intento === 2) throw error;
+            await new Promise(resolve => setTimeout(resolve, 800 * (2 ** intento) + Math.random() * 250));
+        }
+      }
     }
 
-    function subirParte(url, bloque, informar) {
+    function subirParte(url, bloque, informar, signal) {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("PUT", url, true);
+            xhr.timeout = 120000;
+            const abortar = () => xhr.abort();
+            if (signal.aborted) {reject(new DOMException("Carga cancelada", "AbortError")); return;}
+            signal.addEventListener("abort", abortar, {once:true});
+            xhr.onloadend = () => signal.removeEventListener("abort", abortar);
+            xhr.onabort = () => reject(new DOMException("Carga cancelada", "AbortError"));
+            xhr.ontimeout = () => reject(new Error("La parte excedió el tiempo de espera."));
             xhr.upload.onprogress = (evento) => {
                 if (evento.lengthComputable) informar(evento.loaded);
             };
@@ -73,33 +117,51 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function subirArchivo(loteId, archivo, informar) {
+        const activo = controller;
         const ruta = archivo._docRelativePath || archivo.webkitRelativePath || archivo.name;
+        const anterior = pendiente.archivos.get(ruta);
+        if (anterior?.partes) {
+            try {
+                await jsonPost(`/estudios/importaciones/${loteId}/archivos/${anterior.inicio.archivo_id}/completar/`,
+                    {partes:anterior.partes,carga_token:anterior.inicio.carga_token});
+                informar(archivo.size); return;
+            } catch(error) {
+                if (activo.signal.aborted || error.reintentable !== false) throw error;
+                pendiente.archivos.delete(ruta);
+            }
+        }
         const inicio = await jsonPost(`/estudios/importaciones/${loteId}/archivos/iniciar/`, {
             ruta_relativa: ruta,
             tamano: archivo.size,
         });
+        if (inicio.status === "completo") {informar(archivo.size); return;}
         const partes = [];
         for (const parte of inicio.partes) {
             const desde = (parte.part_number - 1) * inicio.part_size;
             const hasta = Math.min(desde + inicio.part_size, archivo.size);
             let etag;
             for (let intento = 1; intento <= reintentos && !etag; intento += 1) {
+                if (activo.signal.aborted) throw new DOMException("Carga cancelada", "AbortError");
                 try {
                     etag = await subirParte(
                         parte.url,
                         archivo.slice(desde, hasta),
                         bytes => informar(Math.min(desde + bytes, archivo.size)),
+                        activo.signal,
                     );
                 } catch (error) {
-                    if (intento === reintentos) throw error;
+                    if (activo.signal.aborted || intento === reintentos) throw error;
+                    await new Promise(resolve => setTimeout(resolve, 800 * (2 ** (intento - 1))));
                 }
             }
             partes.push({PartNumber: parte.part_number, ETag: etag});
             informar(hasta);
         }
+        if (activo.signal.aborted) throw new DOMException("Carga cancelada", "AbortError");
+        pendiente.archivos.set(ruta, {inicio,partes});
         await jsonPost(
             `/estudios/importaciones/${loteId}/archivos/${inicio.archivo_id}/completar/`,
-            {partes},
+            {partes, carga_token:inicio.carga_token},
         );
     }
 
@@ -120,6 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function recorrerEntrada(entry, ruta = "") {
+        if (ruta.split("/").length > 100) throw new Error("La carpeta tiene demasiados niveles.");
         if (entry.isFile) return leerArchivo(entry, ruta);
         if (!entry.isDirectory) return [];
 
@@ -129,11 +192,17 @@ document.addEventListener("DOMContentLoaded", () => {
         do {
             lote = await leerLote(reader);
             entradas.push(...lote);
+            if (entradas.length > 5000) throw new Error("La carpeta contiene demasiadas entradas.");
         } while (lote.length);
 
-        const resultados = await Promise.all(
-            entradas.map(hija => recorrerEntrada(hija, `${ruta}${entry.name}/`)),
-        );
+        const resultados = [];
+        let cantidad = 0;
+        for (const hija of entradas) {
+            const archivos = await recorrerEntrada(hija, `${ruta}${entry.name}/`);
+            cantidad += archivos.length;
+            if (cantidad > 5000) throw new Error("El estudio supera los 5000 archivos.");
+            resultados.push(archivos);
+        }
         return resultados.flat();
     }
 
@@ -148,14 +217,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function procesar(filesEntrada) {
-        if (root.dataset.busy === "true") return;
+        if (root.dataset.busy === "true" || cancelando) return;
+        if (pendiente && filesEntrada !== pendiente.files) {mostrarError("Reintentá o cancelá la carpeta anterior antes de elegir otra."); return;}
         const files = Array.from(filesEntrada).filter(file => file.size > 0);
-        if (!files.length) {
-            mostrarError("Seleccioná una carpeta que contenga al menos un archivo.");
+        if (!files.length || files.length > 5000) {
+            mostrarError("Seleccioná una carpeta con entre 1 y 5000 archivos no vacíos.");
             return;
         }
 
         root.dataset.busy = "true";
+        controller = new AbortController();
+        const estaCarga = controller;
+        cancelar.hidden = false; cancelar.disabled = false; reintentar.hidden = true; reintentar.disabled = false;
         button.disabled = input.disabled = true;
         errorBox.hidden = true;
         progress.hidden = false;
@@ -165,20 +238,31 @@ document.addEventListener("DOMContentLoaded", () => {
         const carpeta = primeraRuta.split("/")[0] || "Estudio";
 
         try {
-            const lote = await jsonPost("/estudios/importaciones/iniciar/", {
+            pendiente = pendiente || {files, completados:new Set(), archivos:new Map(), datos:{
                 nombre_carpeta: carpeta,
                 cantidad_archivos: files.length,
                 tamano_total: total,
-            });
+                solicitud_id:crypto.randomUUID(),
+            }};
+            const lote = pendiente.lote || await jsonPost("/estudios/importaciones/iniciar/", pendiente.datos);
+            pendiente.lote = lote;
+            const estadoResponse = await fetch(`/estudios/importaciones/${lote.importacion_id}/estado/`, {signal:AbortSignal.any([estaCarga.signal,AbortSignal.timeout(15000)])});
+            if (!estadoResponse.ok) throw new Error("No se pudo consultar el estado de la carga.");
+            const actual = await estadoResponse.json();
+            if (["PROCESANDO", "PENDIENTE_CONFIRMACION", "CONFIRMADA", "ERROR"].includes(actual.estado)) {
+                window.location.assign(lote.detalle_url + (window.DOC_UPLOAD_REDIRECT_APPEND || "")); return;
+            }
             let acumulado = 0;
             for (let indice = 0; indice < files.length; indice += 1) {
                 const archivo = files[indice];
+                if (pendiente.completados.has(indice)) {acumulado += archivo.size; continue;}
                 progressText.textContent = `${indice + 1} de ${files.length}: ${archivo.name}`;
                 await subirArchivo(lote.importacion_id, archivo, bytes => {
                     const porcentaje = Math.round(((acumulado + bytes) / total) * 100);
                     progressBar.style.width = `${porcentaje}%`;
                     progressTrack.setAttribute("aria-valuenow", String(porcentaje));
                 });
+                pendiente.completados.add(indice);
                 acumulado += archivo.size;
             }
 
@@ -189,15 +273,16 @@ document.addEventListener("DOMContentLoaded", () => {
             progressBar.style.width = "100%";
             progressTrack.setAttribute("aria-valuenow", "100");
             activarEtapa("review");
-            progressTitle.textContent = "Datos encontrados";
-            progressText.textContent = "Abriendo confirmación…";
+            progressTitle.textContent = "Carga completa";
+            progressText.textContent = "El análisis continúa en segundo plano…";
             window.location.assign(analisis.detalle_url + (window.DOC_UPLOAD_REDIRECT_APPEND || ""));
         } catch (error) {
-            mostrarError(error.message || "No se pudo importar la carpeta.");
-            progress.hidden = true;
-            button.disabled = input.disabled = false;
-            input.value = "";
-            root.dataset.busy = "false";
+            if (!cancelando && !estaCarga.signal.aborted) {
+                mostrarError(error.message || "No se pudo importar la carpeta.");
+                progressText.textContent = "Podés reintentar sin duplicar los archivos ya completados.";
+                reintentar.hidden = false;
+            }
+            if (controller === estaCarga) root.dataset.busy = "false";
         }
     }
 
@@ -215,13 +300,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     dropZone.addEventListener("drop", async evento => {
         evento.preventDefault();
+        if (root.dataset.busy === "true" || leyendo || pendiente) return;
+        leyendo = true;
         dropZone.classList.remove("is-dragging");
         try {
             const files = await archivosDesdeCarpetaSoltada(evento.dataTransfer);
             await procesar(files);
         } catch (error) {
             mostrarError(error.message || "No pudimos leer la carpeta.");
-        }
+        } finally {leyendo = false;}
     });
 
     window.DOC_manejarDropOdontologo = async function(e, nombreOdontologo, idOdontologo) {

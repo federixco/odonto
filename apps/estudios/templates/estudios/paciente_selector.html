@@ -1,0 +1,12 @@
+<div class="paciente-selector" data-paciente-selector data-selector-url="{% url 'selector_pacientes' %}" style="margin-bottom:1.5rem">
+    <p class="form-label">Paciente asignado al estudio</p>
+    <input type="hidden" name="paciente" value="{{ form.paciente.value|default_if_none:'' }}" data-selector-value>
+    <p data-selector-selection aria-live="polite"></p>
+    <div class="search-field"><label>Buscar paciente<input type="search" data-selector-search data-paciente-search autocomplete="off" placeholder="Nombre, apellido o DNI"></label></div>
+    <div class="derivante-results" data-selector-results style="max-height:280px;overflow-y:auto"></div>
+    <p data-selector-status role="status"></p>
+    <button type="button" class="button button-secondary button-small" data-selector-prev>Anterior</button>
+    <button type="button" class="button button-secondary button-small" data-selector-next>Siguiente</button>
+    {% for error in form.paciente.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    <noscript>Activá JavaScript para buscar una ficha clínica.</noscript>
+</div>

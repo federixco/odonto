@@ -9,6 +9,8 @@ from apps.archivos.services.storage import (
     abortar_multipart_upload,
     asegurar_bucket,
     eliminar_objeto,
+    leer_objeto,
+    sesion_lectura,
 )
 
 
@@ -25,6 +27,33 @@ def error_s3(codigo, operacion):
     AWS_S3_REGION_NAME="us-east-1",
 )
 class AlmacenamientoTests(SimpleTestCase):
+    @patch("apps.archivos.services.storage.get_s3_client")
+    def test_analisis_reutiliza_cliente_y_cierra_cada_cuerpo(self, crear):
+        cliente = Mock()
+        crear.return_value = cliente
+        cuerpo = Mock()
+        cuerpo.read.return_value = b"cabecera"
+        cliente.get_object.return_value = {"Body": cuerpo}
+        with sesion_lectura():
+            leer_objeto("primero", 132)
+            with sesion_lectura():
+                leer_objeto("segundo", 256 * 1024)
+        crear.assert_called_once()
+        self.assertEqual(cuerpo.close.call_count, 2)
+        cliente.close.assert_called_once()
+        self.assertEqual(cliente.get_object.call_args_list[0].kwargs["Range"], "bytes=0-131")
+
+    @patch("apps.archivos.services.storage.get_s3_client")
+    def test_sesion_no_cachea_cliente_entre_analisis(self, crear):
+        cliente = Mock()
+        crear.return_value = cliente
+        cliente.get_object.return_value = {"Body": Mock()}
+        for _ in range(2):
+            with sesion_lectura():
+                leer_objeto("archivo", 132)
+        self.assertEqual(crear.call_count, 2)
+        self.assertEqual(cliente.close.call_count, 2)
+
     @patch("apps.archivos.services.storage.get_s3_client")
     def test_crea_bucket_si_minio_esta_vacio(self, get_s3_client):
         cliente = Mock()

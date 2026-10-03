@@ -79,7 +79,7 @@
                     </p>
 
                     <div style="font-size: 0.78rem; color: var(--muted); margin-bottom: 1rem;">
-                        <span>Contiene <strong>{{ estudio.archivos.count }}</strong> archivo{{ estudio.archivos.count|pluralize }}</span>
+                        <span>Contiene <strong>{{ estudio.cantidad_archivos }}</strong> archivo{{ estudio.cantidad_archivos|pluralize }}</span>
                     </div>
                 </div>
 
@@ -111,5 +111,6 @@
         </p>
     </div>
 </section>
+{% include 'core/includes/paginacion.html' %}
 {% endblock %}
 

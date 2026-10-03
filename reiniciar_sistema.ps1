@@ -159,6 +159,14 @@ if (-not (Wait-ForPort -Port 8000)) {
 }
 
 Write-Host "Sistema iniciado correctamente." -ForegroundColor Green
+$worker = Start-Process -FilePath $PythonExe `
+    -ArgumentList @("manage.py", "procesar_importaciones") `
+    -WorkingDirectory $ProjectRoot `
+    -RedirectStandardOutput (Join-Path $LogsDir "worker.out.log") `
+    -RedirectStandardError (Join-Path $LogsDir "worker.err.log") `
+    -WindowStyle Hidden -PassThru
+$worker.Id | Set-Content -LiteralPath (Join-Path $RunDir "worker.pid")
+Write-Host "Worker de analisis iniciado (PID $($worker.Id))."
 Write-Host "Aplicacion:    http://127.0.0.1:8000"
 Write-Host "MinIO API:     http://127.0.0.1:9000"
 Write-Host "MinIO consola: http://127.0.0.1:9001"

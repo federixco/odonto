@@ -43,6 +43,7 @@
         {% endif %}
 
         <div class="explorer-container view-tiles" id="explorer-container" style="background: white; border: 1px solid #dcdfe4; border-radius: 12px; padding: 1.5rem; min-height: 400px;">
+            {% if archivos_pagina.has_other_pages %}<p>Los archivos se muestran por página. El ZIP descarga la carpeta completa.</p>{% endif %}
             {% if tree %}
                 {% include "estudios/_folder_explorer_node.html" with node=tree %}
             {% else %}
@@ -51,6 +52,7 @@
                 </div>
             {% endif %}
         </div>
+        {% include 'core/includes/paginacion.html' with page_obj=archivos_pagina parametro='archivos_pagina' %}
     </div>
 </section>
 
@@ -187,5 +189,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'core/js/file_view.js' %}" defer></script>
+<script src="{% static 'core/js/file_view.js' %}?v=revision-20261003" defer></script>
 {% endblock %}

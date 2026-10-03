@@ -1,9 +1,30 @@
 """Operaciones de bajo nivel sobre el almacenamiento privado S3/MinIO."""
 
 import hashlib
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+
+
+_sesion_lectura = ContextVar("sesion_lectura_s3", default=None)
+
+
+@contextmanager
+def sesion_lectura():
+    """Reutiliza conexiones durante un análisis, sin cache global de credenciales."""
+    if _sesion_lectura.get() is not None:
+        yield
+        return
+    sesion = {"cliente": None}
+    token = _sesion_lectura.set(sesion)
+    try:
+        yield
+    finally:
+        _sesion_lectura.reset(token)
+        if sesion["cliente"] is not None:
+            sesion["cliente"].close()
 
 
 def _codigo_error_s3(error):
@@ -31,6 +52,9 @@ def get_s3_client():
         region_name=settings.AWS_S3_REGION_NAME,
         config=Config(
             signature_version="s3v4",
+            connect_timeout=5,
+            read_timeout=30,
+            retries={"mode": "standard", "total_max_attempts": 3},
             s3={"addressing_style": settings.AWS_S3_ADDRESSING_STYLE},
         ),
     )
@@ -106,12 +130,18 @@ def completar_multipart_upload(clave_objeto, upload_id, partes):
     """Ensambla las partes y devuelve tamaño y ETag informativo del objeto."""
 
     s3 = get_s3_client()
-    s3.complete_multipart_upload(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-        UploadId=upload_id,
-        MultipartUpload={"Parts": partes},
-    )
+    try:
+        s3.complete_multipart_upload(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=clave_objeto,
+            UploadId=upload_id,
+            MultipartUpload={"Parts": partes},
+        )
+    except Exception as error:
+        if str(getattr(error, "response", {}).get("Error", {}).get("Code")) != "NoSuchUpload":
+            raise
+        # Una respuesta perdida puede dejar el objeto ensamblado. HEAD debe
+        # demostrar que existe; un multipart abortado no se trata como éxito.
     head = s3.head_object(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=clave_objeto,
@@ -123,10 +153,17 @@ def completar_multipart_upload(clave_objeto, upload_id, partes):
     }
 
 
-def calcular_sha256_objeto(clave_objeto):
+def calcular_sha256_objeto(clave_objeto, control=None):
     """Calcula el SHA-256 real leyendo el objeto por bloques, sin cargarlo en RAM."""
 
-    respuesta = get_s3_client().get_object(
+    sesion = _sesion_lectura.get()
+    if sesion is not None:
+        if sesion["cliente"] is None:
+            sesion["cliente"] = get_s3_client()
+        cliente = sesion["cliente"]
+    else:
+        cliente = get_s3_client()
+    respuesta = cliente.get_object(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=clave_objeto,
     )
@@ -134,9 +171,13 @@ def calcular_sha256_objeto(clave_objeto):
     digest = hashlib.sha256()
     try:
         while bloque := cuerpo.read(settings.S3_HASH_CHUNK_SIZE):
+            if control:
+                control()
             digest.update(bloque)
     finally:
         cuerpo.close()
+        if sesion is None:
+            cliente.close()
     return digest.hexdigest()
 
 
@@ -148,7 +189,14 @@ def leer_objeto(clave_objeto, max_bytes):
     """
     if max_bytes <= 0:
         raise ValueError("max_bytes debe ser positivo.")
-    respuesta = get_s3_client().get_object(
+    sesion = _sesion_lectura.get()
+    if sesion is None:
+        cliente = get_s3_client()
+    else:
+        if sesion["cliente"] is None:
+            sesion["cliente"] = get_s3_client()
+        cliente = sesion["cliente"]
+    respuesta = cliente.get_object(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=clave_objeto,
         Range=f"bytes=0-{max_bytes - 1}",
