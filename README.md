@@ -6,6 +6,8 @@ Este repositorio está organizado como un monolito modular de Django. Cada módu
 
 La estructura inicial se encuentra explicada en `docs/arquitectura/estructura-carpetas.md`.
 
+Antes de publicar, seguir la [guía de despliegue seguro](docs/entorno/despliegue-seguro.md).
+
 ## Arranque local
 
 Con Python instalado, ejecutar desde la raíz del proyecto:

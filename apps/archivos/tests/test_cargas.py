@@ -117,7 +117,7 @@ class CargaArchivosTests(TestCase):
         iniciar.assert_not_called()
         self.assertFalse(Archivo.objects.exists())
 
-    @patch("apps.archivos.views.logger.exception")
+    @patch("apps.archivos.views.logger.error")
     @patch("apps.archivos.views.abortar_multipart_upload")
     @patch("apps.archivos.views.generar_urls_prefirmadas")
     @patch("apps.archivos.views.iniciar_multipart_upload")
@@ -125,7 +125,8 @@ class CargaArchivosTests(TestCase):
         self, iniciar, generar, abortar, registrar_error
     ):
         iniciar.return_value = "upload-prueba"
-        generar.side_effect = RuntimeError("fallo interno")
+        secreto = "fallo interno https://storage.example.test/?X-Amz-Signature=secreto-ficticio"
+        generar.side_effect = RuntimeError(secreto)
         self.client.force_login(self.admin)
 
         response = self.post_json(
@@ -137,6 +138,8 @@ class CargaArchivosTests(TestCase):
         self.assertNotContains(response, "fallo interno", status_code=502)
         abortar.assert_called_once()
         registrar_error.assert_called_once()
+        self.assertNotIn("secreto-ficticio", str(registrar_error.call_args))
+        self.assertFalse(registrar_error.call_args.kwargs.get("exc_info", False))
         archivo = Archivo.objects.get()
         self.assertEqual(archivo.estado, EstadoArchivo.INCORRECTO)
         self.assertIsNone(archivo.upload_id)

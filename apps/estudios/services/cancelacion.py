@@ -5,6 +5,7 @@ from apps.core.enums import EstadoArchivo, EstadoImportacion
 from apps.archivos.services.storage import abortar_multipart_upload, eliminar_objeto
 from apps.estudios.models import ImportacionEstudio
 
+# Evitar el mensaje/traceback del SDK: puede contener URLs o claves de objetos.
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +28,7 @@ def limpiar_cancelada(lote, limite=5):
         except RecursoOcupado:
             continue
         except Exception:
-            logger.exception("Limpieza pendiente del archivo %s", archivo.pk)
+            logger.error("Limpieza pendiente del archivo %s", archivo.pk)
     return lote.archivos.exclude(estado=EstadoArchivo.PURGADO).count()
 
 

@@ -43,6 +43,7 @@ from .services.storage import (
 )
 
 
+# Errores del proveedor: registrar mensajes estáticos/IDs, nunca exc_info ni URLs.
 logger = logging.getLogger(__name__)
 S3_MIN_PART_SIZE = 5 * 1024 * 1024
 S3_MAX_PARTS = 10_000
@@ -300,7 +301,7 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
                 except RecursoOcupado:
                     return JsonResponse({"error": "Archivo en proceso.", "reintentable": True}, status=409)
                 except Exception:
-                    logger.exception("No se pudo renovar la carga %s", existente.pk)
+                    logger.error("No se pudo renovar la carga %s", existente.pk)
                     return JsonResponse({"error": "No se pudo renovar la carga.", "reintentable": True}, status=503)
         upload_id = None
         confirmado = True
@@ -349,7 +350,7 @@ class IniciarArchivoView(AdminRequeridoMixin, View):
         except Exception as error:
             registrar_carga("archivo_inicio_error", estudio_id=estudio.pk,
                             archivo_id=archivo.pk if archivo else None, error=error)
-            logger.exception("No se pudo iniciar la carga multipartes.")
+            logger.error("No se pudo iniciar la carga multipartes.")
             if upload_id:
                 confirmado = abortar_multipart_upload(clave_objeto, upload_id)
             if archivo and archivo.pk:
@@ -462,13 +463,13 @@ class CompletarArchivoView(AdminRequeridoMixin, View):
                 )
         except Exception as error:
             registrar_carga("archivo_verificacion_error", estudio_id=archivo.estudio_id, archivo_id=archivo.pk, error=error)
-            logger.exception("No se pudo completar o verificar la carga multipartes.")
+            logger.error("No se pudo completar o verificar la carga multipartes.")
             request.comprobar_bloqueo_transferencia()
             if objeto_completado:
                 try:
                     eliminar_objeto(archivo.ruta_almacenamiento)
                 except Exception:
-                    logger.exception("No se pudo limpiar el objeto inválido.")
+                    logger.error("No se pudo limpiar el objeto inválido.")
             else:
                 abortado = abortar_multipart_upload(
                     archivo.ruta_almacenamiento,
@@ -515,7 +516,7 @@ class CancelarArchivoView(AdminRequeridoMixin, View):
                 eliminar_objeto(archivo.ruta_almacenamiento)
             except Exception:
                 confirmado = False
-                logger.exception("No se pudo limpiar la carga cancelada %s", archivo.pk)
+                logger.error("No se pudo limpiar la carga cancelada %s", archivo.pk)
         archivo.estado = EstadoArchivo.INCORRECTO
         archivo.upload_id = None if confirmado else archivo.upload_id
         archivo.save(update_fields=["estado", "upload_id", "updated_at"])

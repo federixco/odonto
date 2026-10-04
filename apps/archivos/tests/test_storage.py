@@ -6,6 +6,10 @@ from botocore.exceptions import ClientError
 from django.test import SimpleTestCase, override_settings
 
 from apps.archivos.services.storage import (
+    get_s3_client,
+    generar_urls_prefirmadas,
+    generar_url_descarga,
+    generar_url_previsualizacion,
     abortar_multipart_upload,
     asegurar_bucket,
     eliminar_objeto,
@@ -28,6 +32,42 @@ def error_s3(codigo, operacion):
     AWS_S3_REGION_NAME="us-east-1",
 )
 class AlmacenamientoTests(SimpleTestCase):
+    @patch("boto3.client")
+    def test_cliente_verifica_certificados_y_no_expone_secreto_en_endpoint(self, crear):
+        get_s3_client()
+        self.assertIs(crear.call_args.kwargs["verify"], True)
+        self.assertEqual(crear.call_args.kwargs["config"].signature_version, "s3v4")
+
+    @patch("boto3.client")
+    def test_cliente_anonimo_no_firma_ni_recibe_nuestras_claves(self, crear):
+        from botocore import UNSIGNED
+
+        get_s3_client(anonimo=True)
+        self.assertEqual(crear.call_args.kwargs["config"].signature_version, UNSIGNED)
+        self.assertIsNone(crear.call_args.kwargs["aws_access_key_id"])
+        self.assertIsNone(crear.call_args.kwargs["aws_secret_access_key"])
+        self.assertIs(crear.call_args.kwargs["verify"], True)
+
+    @patch("apps.archivos.services.storage.get_s3_client")
+    @override_settings(AWS_S3_UPLOAD_EXPIRATION=3600, AWS_S3_DOWNLOAD_EXPIRATION=300,
+                       AWS_S3_PREVIEW_EXPIRATION=900, AWS_S3_PRESIGNED_EXPIRATION=9999)
+    def test_urls_tienen_vencimientos_independientes(self, crear):
+        cliente = crear.return_value
+        generar_urls_prefirmadas("archivo", "lote", 2)
+        generar_url_descarga("archivo")
+        generar_url_previsualizacion("archivo")
+        llamadas = cliente.generate_presigned_url.call_args_list
+        self.assertEqual([c.kwargs["ExpiresIn"] for c in llamadas], [3600, 3600, 300, 900])
+        self.assertEqual([c.kwargs["ClientMethod"] for c in llamadas],
+                         ["upload_part", "upload_part", "get_object", "get_object"])
+
+    @patch("apps.archivos.services.storage.get_s3_client")
+    def test_expiracion_explicita_sigue_funcionando(self, crear):
+        generar_url_descarga("archivo", expiracion=60)
+        self.assertEqual(crear.return_value.generate_presigned_url.call_args.kwargs["ExpiresIn"], 60)
+        generar_url_previsualizacion("archivo", expiracion=120)
+        self.assertEqual(crear.return_value.generate_presigned_url.call_args.kwargs["ExpiresIn"], 120)
+
     @patch("apps.archivos.services.storage.get_s3_client")
     def test_lectura_cierra_cliente_sin_sesion_externa(self, crear):
         cliente = crear.return_value

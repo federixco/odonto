@@ -49,6 +49,7 @@ from apps.core.concurrencia import bloquear_recurso, RecursoOcupado, transferenc
 from .services.trabajos import encolar
 
 
+# Errores del proveedor: registrar mensajes estáticos/IDs, nunca exc_info ni URLs.
 logger = logging.getLogger(__name__)
 S3_MIN_PART_SIZE = 5 * 1024 * 1024
 S3_MAX_PARTS = 10_000
@@ -445,7 +446,7 @@ class IniciarArchivoImportadoView(AdminRequeridoMixin, View):
             except RecursoOcupado:
                 return JsonResponse({"error": "Este archivo se está verificando.", "reintentable": True}, status=409)
             except Exception:
-                logger.exception("No se pudo preparar el reintento de %s", existente.pk)
+                logger.error("No se pudo preparar el reintento de %s", existente.pk)
                 return JsonResponse({"error": "No se pudo limpiar la carga anterior.", "reintentable": True}, status=503)
         upload_id = None
         inicio = monotonic()
@@ -468,7 +469,7 @@ class IniciarArchivoImportadoView(AdminRequeridoMixin, View):
             return JsonResponse({"archivo_id": archivo.pk, "part_size": settings.S3_MULTIPART_PART_SIZE, "partes": urls, "carga_token": upload_id})
         except Exception as error:
             registrar_carga("archivo_inicio_error", importacion_id=lote.pk, error=error)
-            logger.exception("No se pudo iniciar archivo importado.")
+            logger.error("No se pudo iniciar archivo importado.")
             if upload_id and not abortar_multipart_upload(clave, upload_id):
                 # Conservar la referencia si S3 no confirmó el aborto, para poder limpiarla.
                 Archivo.objects.update_or_create(importacion=lote, ruta_relativa=ruta, defaults={
@@ -507,7 +508,7 @@ class CompletarArchivoImportadoView(AdminRequeridoMixin, View):
             return JsonResponse({"status": "ok", "archivo_id": archivo.pk})
         except Exception as error:
             registrar_carga("archivo_verificacion_error", importacion_id=importacion_id, archivo_id=archivo.pk, error=error)
-            logger.exception("No se pudo completar archivo importado.")
+            logger.error("No se pudo completar archivo importado.")
             request.comprobar_bloqueo_transferencia()
             # La limpieza remota no debe ocultar el error de verificación ni
             # dejar un archivo fallido registrado como CARGANDO.
@@ -518,7 +519,7 @@ class CompletarArchivoImportadoView(AdminRequeridoMixin, View):
                 elif abortar_multipart_upload(archivo.ruta_almacenamiento, archivo.upload_id):
                     upload_pendiente = None
             except Exception:
-                logger.exception("No se pudo limpiar el archivo importado %s.", archivo.pk)
+                logger.error("No se pudo limpiar el archivo importado %s.", archivo.pk)
             Archivo.objects.filter(pk=archivo.pk).update(
                 estado=EstadoArchivo.INCORRECTO, upload_id=upload_pendiente,
             )
@@ -754,7 +755,7 @@ class PurgarEstudioView(AdminRequeridoMixin, View):
                 else:
                     eliminar_objeto(archivo.ruta_almacenamiento)
             except Exception:
-                logger.exception(
+                logger.error(
                     "No se pudo purgar el objeto del archivo %s.", archivo.pk
                 )
                 errores.append(archivo.pk)
@@ -887,7 +888,7 @@ class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
         except Exception:
             if temp_file is not None:
                 temp_file.close()
-            logger.exception("No se pudo preparar el ZIP del estudio %s.", estudio.pk)
+            logger.error("No se pudo preparar el ZIP del estudio %s.", estudio.pk)
             LogActividad.objects.create(
                 usuario=request.user,
                 estudio=estudio,

@@ -39,6 +39,19 @@ def _database_name(engine):
     return name
 
 
+def _database_connection(engine):
+    """Usa TCP en desarrollo o un socket Unix explícito en el VPS Linux."""
+    socket = os.getenv("DB_SOCKET", "").strip()
+    return {
+        "ENGINE": engine,
+        "NAME": _database_name(engine),
+        "USER": os.getenv("DB_USER", ""),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": socket if socket and engine == "django.db.backends.mysql" else os.getenv("DB_HOST", ""),
+        "PORT": "" if socket and engine == "django.db.backends.mysql" else os.getenv("DB_PORT", ""),
+    }
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-me")
 DEBUG = _env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()]
@@ -85,14 +98,7 @@ ASGI_APPLICATION = "config.asgi.application"
 
 DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
 
-DATABASES = {"default": {
-    "ENGINE": DB_ENGINE,
-    "NAME": _database_name(DB_ENGINE),
-    "USER": os.getenv("DB_USER", ""),
-    "PASSWORD": os.getenv("DB_PASSWORD", ""),
-    "HOST": os.getenv("DB_HOST", ""),
-    "PORT": os.getenv("DB_PORT", ""),
-}}
+DATABASES = {"default": _database_connection(DB_ENGINE)}
 
 LANGUAGE_CODE = "es"
 TIME_ZONE = "America/Argentina/Buenos_Aires"
@@ -140,6 +146,10 @@ AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL") or None
 AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "us-east-1")
 AWS_S3_ADDRESSING_STYLE = os.getenv("AWS_S3_ADDRESSING_STYLE", "path")
 AWS_S3_PRESIGNED_EXPIRATION = _env_int("AWS_S3_PRESIGNED_EXPIRATION", 3600)
+# La variable histórica solo sirve de fallback para subidas, no para lecturas.
+AWS_S3_UPLOAD_EXPIRATION = _env_int("AWS_S3_UPLOAD_EXPIRATION", AWS_S3_PRESIGNED_EXPIRATION)
+AWS_S3_DOWNLOAD_EXPIRATION = _env_int("AWS_S3_DOWNLOAD_EXPIRATION", 300)
+AWS_S3_PREVIEW_EXPIRATION = _env_int("AWS_S3_PREVIEW_EXPIRATION", 900)
 S3_MULTIPART_PART_SIZE = _env_int("S3_MULTIPART_PART_SIZE", 10 * 1024 * 1024)
 S3_MAX_UPLOAD_SIZE = _env_int("S3_MAX_UPLOAD_SIZE", 2 * 1024 * 1024 * 1024)
 S3_HASH_CHUNK_SIZE = _env_int("S3_HASH_CHUNK_SIZE", 8 * 1024 * 1024)

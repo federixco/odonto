@@ -49,11 +49,12 @@ def _codigo_error_s3(error):
     return str(error.response.get("Error", {}).get("Code", ""))
 
 
-def get_s3_client():
+def get_s3_client(*, anonimo=False):
     """Construye el cliente sin exponer las credenciales al navegador."""
 
     try:
         import boto3
+        from botocore import UNSIGNED
         from botocore.config import Config
     except ImportError as error:
         raise ImproperlyConfigured(
@@ -62,12 +63,13 @@ def get_s3_client():
 
     return boto3.client(
         "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        aws_access_key_id=None if anonimo else settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=None if anonimo else settings.AWS_SECRET_ACCESS_KEY,
         endpoint_url=settings.AWS_S3_ENDPOINT_URL,
         region_name=settings.AWS_S3_REGION_NAME,
+        verify=True,
         config=Config(
-            signature_version="s3v4",
+            signature_version=UNSIGNED if anonimo else "s3v4",
             connect_timeout=5,
             read_timeout=30,
             retries={"mode": "standard", "total_max_attempts": 3},
@@ -144,7 +146,7 @@ def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
                     "UploadId": upload_id,
                     "PartNumber": numero,
                 },
-                ExpiresIn=settings.AWS_S3_PRESIGNED_EXPIRATION,
+                ExpiresIn=settings.AWS_S3_UPLOAD_EXPIRATION,
             ),
         }
         for numero in range(1, cantidad_partes + 1)
@@ -251,7 +253,7 @@ def eliminar_objeto(clave_objeto):
 def generar_url_descarga(clave_objeto, nombre_archivo=None, expiracion=None):
     """Genera una URL prefirmada temporal para descargar el objeto con cabecera attachment."""
     if expiracion is None:
-        expiracion = settings.AWS_S3_PRESIGNED_EXPIRATION
+        expiracion = settings.AWS_S3_DOWNLOAD_EXPIRATION
     params = {
         "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
         "Key": clave_objeto,
@@ -272,7 +274,7 @@ def generar_url_descarga(clave_objeto, nombre_archivo=None, expiracion=None):
 def generar_url_previsualizacion(clave_objeto, content_type=None, expiracion=None):
     """Genera una URL prefirmada temporal para previsualizar el objeto en el navegador."""
     if expiracion is None:
-        expiracion = settings.AWS_S3_PRESIGNED_EXPIRATION
+        expiracion = settings.AWS_S3_PREVIEW_EXPIRATION
     params = {
         "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
         "Key": clave_objeto,

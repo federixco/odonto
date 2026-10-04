@@ -288,6 +288,30 @@ class DescargasYPrevisualizacionTests(TransactionTestCase):
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 403)
 
+    @patch("apps.archivos.views.generar_url_descarga")
+    @patch("apps.archivos.views.generar_url_previsualizacion")
+    def test_acceso_revocado_no_emite_nuevos_enlaces(self, preview, descarga):
+        self.autorizacion.revocar(self.admin)
+        self.client.force_login(self.user_odon)
+        for ruta in ("archivo_descargar", "archivo_previsualizar"):
+            response = self.client.get(reverse(ruta, args=[self.archivo_pdf.pk]))
+            self.assertEqual(response.status_code, 403)
+        preview.assert_not_called()
+        descarga.assert_not_called()
+
+    @patch("apps.archivos.views.generar_url_descarga")
+    @patch("apps.archivos.views.generar_url_previsualizacion")
+    def test_visitantes_y_usuarios_ajenos_no_emiten_enlaces(self, preview, descarga):
+        for usuario in (None, self.user_odon_ajeno, self.user_paciente_ajeno):
+            self.client.logout()
+            if usuario:
+                self.client.force_login(usuario)
+            for ruta in ("archivo_descargar", "archivo_previsualizar"):
+                response = self.client.get(reverse(ruta, args=[self.archivo_pdf.pk]))
+                self.assertEqual(response.status_code, 403 if usuario else 302)
+        preview.assert_not_called()
+        descarga.assert_not_called()
+
     @patch("apps.archivos.views.generar_url_previsualizacion")
     @patch("apps.archivos.views.generar_url_descarga")
     def test_versiones_no_disponibles_no_generan_urls_para_ningun_rol(self, descarga, preview):

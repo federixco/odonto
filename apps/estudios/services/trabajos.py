@@ -16,6 +16,7 @@ from apps.core.enums import EstadoArchivo, EstadoImportacion
 from apps.archivos.services.storage import calcular_sha256_objeto, sesion_lectura
 from apps.estudios.models import ImportacionEstudio
 
+# Evitar el mensaje/traceback del SDK: puede contener URLs o claves de objetos.
 logger = logging.getLogger(__name__)
 CLAVE = "_analisis"
 RESERVA_SEGUNDOS = 180
@@ -121,7 +122,7 @@ def procesar_uno():
     except AnalisisInterrumpido:
         pass  # Cancelado o recuperado por otro worker: no escribir un error tardío.
     except Exception:
-        logger.exception("Fallo del análisis del lote %s", lote.pk)
+        logger.error("Fallo del análisis del lote %s", lote.pk)
         with transaction.atomic():
             actual = ImportacionEstudio.objects.select_for_update().get(pk=lote.pk)
             datos = dict(actual.datos_detectados or {})
