@@ -242,6 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+{% include 'core/includes/paginacion.html' %}
 <style>
 /* Lógica para ocultar/mostrar entre tabla de detalles y el resto */
 .view-details .non-details-only { display: none !important; }
@@ -261,8 +262,8 @@ document.addEventListener("DOMContentLoaded", () => {
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'core/js/file_view.js' %}" defer></script>
+<script src="{% static 'core/js/file_view.js' %}?v=revision-20261003" defer></script>
 {% if agrupar == 'odontologo' and not carpeta_id %}
-<script src="{% static 'core/js/importacion.js' %}?v=1.1" defer></script>
+<script src="{% static 'core/js/importacion.js' %}?v=20261003" defer></script>
 {% endif %}
 {% endblock %}

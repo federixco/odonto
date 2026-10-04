@@ -2,6 +2,7 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
@@ -10,9 +11,10 @@ from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 
 from datetime import timedelta
-from django.db.models import Q
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
-from apps.core.enums import EstadoAcceso, EstadoCuenta, EstadoEstudio, RolUsuario
+from apps.core.enums import EstadoAcceso, EstadoArchivo, EstadoCuenta, EstadoEstudio, RolUsuario
+from apps.archivos.models import Archivo
 from apps.core.mixins import AdminRequeridoMixin, OdontologoRequeridoMixin, PacienteRequeridoMixin
 from apps.estudios.models import Estudio
 from apps.pacientes.models import Paciente
@@ -64,7 +66,7 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
                 autorizaciones__odontologo=odontologo,
                 autorizaciones__estado_acceso=EstadoAcceso.VIGENTE,
                 estado=EstadoEstudio.PUBLICADO,
-            ).select_related("paciente").prefetch_related("archivos")
+            ).select_related("paciente")
         else:
             base_qs = Estudio.objects.none()
 
@@ -108,10 +110,17 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
             except Exception:
                 pass
 
-        estudios = estudios.order_by("-fecha_estudio", "-created_at")
+        estudios = estudios.annotate(
+            cantidad_archivos=Count("archivos", filter=Q(archivos__estado=EstadoArchivo.COMPLETO)),
+        ).order_by("-fecha_estudio", "-created_at", "-pk").prefetch_related(
+            Prefetch("archivos", queryset=Archivo.objects.filter(estado=EstadoArchivo.COMPLETO)
+                     .only("estudio_id", "formato").order_by("pk")[:4], to_attr="archivos_resumen"),
+        )
+        pagina = Paginator(estudios, 25).get_page(self.request.GET.get("page"))
 
         context.update({
-            "estudios": estudios,
+            "estudios": pagina.object_list,
+            "page_obj": pagina,
             "total_estudios": total_estudios,
             "total_pacientes": total_pacientes,
             "estudios_recientes": estudios_recientes,
@@ -138,11 +147,15 @@ class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
         estudios = Estudio.objects.filter(
             paciente=paciente,
             estado=EstadoEstudio.PUBLICADO,
-        ).prefetch_related("archivos").order_by("-fecha_estudio", "-created_at")
+        ).annotate(
+            cantidad_archivos=Count("archivos", filter=Q(archivos__estado=EstadoArchivo.COMPLETO)),
+        ).order_by("-fecha_estudio", "-created_at", "-pk")
+        pagina = Paginator(estudios, 25).get_page(self.request.GET.get("page"))
 
         context["paciente"] = paciente
-        context["estudios"] = estudios
-        context["total_estudios"] = estudios.count()
+        context["estudios"] = pagina.object_list
+        context["page_obj"] = pagina
+        context["total_estudios"] = pagina.paginator.count
         return context
 
 
@@ -189,6 +202,7 @@ class ListaOdontologosView(AdminRequeridoMixin, ListView):
     model = Odontologo
     template_name = "usuarios/odontologo_lista.html"
     context_object_name = "odontologos"
+    paginate_by = 25
 
     def get_queryset(self):
         qs = Odontologo.objects.select_related("usuario").all()
@@ -197,7 +211,7 @@ class ListaOdontologosView(AdminRequeridoMixin, ListView):
             qs = qs.filter(
                 models_Q_nombre_apellido_matricula(q)
             )
-        return qs
+        return qs.order_by("apellido", "nombre", "pk")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

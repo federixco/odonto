@@ -1,9 +1,46 @@
 """Operaciones de bajo nivel sobre el almacenamiento privado S3/MinIO."""
 
 import hashlib
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+
+
+_sesion_lectura = ContextVar("sesion_lectura_s3", default=None)
+
+
+@contextmanager
+def _cliente_lectura():
+    """El dueño de la sesión cierra el cliente, incluso si falla get_object."""
+    sesion = _sesion_lectura.get()
+    if sesion is not None:
+        if sesion["cliente"] is None:
+            sesion["cliente"] = get_s3_client()
+        yield sesion["cliente"]
+    else:
+        cliente = get_s3_client()
+        try:
+            yield cliente
+        finally:
+            cliente.close()
+
+
+@contextmanager
+def sesion_lectura():
+    """Reutiliza conexiones durante un análisis, sin cache global de credenciales."""
+    if _sesion_lectura.get() is not None:
+        yield
+        return
+    sesion = {"cliente": None}
+    token = _sesion_lectura.set(sesion)
+    try:
+        yield
+    finally:
+        _sesion_lectura.reset(token)
+        if sesion["cliente"] is not None:
+            sesion["cliente"].close()
 
 
 def _codigo_error_s3(error):
@@ -12,11 +49,12 @@ def _codigo_error_s3(error):
     return str(error.response.get("Error", {}).get("Code", ""))
 
 
-def get_s3_client():
+def get_s3_client(*, anonimo=False):
     """Construye el cliente sin exponer las credenciales al navegador."""
 
     try:
         import boto3
+        from botocore import UNSIGNED
         from botocore.config import Config
     except ImportError as error:
         raise ImproperlyConfigured(
@@ -25,19 +63,23 @@ def get_s3_client():
 
     return boto3.client(
         "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        aws_access_key_id=None if anonimo else settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=None if anonimo else settings.AWS_SECRET_ACCESS_KEY,
         endpoint_url=settings.AWS_S3_ENDPOINT_URL,
         region_name=settings.AWS_S3_REGION_NAME,
+        verify=True,
         config=Config(
-            signature_version="s3v4",
+            signature_version=UNSIGNED if anonimo else "s3v4",
+            connect_timeout=5,
+            read_timeout=30,
+            retries={"mode": "standard", "total_max_attempts": 3},
             s3={"addressing_style": settings.AWS_S3_ADDRESSING_STYLE},
         ),
     )
 
 
 def asegurar_bucket():
-    """Crea el bucket privado si un MinIO recién iniciado todavía no lo tiene."""
+    """Comprueba el bucket; solo desarrollo puede aprovisionarlo automáticamente."""
 
     try:
         from botocore.exceptions import ClientError
@@ -51,7 +93,11 @@ def asegurar_bucket():
         s3.head_bucket(Bucket=settings.AWS_STORAGE_BUCKET_NAME)
     except ClientError as error:
         if _codigo_error_s3(error) not in {"404", "NoSuchBucket", "NotFound"}:
+            s3.close()
             raise
+        if not settings.DEBUG:
+            s3.close()
+            raise ImproperlyConfigured("El bucket privado debe aprovisionarse antes de iniciar producción.") from error
         parametros = {"Bucket": settings.AWS_STORAGE_BUCKET_NAME}
         region = settings.AWS_S3_REGION_NAME
         if region and region != "us-east-1" and not settings.AWS_S3_ENDPOINT_URL:
@@ -65,6 +111,7 @@ def asegurar_bucket():
                 "BucketAlreadyExists",
                 "BucketAlreadyOwnedByYou",
             }:
+                s3.close()
                 raise
     return s3
 
@@ -72,12 +119,16 @@ def asegurar_bucket():
 def iniciar_multipart_upload(clave_objeto, content_type="application/octet-stream"):
     """Inicia una carga multipartes y devuelve su identificador interno."""
 
-    respuesta = asegurar_bucket().create_multipart_upload(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-        ContentType=content_type,
-    )
-    return respuesta["UploadId"]
+    cliente = asegurar_bucket()
+    try:
+        respuesta = cliente.create_multipart_upload(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=clave_objeto,
+            ContentType=content_type,
+        )
+        return respuesta["UploadId"]
+    finally:
+        cliente.close()
 
 
 def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
@@ -95,7 +146,7 @@ def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
                     "UploadId": upload_id,
                     "PartNumber": numero,
                 },
-                ExpiresIn=settings.AWS_S3_PRESIGNED_EXPIRATION,
+                ExpiresIn=settings.AWS_S3_UPLOAD_EXPIRATION,
             ),
         }
         for numero in range(1, cantidad_partes + 1)
@@ -106,12 +157,18 @@ def completar_multipart_upload(clave_objeto, upload_id, partes):
     """Ensambla las partes y devuelve tamaño y ETag informativo del objeto."""
 
     s3 = get_s3_client()
-    s3.complete_multipart_upload(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-        UploadId=upload_id,
-        MultipartUpload={"Parts": partes},
-    )
+    try:
+        s3.complete_multipart_upload(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=clave_objeto,
+            UploadId=upload_id,
+            MultipartUpload={"Parts": partes},
+        )
+    except Exception as error:
+        if str(getattr(error, "response", {}).get("Error", {}).get("Code")) != "NoSuchUpload":
+            raise
+        # Una respuesta perdida puede dejar el objeto ensamblado. HEAD debe
+        # demostrar que existe; un multipart abortado no se trata como éxito.
     head = s3.head_object(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=clave_objeto,
@@ -123,20 +180,20 @@ def completar_multipart_upload(clave_objeto, upload_id, partes):
     }
 
 
-def calcular_sha256_objeto(clave_objeto):
+def calcular_sha256_objeto(clave_objeto, control=None):
     """Calcula el SHA-256 real leyendo el objeto por bloques, sin cargarlo en RAM."""
 
-    respuesta = get_s3_client().get_object(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-    )
-    cuerpo = respuesta["Body"]
     digest = hashlib.sha256()
-    try:
-        while bloque := cuerpo.read(settings.S3_HASH_CHUNK_SIZE):
-            digest.update(bloque)
-    finally:
-        cuerpo.close()
+    with _cliente_lectura() as cliente:
+        respuesta = cliente.get_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=clave_objeto)
+        cuerpo = respuesta["Body"]
+        try:
+            while bloque := cuerpo.read(settings.S3_HASH_CHUNK_SIZE):
+                if control:
+                    control()
+                digest.update(bloque)
+        finally:
+            cuerpo.close()
     return digest.hexdigest()
 
 
@@ -148,16 +205,17 @@ def leer_objeto(clave_objeto, max_bytes):
     """
     if max_bytes <= 0:
         raise ValueError("max_bytes debe ser positivo.")
-    respuesta = get_s3_client().get_object(
-        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-        Key=clave_objeto,
-        Range=f"bytes=0-{max_bytes - 1}",
-    )
-    cuerpo = respuesta["Body"]
-    try:
-        return cuerpo.read(max_bytes)
-    finally:
-        cuerpo.close()
+    with _cliente_lectura() as cliente:
+        respuesta = cliente.get_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=clave_objeto,
+            Range=f"bytes=0-{max_bytes - 1}",
+        )
+        cuerpo = respuesta["Body"]
+        try:
+            return cuerpo.read(max_bytes)
+        finally:
+            cuerpo.close()
 
 
 def abortar_multipart_upload(clave_objeto, upload_id):
@@ -195,7 +253,7 @@ def eliminar_objeto(clave_objeto):
 def generar_url_descarga(clave_objeto, nombre_archivo=None, expiracion=None):
     """Genera una URL prefirmada temporal para descargar el objeto con cabecera attachment."""
     if expiracion is None:
-        expiracion = settings.AWS_S3_PRESIGNED_EXPIRATION
+        expiracion = settings.AWS_S3_DOWNLOAD_EXPIRATION
     params = {
         "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
         "Key": clave_objeto,
@@ -216,7 +274,7 @@ def generar_url_descarga(clave_objeto, nombre_archivo=None, expiracion=None):
 def generar_url_previsualizacion(clave_objeto, content_type=None, expiracion=None):
     """Genera una URL prefirmada temporal para previsualizar el objeto en el navegador."""
     if expiracion is None:
-        expiracion = settings.AWS_S3_PRESIGNED_EXPIRATION
+        expiracion = settings.AWS_S3_PREVIEW_EXPIRATION
     params = {
         "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
         "Key": clave_objeto,

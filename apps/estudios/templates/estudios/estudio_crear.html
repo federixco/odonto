@@ -1,4 +1,5 @@
 {% extends 'core/admin_base.html' %}
+{% load static %}
 
 {% block title %}Nuevo estudio | D.O.C.{% endblock %}
 
@@ -16,7 +17,7 @@
         <h2 id="form-title">Datos del estudio</h2>
         <form method="post" novalidate class="admin-form">
             {% csrf_token %}
-            {% include 'core/includes/form_field.html' with field=form.paciente %}
+            {% include 'estudios/paciente_selector.html' %}
             {% include 'core/includes/form_field.html' with field=form.tipo %}
             {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
             {% include 'core/includes/form_field.html' with field=form.observaciones %}
@@ -42,3 +43,4 @@
     </aside>
 </div>
 {% endblock %}
+{% block extra_scripts %}<script src="{% static 'core/js/selectores_remotos.js' %}?v=20261003" defer></script>{% endblock %}

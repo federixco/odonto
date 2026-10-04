@@ -39,8 +39,14 @@
         </summary>
         <div class="study-section-body">
             {% if tree %}
+            {% if archivos_pagina.has_other_pages %}<p class="form-help">Mostrando archivos de esta página. El ZIP incluye toda la carpeta, no solo los archivos visibles.</p>{% endif %}
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h3 style="margin: 0;">Archivos cargados</h3>
+                {% if puede_descargar_zip %}
+                <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button button-small" title="Descargar los archivos vigentes conservando las carpetas">
+                    {% include 'core/includes/icon.html' with name='download' %} Descargar carpeta entera (.zip)
+                </a>
+                {% endif %}
                 <div class="view-mode-selector" style="position: relative; display: inline-block;">
                     <button type="button" class="button button-secondary" id="view-mode-btn" aria-haspopup="true" aria-expanded="false" style="display: flex; gap: 0.5rem; align-items: center;">
                         {% include 'core/includes/icon.html' with name='grid' %} Ver
@@ -60,6 +66,7 @@
             <div class="directory-empty compact-empty"><h3>Todavía no hay archivos asociados</h3><p>Podés agregarlos manualmente desde la opción inferior.</p></div>
             {% endif %}
 
+            {% include 'core/includes/paginacion.html' with page_obj=archivos_pagina parametro='archivos_pagina' %}
             {% if estudio.estado == 'BORRADOR' or estudio.estado == 'EN_REVISION' %}
             <details class="manual-upload-option" data-estudio-uploader data-estudio-id="{{ estudio.pk }}">
                 <summary>Agregar archivos manualmente</summary>
@@ -85,7 +92,7 @@
     </details>
 
     {% if estudio.estado != 'ELIMINADO' %}
-    <section class="admin-card study-access-card" aria-labelledby="access-title" data-study-access>
+    <section class="admin-card study-access-card" aria-labelledby="access-title" data-study-access data-estudio-id="{{ estudio.pk }}" data-selector-url="{% url 'selector_odontologos' %}">
         <div class="study-access-heading"><div><p class="eyebrow">PERMISOS DEL ESTUDIO</p><h2 id="access-title">Accesos de odontólogos</h2><p>Administrá qué profesionales pueden consultar este estudio.</p></div><span class="directory-count">{{ accesos_vigentes|length }} vigentes</span></div>
 
         {% if accesos_vigentes %}
@@ -98,27 +105,10 @@
             <summary>Agregar otro odontólogo</summary>
             <div class="add-study-access-body">
                 <div class="study-access-tools"><div class="search-field"><label for="buscar-acceso">Buscar profesional</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-acceso" type="search" autocomplete="off" placeholder="Nombre, apellido, matrícula o correo" data-access-search></div></div></div>
-                {% if odontologos_disponibles %}
-                <div class="available-access-list">
-                    {% for odontologo in odontologos_disponibles %}
-                        {% if odontologo.autorizacion_estudio %}
-                            <article class="available-access-row is-revoked" data-access-card data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}" data-status="{{ odontologo.usuario.estado }}">
-                                <span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
-                                <span class="access-identity"><strong>{{ odontologo }}</strong><small>Revocado {{ odontologo.autorizacion_estudio.0.fecha_revocacion|date:'d/m/Y H:i' }}</small></span>
-                                <span class="account-status status-disabled" style="margin-right: auto; margin-left: 10px;"><span></span>Revocado</span>
-                                <form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ odontologo.pk }}"><button class="button button-secondary button-small" type="submit">Reactivar</button></form>
-                            </article>
-                        {% else %}
-                            <article class="available-access-row" data-access-card data-search="{{ odontologo.nombre }} {{ odontologo.apellido }} {{ odontologo.matricula }} {{ odontologo.usuario.email|default:'' }}" data-status="{{ odontologo.usuario.estado }}">
-                                <span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
-                                <span class="access-identity"><strong>{{ odontologo }}</strong><small>Matrícula {{ odontologo.matricula }}{% if odontologo.usuario.email %} · {{ odontologo.usuario.email }}{% endif %}</small></span>
-                                <form method="post" action="{% url 'estudio_acceso_agregar' estudio.pk %}">{% csrf_token %}<input type="hidden" name="odontologo" value="{{ odontologo.pk }}"><button class="button button-small" type="submit">Dar acceso</button></form>
-                            </article>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-                <div class="study-access-empty" data-access-empty hidden><strong>No hay coincidencias.</strong><p>Probá con otro nombre, matrícula o estado.</p></div>
-                {% else %}<div class="study-access-empty"><strong>No hay otros odontólogos disponibles.</strong><p>Podés registrar uno nuevo y volver directamente a este estudio.</p></div>{% endif %}
+                <div class="available-access-list" data-access-results></div>
+                <p data-access-status-message role="status"></p>
+                <button type="button" class="button button-secondary button-small" data-access-prev>Anterior</button>
+                <button type="button" class="button button-secondary button-small" data-access-next>Siguiente</button>
                 <div class="access-manual-link"><a class="button button-secondary" href="{% url 'odontologo_crear' %}?next={{ request.get_full_path|urlencode }}">{% include 'core/includes/icon.html' with name='plus' %} Registrar nuevo odontólogo</a></div>
             </div>
         </details>
@@ -162,7 +152,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'core/js/upload.js' %}?v=correccion-reemplazo-2" defer></script>
-<script src="{% static 'core/js/study_access.js' %}?v=1" defer></script>
-<script src="{% static 'core/js/file_view.js' %}" defer></script>
+<script src="{% static 'core/js/upload.js' %}?v=20261003" defer></script>
+<script src="{% static 'core/js/study_access.js' %}?v=20261003" defer></script>
+<script src="{% static 'core/js/file_view.js' %}?v=revision-20261003" defer></script>
 {% endblock %}

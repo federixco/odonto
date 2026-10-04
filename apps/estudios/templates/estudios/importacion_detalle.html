@@ -19,6 +19,19 @@
     </div>
     {% endif %}
 
+    {% if importacion.estado == 'PENDIENTE_CONFIRMACION' %}
+    <section data-analisis-lote="{{ importacion.pk }}" data-estado="{{ importacion.estado }}" style="margin-bottom:1rem">
+        {% csrf_token %}<p data-analisis-mensaje role="status"></p>
+        <button type="button" class="button button-secondary" data-analisis-cancelar>Descartar esta carpeta y sus archivos</button>
+    </section>
+    {% if importacion.pacientes_mezclados %}
+    <section class="admin-card" role="alert">
+        <h2>No podemos asociar esta carpeta a un paciente</h2>
+        <p>Encontramos identificadores, nombres o fechas de nacimiento incompatibles. Separá los estudios y volvé a cargar una carpeta por paciente.</p>
+        <p>Elegir una ficha manualmente no resuelve la mezcla de archivos.</p>
+        <a class="button" href="{% url 'importacion_crear' %}">Cargar carpetas separadas</a>
+    </section>
+    {% else %}
     {% if importacion.paciente_sugerido_id %}
     <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-card detection-card" novalidate>
         {% csrf_token %}
@@ -36,7 +49,7 @@
             <div><dt>Archivos</dt><dd>{{ importacion.archivos.count }} completos</dd><small>{{ importacion.datos_detectados.software_origen|default:'Origen no identificado' }}</small></div>
         </dl>
 
-        <details class="detected-edit detected-edit-prominent" {% if form.errors %}open{% endif %}>
+        <details class="detected-edit detected-edit-prominent" {% if form.errors or importacion.requiere_revision_estudios %}open{% endif %}>
             <summary>
                 <span class="detected-edit-icon">{% include 'core/includes/icon.html' with name='edit' %}</span>
                 <span><strong>¿Hay un dato incorrecto?</strong><small>Corregir paciente o datos detectados antes de asociar el odontólogo.</small></span>
@@ -45,35 +58,7 @@
             <div class="admin-form detection-edit-form">
                 <p class="form-help">Modificá únicamente lo que no coincida con la carpeta original.</p>
                 
-<div class="paciente-selector" style="margin-bottom: 1.5rem;">
-    <label class="form-label">Paciente asignado al estudio</label>
-    <div class="derivante-tools" style="margin-top: 0.5rem; margin-bottom: 1rem;">
-        <div class="search-field">
-            <div class="search-input">
-                {% include 'core/includes/icon.html' with name='search' %}
-                <input type="search" autocomplete="off" placeholder="Buscar por nombre, apellido o DNI..." oninput="filtrarPacientes(this)">
-            </div>
-        </div>
-    </div>
-    <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
-        {% with seleccionado=form.paciente.value|stringformat:'s' %}
-        {% for pac in form.fields.paciente.queryset %}
-        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-dni="{{ pac.dni }}" data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
-            <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
-            <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
-            <span class="derivante-identity">
-                <strong>{{ pac.apellido }}, {{ pac.nombre }}</strong>
-                <small>DNI {{ pac.dni }}</small>
-            </span>
-            <span class="derivante-check" aria-hidden="true">✓</span>
-        </label>
-        {% endfor %}
-        {% endwith %}
-    </div>
-    <div class="derivante-empty" data-paciente-empty hidden style="padding: 1rem; text-align: center; color: #5a6b7c;">
-        No encontramos un paciente con esos datos.
-    </div>
-</div>
+                {% include 'estudios/paciente_selector.html' %}
 
                 {% include 'core/includes/form_field.html' with field=form.tipo %}
                 {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
@@ -82,6 +67,8 @@
         </details>
 
         {% include 'estudios/derivante_selector.html' %}
+
+        {% include 'estudios/revision_estudios.html' %}
 
         <div class="review-actions">
             <button type="submit" class="button review-confirm-button">Confirmar estudio</button>
@@ -114,51 +101,35 @@
             <div class="review-actions"><button type="submit" class="button review-confirm-button">Crear paciente y continuar</button></div>
         </form>
 
-        <details class="existing-patient-option">
+        <details class="existing-patient-option" {% if form.errors %}open{% endif %}>
             <summary style="display: flex; align-items: center; gap: 10px; background: #eef2f6; padding: 16px; border-radius: 8px; border: 1px dashed #b9ccd8; font-size: 0.95rem; font-weight: 600; color: var(--navy); cursor: pointer; margin-top: 15px; transition: background 0.2s;" onmouseover="this.style.background='#e2eaf1'" onmouseout="this.style.background='#eef2f6'">
     {% include 'core/includes/icon.html' with name='search' %}
     ¿Este estudio pertenece a un paciente ya registrado? Hacé clic para buscarlo y asociarlo.
 </summary>
             <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
                 {% csrf_token %}
+                {% if form.errors %}<div class="notice error" role="alert">No pudimos confirmar el estudio. Revisá los datos indicados.</div>{% endif %}
                 
-<div class="paciente-selector" style="margin-bottom: 1.5rem;">
-    <label class="form-label">Paciente asignado al estudio</label>
-    <div class="derivante-tools" style="margin-top: 0.5rem; margin-bottom: 1rem;">
-        <div class="search-field">
-            <div class="search-input">
-                {% include 'core/includes/icon.html' with name='search' %}
-                <input type="search" autocomplete="off" placeholder="Buscar por nombre, apellido o DNI..." oninput="filtrarPacientes(this)">
-            </div>
-        </div>
-    </div>
-    <div class="derivante-results" style="max-height: 240px; overflow-y: auto; border: 1px solid #e0e6ed; border-radius: 8px; padding: 0.5rem;">
-        {% with seleccionado=form.paciente.value|stringformat:'s' %}
-        {% for pac in form.fields.paciente.queryset %}
-        <label class="derivante-option{% if seleccionado == pac.pk|stringformat:'s' %} is-selected{% endif %}" data-paciente-card data-dni="{{ pac.dni }}" data-search="{{ pac.nombre|lower }} {{ pac.apellido|lower }} {{ pac.dni|lower }}">
-            <input type="radio" name="paciente" value="{{ pac.pk }}" {% if seleccionado == pac.pk|stringformat:'s' %}checked{% endif %} onchange="seleccionarPaciente(this)">
-            <span class="professional-avatar" aria-hidden="true" style="background:#e7eeee; color:#005a9e">{{ pac.nombre|first|upper }}{{ pac.apellido|first|upper }}</span>
-            <span class="derivante-identity">
-                <strong>{{ pac.apellido }}, {{ pac.nombre }}</strong>
-                <small>DNI {{ pac.dni }}</small>
-            </span>
-            <span class="derivante-check" aria-hidden="true">✓</span>
-        </label>
-        {% endfor %}
-        {% endwith %}
-    </div>
-    <div class="derivante-empty" data-paciente-empty hidden style="padding: 1rem; text-align: center; color: #5a6b7c;">
-        No encontramos un paciente con esos datos.
-    </div>
-</div>
+                {% include 'estudios/paciente_selector.html' %}
 
                 {% include 'core/includes/form_field.html' with field=form.tipo %}
                 {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
                 {% include 'core/includes/form_field.html' with field=form.observaciones %}
                 {% include 'estudios/derivante_selector.html' %}
+                {% include 'estudios/revision_estudios.html' %}
                 <div class="admin-form-actions"><button type="submit" class="button button-secondary">Usar esta ficha y confirmar</button></div>
             </form>
         </details>
+    </section>
+    {% endif %}
+    {% endif %}
+    {% else %}
+    <section class="admin-card" data-analisis-lote="{{ importacion.pk }}" data-estado="{{ importacion.estado }}">
+        {% csrf_token %}
+        <h2>Estado de la carpeta: {{ importacion.get_estado_display }}</h2>
+        <p data-analisis-mensaje role="status">El análisis se realiza en segundo plano. Podés dejar esta página y volver desde Cargar estudios.</p>
+        {% if importacion.estado == 'ERROR' or importacion.estado == 'CARGANDO' %}<button type="button" class="button" data-analisis-reintentar>Reintentar análisis</button>{% endif %}
+        {% if importacion.estado != 'CONFIRMADA' and importacion.estado != 'CANCELADA' %}<button type="button" class="button button-secondary" data-analisis-cancelar>Cancelar importación y descartar sus archivos</button>{% endif %}
     </section>
     {% endif %}
 <style>#dni-confirm-dialog::backdrop { background: rgba(10, 25, 41, 0.6); backdrop-filter: blur(2px); }</style>
@@ -170,7 +141,7 @@
         <h2 style="margin-bottom: 0.5rem;">Paciente ya registrado</h2>
         <p style="color: var(--slate); margin-bottom: 1.5rem; line-height: 1.5;" id="dni-confirm-text"></p>
         <div style="display: flex; gap: 1rem; justify-content: center;">
-            <button type="button" class="button button-secondary" onclick="document.getElementById('dni-confirm-dialog').close()" style="flex:1;">Cancelar</button>
+            <button type="button" class="button button-secondary" id="dni-confirm-cancel" style="flex:1;">Cancelar</button>
             <button type="button" class="button" id="dni-confirm-accept" style="flex:1;">Sí, asignar estudio</button>
         </div>
     </div>
@@ -183,78 +154,6 @@
 
 {% block extra_scripts %}
 
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const dniInput = document.querySelector('#compact-patient-form input[name="dni"]');
-    if (!dniInput) return;
-
-    function checkDniMatch() {
-        const typedDni = dniInput.value.replace(/\D/g, "");
-        if (typedDni.length === 0) return;
-
-        const cards = document.querySelectorAll("[data-paciente-card]");
-        let matchedCard = null;
-        let matchedNombre = "";
-        
-        for (let card of cards) {
-            const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
-            if (cardDni === typedDni) {
-                matchedCard = card;
-                const strongTag = card.querySelector("strong");
-                matchedNombre = strongTag ? strongTag.textContent.trim() : "Paciente existente";
-                break;
-            }
-        }
-        
-        if (matchedCard) {
-            const dialog = document.getElementById("dni-confirm-dialog");
-            const textEl = document.getElementById("dni-confirm-text");
-            const acceptBtn = document.getElementById("dni-confirm-accept");
-            
-            if (textEl) {
-                textEl.innerHTML = `Ya existe un paciente con el DNI <strong>${typedDni}</strong> (${matchedNombre}).<br><br>¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`;
-            }
-            
-            if (acceptBtn) {
-                acceptBtn.onclick = function() {
-                    const radio = matchedCard.querySelector('input[type="radio"]');
-                    if(radio) radio.checked = true;
-                    const assignForm = matchedCard.closest("form");
-                    if(assignForm) assignForm.submit();
-                };
-            }
-            
-            if (dialog && typeof dialog.showModal === "function") {
-                if (!dialog.open) {
-                    dialog.showModal();
-                }
-            } else {
-                if (confirm(`Ya existe un paciente con el DNI ${typedDni} (${matchedNombre}).\n\n¿Deseas agregar este estudio a su ficha existente en lugar de crear una nueva?`)) {
-                    acceptBtn.onclick();
-                }
-            }
-        }
-    }
-
-    // Check on blur (when user leaves the DNI field)
-    dniInput.addEventListener("blur", checkDniMatch);
-    
-    // Check on submit as fallback
-    const createForm = document.getElementById("compact-patient-form");
-    if (createForm) {
-        createForm.addEventListener("submit", function(e) {
-            const typedDni = dniInput.value.replace(/\D/g, "");
-            const cards = document.querySelectorAll("[data-paciente-card]");
-            for (let card of cards) {
-                const cardDni = (card.getAttribute("data-dni") || "").replace(/\D/g, "");
-                if (cardDni === typedDni && typedDni.length > 0) {
-                    e.preventDefault();
-                    checkDniMatch();
-                    return;
-                }
-            }
-        });
-    }
-});
-</script>
-<script src="{% static 'core/js/derivante_selector.js' %}?v=1" defer></script>{% endblock %}
+<script src="{% static 'core/js/selectores_remotos.js' %}?v=20261003" defer></script>
+<script src="{% static 'core/js/paciente_selector.js' %}?v=20261003" defer></script>
+<script src="{% static 'core/js/analisis_estado.js' %}?v=20261003" defer></script>{% endblock %}

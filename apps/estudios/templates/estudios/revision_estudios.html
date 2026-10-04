@@ -1,0 +1,9 @@
+{% if importacion.requiere_revision_estudios %}
+<div class="notice warning study-validation" role="group" aria-label="Revisión de estudios distintos">
+    <label for="{{ form.estudios_revisados.id_for_label }}" style="display:flex; align-items:flex-start; gap:12px;">
+        <span>{{ form.estudios_revisados }}</span>
+        <span>{{ form.estudios_revisados.label }}</span>
+    </label>
+    {{ form.estudios_revisados.errors }}
+</div>
+{% endif %}

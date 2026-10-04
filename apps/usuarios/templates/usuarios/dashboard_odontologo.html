@@ -165,15 +165,15 @@
 
                     <!-- Formatos disponibles en el estudio -->
                     <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem;">
-                        {% for arch in estudio.archivos.all|slice:":4" %}
+                        {% for arch in estudio.archivos_resumen %}
                         <span style="font-size: 0.68rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb;">
                             {{ arch.formato }}
                         </span>
                         {% empty %}
                         <span style="font-size: 0.72rem; color: #9ca3af;">Sin archivos cargados</span>
                         {% endfor %}
-                        {% if estudio.archivos.count > 4 %}
-                        <span style="font-size: 0.68rem; color: #6b7280; padding: 1px 4px;">+{{ estudio.archivos.count|add:"-4" }} más</span>
+                        {% if estudio.cantidad_archivos > 4 %}
+                        <span style="font-size: 0.68rem; color: #6b7280; padding: 1px 4px;">+{{ estudio.cantidad_archivos|add:"-4" }} más</span>
                         {% endif %}
                     </div>
                 </div>
@@ -212,5 +212,6 @@
         {% endif %}
     </div>
 </section>
+{% include 'core/includes/paginacion.html' %}
 {% endblock %}
 

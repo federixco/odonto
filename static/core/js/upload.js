@@ -1,201 +1,129 @@
 "use strict";
-
 document.addEventListener("DOMContentLoaded", () => {
-    const uploader = document.querySelector("[data-estudio-uploader]");
-    if (!uploader) return;
-
-    const estudioId = uploader.dataset.estudioId;
-    const fileInput = document.getElementById("file-input");
-    const selectButton = document.getElementById("file-select-button");
-    const dropZone = document.getElementById("drop-zone");
-    const progressContainer = document.getElementById("upload-progress-container");
-    const progressTrack = document.querySelector(".progress-bar-wrap");
-    const progressBar = document.getElementById("progress-bar");
-    const progressText = document.getElementById("progress-text");
-    const uploadSuccess = document.getElementById("upload-success");
-    const uploadError = document.getElementById("upload-error");
-    const replacementSelect = document.getElementById("replacement-file-select");
-    const manualUpload = document.querySelector(".manual-upload-option");
-    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
-    const maxRetries = 3;
-
-    function mostrarError(mensaje) {
-        uploadError.textContent = mensaje;
-        uploadError.hidden = false;
-        uploadSuccess.hidden = true;
-    }
-
-    async function leerError(response, alternativa) {
-        try {
-            const data = await response.json();
-            return data.error || alternativa;
-        } catch (_) {
-            return alternativa;
+    const root = document.querySelector("[data-estudio-uploader]");
+    if (!root) return;
+    const fileInput = document.getElementById("file-input"), selectButton = document.getElementById("file-select-button");
+    const dropZone = document.getElementById("drop-zone"), progress = document.getElementById("upload-progress-container");
+    const bar = document.getElementById("progress-bar"), text = document.getElementById("progress-text");
+    const track = document.querySelector(".progress-bar-wrap"), errorBox = document.getElementById("upload-error");
+    const success = document.getElementById("upload-success"), replacement = document.getElementById("replacement-file-select");
+    const csrf = document.querySelector('[name="csrfmiddlewaretoken"]')?.value;
+    const cancel = document.createElement("button"), retry = document.createElement("button");
+    cancel.type = retry.type = "button"; cancel.className = "button button-secondary"; retry.className = "button";
+    cancel.textContent = "Cancelar archivo en carga"; retry.textContent = "Reintentar"; retry.hidden = true; progress.append(cancel,retry);
+    let pending, busy = false, controller, currentFile, currentItem, cancelando = false;
+    function controls(disabled) {selectButton.disabled = fileInput.disabled = disabled; if (replacement) replacement.disabled = disabled;}
+    function error(message) {errorBox.textContent = message; errorBox.hidden = false;}
+    async function json(url, body, independent = false) {
+        const active = controller;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+                const response = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","X-CSRFToken":csrf},
+                    body:JSON.stringify(body), signal:independent ? AbortSignal.timeout(30000) : AbortSignal.any([active.signal,AbortSignal.timeout(30000)])});
+                const data = await response.json();
+                if (!response.ok) {const e = new Error(data.error || "No se pudo continuar."); e.retry = response.status >= 500 || data.reintentable === true; throw e;}
+                return data;
+            } catch(e) {
+                if ((!independent && active.signal.aborted) || e.retry === false || attempt === 2) throw e;
+                await new Promise(resolve => setTimeout(resolve, 800 * (2 ** attempt)));
+            }
         }
     }
-
-    function subirParte(url, bloque, onProgress) {
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", url, true);
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) onProgress(event.loaded);
-            };
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    const etag = xhr.getResponseHeader("ETag");
-                    if (etag) resolve(etag);
-                    else reject(new Error("El almacenamiento no expuso el ETag."));
-                } else {
-                    reject(new Error(`La parte respondió HTTP ${xhr.status}.`));
-                }
-            };
-            xhr.onerror = () => reject(new Error("Se interrumpió la conexión."));
-            xhr.onabort = () => reject(new Error("La carga fue cancelada."));
-            xhr.send(bloque);
+    function part(url, blob, progressPart, signal) {
+        return new Promise((resolve,reject) => {
+            const xhr = new XMLHttpRequest(); xhr.open("PUT",url); xhr.timeout = 120000;
+            const abort = () => xhr.abort();
+            if (signal.aborted) {reject(new DOMException("Cancelado","AbortError")); return;}
+            signal.addEventListener("abort",abort,{once:true});
+            xhr.onloadend = () => signal.removeEventListener("abort",abort);
+            xhr.onabort = () => reject(new DOMException("Cancelado","AbortError"));
+            xhr.onerror = xhr.ontimeout = () => reject(new Error("Conexión interrumpida o tiempo agotado."));
+            xhr.upload.onprogress = e => {if (e.lengthComputable) progressPart(e.loaded);};
+            xhr.onload = () => {const etag = xhr.getResponseHeader("ETag"); if (xhr.status >= 200 && xhr.status < 300 && etag) resolve(etag); else reject(new Error("No se confirmó la parte."));};
+            xhr.send(blob);
         });
     }
-
-    async function cancelarArchivo(archivoId) {
-        if (!archivoId) return;
-        try {
-            await fetch(`/archivos/cancelar/${archivoId}/`, {
-                method: "POST",
-                headers: {"X-CSRFToken": csrfToken},
-            });
-        } catch (_) {
-            // El backend y la política de limpieza de S3 resolverán cargas huérfanas.
+    async function upload(item,onProgress,independent = false) {
+        const active = controller;
+        if (item.init && item.parts) {
+            currentFile = item.init.archivo_id;
+            try {
+                await json(`/archivos/completar/${currentFile}/`, {partes:item.parts,carga_token:item.init.carga_token});
+                onProgress(item.file.size); return;
+            } catch(error) {
+                if (active.signal.aborted || error.retry !== false) throw error;
+                item.init = item.parts = null;
+            }
         }
+        const init = await json(`/archivos/iniciar/${root.dataset.estudioId}/`, item.data, independent);
+        item.init = init;
+        currentFile = init.archivo_id;
+        if (init.status === "completo") {onProgress(item.file.size); return;}
+        const parts = [];
+        for (const info of init.partes) {
+            const start = (info.part_number - 1) * init.part_size, end = Math.min(start + init.part_size,item.file.size);
+            let etag;
+            for(let attempt = 0; attempt < 3; attempt += 1) {
+                if (active.signal.aborted) throw new DOMException("Cancelado", "AbortError");
+                try {etag = await part(info.url,item.file.slice(start,end),n => onProgress(start+n),active.signal); break;}
+                catch(e) {if (active.signal.aborted || attempt === 2) throw e; await new Promise(r => setTimeout(r,800 * (2 ** attempt)));}
+            }
+            parts.push({PartNumber:info.part_number,ETag:etag}); onProgress(end);
+        }
+        if (active.signal.aborted) throw new DOMException("Cancelado", "AbortError");
+        item.parts = parts;
+        await json(`/archivos/completar/${init.archivo_id}/`,{partes:parts,carga_token:init.carga_token});
     }
-
-    async function subirArchivo(file, onProgress, archivoReemplazado = null) {
-        let archivoId = null;
+    async function process(files) {
+        if (busy || cancelando || pending && files) return;
+        if (files) {
+            const list = Array.from(files).filter(f => f.size > 0);
+            if (!list.length) return;
+            if (replacement?.value && list.length !== 1) {error("Seleccioná un solo archivo para reemplazar."); return;}
+            pending = list.map(file => ({file,data:{nombre_archivo:file.name,tamano:file.size,archivo_reemplazado:replacement?.value || null,solicitud_id:crypto.randomUUID()}}));
+        }
+        if (!pending) return;
+        busy = true; controller = new AbortController(); const active = controller;
+        controls(true); errorBox.hidden = success.hidden = true; progress.hidden = false; retry.hidden = true; cancel.hidden = false; cancel.disabled = false;
+        const total = pending.reduce((n,item) => n+item.file.size,0); let loaded = 0;
         try {
-            const initResponse = await fetch(`/archivos/iniciar/${estudioId}/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken,
-                },
-                body: JSON.stringify({
-                    nombre_archivo: file.name,
-                    tamano: file.size,
-                    archivo_reemplazado: archivoReemplazado,
-                }),
-            });
-            if (!initResponse.ok) {
-                throw new Error(await leerError(initResponse, "No se pudo iniciar la carga."));
+            for (const item of pending) {
+                currentItem = item;
+                text.textContent = `Cargando ${item.file.name}`; currentFile = null;
+                if (item.done) {loaded += item.file.size; continue;}
+                await upload(item,n => {const percent = Math.round((loaded+n)/total*100); bar.style.width = `${percent}%`; track.setAttribute("aria-valuenow",String(percent));});
+                item.done = true;
+                loaded += item.file.size;
             }
-
-            const initData = await initResponse.json();
-            archivoId = initData.archivo_id;
-            const partSize = initData.part_size;
-            const uploadedParts = [];
-
-            for (const partInfo of initData.partes) {
-                const start = (partInfo.part_number - 1) * partSize;
-                const end = Math.min(start + partSize, file.size);
-                const bloque = file.slice(start, end);
-                let etag = null;
-
-                for (let intento = 1; intento <= maxRetries && !etag; intento += 1) {
-                    try {
-                        etag = await subirParte(partInfo.url, bloque, (bytesParte) => {
-                            onProgress(Math.min(start + bytesParte, file.size));
-                        });
-                    } catch (error) {
-                        if (intento === maxRetries) throw error;
-                    }
-                }
-                uploadedParts.push({PartNumber: partInfo.part_number, ETag: etag});
-                onProgress(end);
-            }
-
-            const completeResponse = await fetch(`/archivos/completar/${archivoId}/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken,
-                },
-                body: JSON.stringify({partes: uploadedParts}),
-            });
-            if (!completeResponse.ok) {
-                throw new Error(
-                    await leerError(completeResponse, "No se pudo verificar el archivo.")
-                );
-            }
-            return archivoId;
-        } catch (error) {
-            await cancelarArchivo(archivoId);
-            throw error;
-        }
+            success.hidden = false; text.textContent = "Carga verificada."; pending = null; cancel.hidden = true;
+            setTimeout(() => location.reload(),900);
+        } catch(e) {
+            if (!active.signal.aborted) {error(e.message); retry.hidden = false; text.textContent = "Reintentá sin duplicar los archivos completados.";}
+        } finally {if (controller === active) busy = false;}
     }
-
-    async function procesarArchivos(fileList) {
-        const files = Array.from(fileList);
-        if (!files.length) return;
-        const archivoReemplazado = replacementSelect?.value || null;
-        if (archivoReemplazado && files.length !== 1) {
-            mostrarError("Para reemplazar una versión seleccioná exactamente un archivo.");
-            return;
-        }
-
-        selectButton.disabled = true;
-        fileInput.disabled = true;
-        if (replacementSelect) replacementSelect.disabled = true;
-        uploadError.hidden = true;
-        uploadSuccess.hidden = true;
-        progressContainer.hidden = false;
-        let bytesCompletados = 0;
-        const bytesTotales = files.reduce((total, file) => total + file.size, 0);
-
+    retry.addEventListener("click",() => process());
+    cancel.addEventListener("click",async () => {
+        if (!pending || !confirm("¿Cancelar el archivo en carga? Los completados se conservarán.")) return;
+        cancelando = true; controller?.abort(); cancel.disabled = true; retry.disabled = true;
         try {
-            for (let index = 0; index < files.length; index += 1) {
-                const file = files[index];
-                progressText.textContent = `Subiendo ${index + 1} de ${files.length}: ${file.name}`;
-                await subirArchivo(file, (bytesArchivo) => {
-                    const porcentaje = Math.round(
-                        ((bytesCompletados + bytesArchivo) / bytesTotales) * 100
-                    );
-                    progressBar.style.width = `${porcentaje}%`;
-                    progressTrack.setAttribute("aria-valuenow", String(porcentaje));
-                }, archivoReemplazado);
-                bytesCompletados += file.size;
+            if (!currentFile) {
+                const item = currentItem || pending.find(item => !item.done) || pending[0];
+                const init = await json(`/archivos/iniciar/${root.dataset.estudioId}/`,item.data,true); currentFile = init.archivo_id;
             }
-            progressBar.style.width = "100%";
-            progressTrack.setAttribute("aria-valuenow", "100");
-            progressText.textContent = "Carga y verificación completadas.";
-            uploadSuccess.hidden = false;
-            window.setTimeout(() => window.location.reload(), 900);
-        } catch (error) {
-            mostrarError(error.message || "No se pudo completar la carga.");
-            progressContainer.hidden = true;
-            selectButton.disabled = false;
-            fileInput.disabled = false;
-            if (replacementSelect) replacementSelect.disabled = false;
-        }
-    }
-
-    selectButton.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", (event) => procesarArchivos(event.target.files));
-    dropZone.addEventListener("dragover", (event) => {
-        event.preventDefault();
-        dropZone.classList.add("is-dragging");
+            const data = await json(`/archivos/cancelar/${currentFile}/`,{},true);
+            pending = null; text.textContent = data.status === "completo" ? "El archivo ya se había completado y se conservó." : "Carga cancelada.";
+            cancel.hidden = retry.hidden = true; controls(false); fileInput.value = "";
+            cancelando = false;
+        } catch(e) {error("No se confirmó la cancelación. Reintentá Cancelar: "+e.message); cancel.disabled = false;}
+        finally {retry.disabled = false;}
     });
-    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("is-dragging"));
-    dropZone.addEventListener("drop", (event) => {
-        event.preventDefault();
-        dropZone.classList.remove("is-dragging");
-        procesarArchivos(event.dataTransfer.files);
-    });
-
-    document.querySelectorAll("[data-replacement-target]").forEach((button) => {
-        button.addEventListener("click", () => {
-            if (!replacementSelect || !manualUpload) return;
-            replacementSelect.value = button.dataset.replacementTarget;
-            manualUpload.open = true;
-            manualUpload.scrollIntoView({behavior: "smooth", block: "center"});
-            selectButton.focus({preventScroll: true});
-        });
-    });
+    selectButton.addEventListener("click",() => fileInput.click());
+    fileInput.addEventListener("change",e => process(e.target.files));
+    dropZone.addEventListener("dragover",e => {e.preventDefault(); if (!busy) dropZone.classList.add("is-dragging");});
+    dropZone.addEventListener("dragleave",() => dropZone.classList.remove("is-dragging"));
+    dropZone.addEventListener("drop",e => {e.preventDefault(); dropZone.classList.remove("is-dragging"); process(e.dataTransfer.files);});
+    document.querySelectorAll("[data-replacement-target]").forEach(button => button.addEventListener("click",() => {
+        if (busy || pending || !replacement) return; replacement.value = button.dataset.replacementTarget;
+        const manual = document.querySelector(".manual-upload-option"); if (manual) {manual.open = true; manual.scrollIntoView({behavior:"smooth"});}
+    }));
 });

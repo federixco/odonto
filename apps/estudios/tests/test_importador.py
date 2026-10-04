@@ -155,6 +155,56 @@ class ImportadorTests(TestCase):
         self.assertEqual(datos["descripcion"], "Exploracion 3D")
 
     @patch("apps.estudios.services.importador.leer_objeto")
+    def test_carpeta_dicom_mixta_conserva_formatos_individuales(self, leer_objeto):
+        contenidos = {"pruebas/001": dicom_de_prueba()}
+        formatos = [
+            ("informe.pdf", FormatoArchivo.PDF, CategoriaArchivo.IMAGEN_DOCUMENTO, b"%PDF-1.7"),
+            ("imagen.jpg", FormatoArchivo.JPG, CategoriaArchivo.IMAGEN_DOCUMENTO, b"\xff\xd8\xff"),
+            ("modelo.stl", FormatoArchivo.STL, CategoriaArchivo.MODELO_3D, b"solid modelo"),
+            ("instalador.exe", FormatoArchivo.OTRO, CategoriaArchivo.PAQUETE_PROPIETARIO, b"MZauxiliar"),
+            ("002", FormatoArchivo.OTRO, CategoriaArchivo.PAQUETE_PROPIETARIO, dicom_de_prueba()),
+        ]
+        originales = []
+        for nombre, formato, categoria, contenido in formatos:
+            clave = f"pruebas/{nombre}"
+            contenidos[clave] = contenido
+            archivo = Archivo.objects.create(
+                importacion=self.importacion, nombre_archivo=nombre,
+                ruta_relativa=f"carpeta/{nombre}", formato=formato, categoria=categoria,
+                ruta_almacenamiento=clave, tamano=10, estado=EstadoArchivo.COMPLETO,
+            )
+            originales.append((archivo, formato, categoria))
+        self.importacion.cantidad_archivos = 6
+        self.importacion.tamano_total = 562
+        self.importacion.save(update_fields=["cantidad_archivos", "tamano_total"])
+        leer_objeto.side_effect = lambda clave, limite: contenidos[clave][:limite]
+        self.importacion.marcar_procesando()
+
+        analizar_importacion(self.importacion)
+
+        self.importacion.refresh_from_db()
+        self.assertEqual(self.importacion.datos_detectados["formato"], "DICOM")
+        self.assertEqual(self.importacion.paciente_sugerido_id, self.paciente.pk)
+        for archivo, formato, categoria in originales:
+            archivo.refresh_from_db()
+            if archivo.nombre_archivo == "002":
+                self.assertEqual(archivo.formato, FormatoArchivo.DICOM)
+                self.assertEqual(archivo.categoria, CategoriaArchivo.DICOM)
+            else:
+                self.assertEqual(archivo.formato, formato)
+                self.assertEqual(archivo.categoria, categoria)
+        original = self.importacion.archivos.get(nombre_archivo="001")
+        self.assertEqual(original.formato, FormatoArchivo.DICOM)
+        # No leer PDF/JPG/STL para reclasificar el lote entero.
+        claves_leidas = {llamada.args[0] for llamada in leer_objeto.call_args_list}
+        self.assertFalse({"pruebas/informe.pdf", "pruebas/imagen.jpg", "pruebas/modelo.stl"} & claves_leidas)
+        lecturas_auxiliares = [
+            llamada.args[1] for llamada in leer_objeto.call_args_list
+            if llamada.args[0] in {"pruebas/002", "pruebas/instalador.exe"}
+        ]
+        self.assertEqual(lecturas_auxiliares, [132, 132, 256 * 1024])
+
+    @patch("apps.estudios.services.importador.leer_objeto")
     def test_gwg16_extrae_datos_y_sugiere_paciente_por_dni(self, leer_objeto):
         leer_objeto.return_value = gwg_de_prueba()
         archivo = self.importacion.archivos.get()

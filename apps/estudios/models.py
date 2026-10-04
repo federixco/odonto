@@ -77,28 +77,33 @@ class Estudio(models.Model):
             raise ValidationError(
                 "El estudio debe guardarse antes de poder publicarse."
             )
-        archivos_vigentes = self.archivos.exclude(
-            estado__in=[EstadoArchivo.REEMPLAZADO, EstadoArchivo.PURGADO]
-        )
-        if not archivos_vigentes.exists():
-            raise ValidationError(
-                "El estudio debe contener al menos un archivo para publicarse."
+        with transaction.atomic():
+            actual = type(self).objects.select_for_update().get(pk=self.pk)
+            if actual.estado == EstadoEstudio.ELIMINADO:
+                raise ValidationError("Un estudio eliminado no puede publicarse.")
+            archivos_vigentes = actual.archivos.exclude(
+                estado__in=[EstadoArchivo.REEMPLAZADO, EstadoArchivo.PURGADO]
             )
-        if archivos_vigentes.exclude(estado=EstadoArchivo.COMPLETO).exists():
-            raise ValidationError(
-                "Todos los archivos deben estar completos antes de publicar."
-            )
-        if not self.autorizaciones.filter(
-            estado_acceso=EstadoAcceso.VIGENTE
-        ).exists():
-            raise ValidationError(
-                "El estudio necesita al menos un odontólogo autorizado."
-            )
+            if not archivos_vigentes.exists():
+                raise ValidationError(
+                    "El estudio debe contener al menos un archivo para publicarse."
+                )
+            if archivos_vigentes.exclude(estado=EstadoArchivo.COMPLETO).exists():
+                raise ValidationError(
+                    "Todos los archivos deben estar completos antes de publicar."
+                )
+            if not actual.autorizaciones.filter(
+                estado_acceso=EstadoAcceso.VIGENTE
+            ).exists():
+                raise ValidationError(
+                    "El estudio necesita al menos un odontólogo autorizado."
+                )
 
-        self.estado = EstadoEstudio.PUBLICADO
-        self.fecha_publicacion = timezone.now()
-        self.full_clean()
-        self.save(update_fields=["estado", "fecha_publicacion", "updated_at"])
+            actual.estado = EstadoEstudio.PUBLICADO
+            actual.fecha_publicacion = timezone.now()
+            actual.full_clean()
+            actual.save(update_fields=["estado", "fecha_publicacion", "updated_at"])
+        self.estado, self.fecha_publicacion = actual.estado, actual.fecha_publicacion
 
     def eliminar_logicamente(self, usuario=None, motivo=""):
         """Oculta el estudio conservando archivos, accesos e historial."""
@@ -242,6 +247,14 @@ class ImportacionEstudio(models.Model):
         """Expone las advertencias del JSON sin duplicar columnas."""
         return (self.datos_detectados or {}).get("advertencias", [])
 
+    @property
+    def pacientes_mezclados(self):
+        return (self.datos_detectados or {}).get("validacion_pacientes", {}).get("estado") == "mezclado"
+
+    @property
+    def requiere_revision_estudios(self):
+        return bool((self.datos_detectados or {}).get("validacion_estudios", {}).get("requiere_revision"))
+
     def clean(self):
         """Garantiza que solo la cuenta administrativa origine el lote."""
 
@@ -299,7 +312,7 @@ class ImportacionEstudio(models.Model):
             lote.save(update_fields=["estado", "updated_at"])
         self.estado = lote.estado
 
-    def confirmar(self, estudio):
+    def confirmar(self, estudio, *, estudios_revisados=False):
         """Vincula el estudio validado y finaliza la importación."""
 
         if estudio.pk is None:
@@ -308,6 +321,10 @@ class ImportacionEstudio(models.Model):
             lote = type(self).objects.select_for_update().get(pk=self.pk)
             if lote.estudio_id or lote.estado != EstadoImportacion.PENDIENTE_CONFIRMACION:
                 raise ValidationError("La importación no está pendiente de confirmación.")
+            if lote.pacientes_mezclados:
+                raise ValidationError("La carpeta contiene identidades incompatibles. Cargá una carpeta por paciente.")
+            if lote.requiere_revision_estudios and estudios_revisados is not True:
+                raise ValidationError("Revisá expresamente los estudios distintos antes de agruparlos.")
             if not lote.esta_completa():
                 raise ValidationError(
                     "No se puede confirmar una importación con archivos incompletos."
@@ -320,11 +337,17 @@ class ImportacionEstudio(models.Model):
             lote.archivos.update(estudio=estudio)
             lote.estudio = estudio
             lote.estado = EstadoImportacion.CONFIRMADA
+            if lote.requiere_revision_estudios:
+                lote.datos_detectados = {
+                    **lote.datos_detectados,
+                    "revision_estudios_confirmada": True,
+                }
             lote.full_clean()
             lote.save(
                 update_fields=[
                     "estudio",
                     "estado",
+                    "datos_detectados",
                     "updated_at",
                 ]
             )
@@ -335,21 +358,25 @@ class ImportacionEstudio(models.Model):
     def cancelar(self):
         """Finaliza una importación descartada sin borrar su trazabilidad."""
 
-        self.estado = EstadoImportacion.CANCELADA
-        self.save(update_fields=["estado", "updated_at"])
+        with transaction.atomic():
+            actual = type(self).objects.select_for_update().get(pk=self.pk)
+            if actual.estudio_id or actual.estado == EstadoImportacion.CONFIRMADA:
+                raise ValidationError("Un estudio confirmado no puede cancelarse como carga.")
+            actual.estado = EstadoImportacion.CANCELADA
+            actual.save(update_fields=["estado", "updated_at"])
+        self.estado = actual.estado
 
     def marcar_error(self, advertencia=None):
         """Registra un fallo de procesamiento conservando la importación."""
 
-        datos = self.datos_detectados or {}
-        if advertencia:
-            datos["advertencias"] = [*datos.get("advertencias", []), str(advertencia)]
-        self.datos_detectados = datos
-        self.estado = EstadoImportacion.ERROR
-        self.save(
-            update_fields=[
-                "datos_detectados",
-                "estado",
-                "updated_at",
-            ]
-        )
+        with transaction.atomic():
+            actual = type(self).objects.select_for_update().get(pk=self.pk)
+            if actual.estudio_id or actual.estado in {EstadoImportacion.CANCELADA, EstadoImportacion.CONFIRMADA}:
+                return
+            datos = dict(actual.datos_detectados or {})
+            if advertencia:
+                datos["advertencias"] = [*datos.get("advertencias", []), "No se pudo completar el análisis. Reintentá la operación."]
+            actual.datos_detectados = datos
+            actual.estado = EstadoImportacion.ERROR
+            actual.save(update_fields=["datos_detectados", "estado", "updated_at"])
+        self.estado, self.datos_detectados = actual.estado, datos

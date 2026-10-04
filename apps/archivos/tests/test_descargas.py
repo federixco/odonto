@@ -5,7 +5,7 @@ import zipfile
 from datetime import date
 from unittest.mock import Mock, patch
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -29,7 +29,9 @@ from apps.usuarios.models import Odontologo
 User = get_user_model()
 
 
-class DescargasYPrevisualizacionTests(TestCase):
+class DescargasYPrevisualizacionTests(TransactionTestCase):
+    # FileResponse.close() emite request_finished. Probamos ese cierre real sin
+    # la transacción envolvente de TestCase, que inutiliza la conexión MySQL.
     def setUp(self):
         self.password = "Clave-Segura-2026!"
         
@@ -286,6 +288,30 @@ class DescargasYPrevisualizacionTests(TestCase):
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 403)
 
+    @patch("apps.archivos.views.generar_url_descarga")
+    @patch("apps.archivos.views.generar_url_previsualizacion")
+    def test_acceso_revocado_no_emite_nuevos_enlaces(self, preview, descarga):
+        self.autorizacion.revocar(self.admin)
+        self.client.force_login(self.user_odon)
+        for ruta in ("archivo_descargar", "archivo_previsualizar"):
+            response = self.client.get(reverse(ruta, args=[self.archivo_pdf.pk]))
+            self.assertEqual(response.status_code, 403)
+        preview.assert_not_called()
+        descarga.assert_not_called()
+
+    @patch("apps.archivos.views.generar_url_descarga")
+    @patch("apps.archivos.views.generar_url_previsualizacion")
+    def test_visitantes_y_usuarios_ajenos_no_emiten_enlaces(self, preview, descarga):
+        for usuario in (None, self.user_odon_ajeno, self.user_paciente_ajeno):
+            self.client.logout()
+            if usuario:
+                self.client.force_login(usuario)
+            for ruta in ("archivo_descargar", "archivo_previsualizar"):
+                response = self.client.get(reverse(ruta, args=[self.archivo_pdf.pk]))
+                self.assertEqual(response.status_code, 403 if usuario else 302)
+        preview.assert_not_called()
+        descarga.assert_not_called()
+
     @patch("apps.archivos.views.generar_url_previsualizacion")
     @patch("apps.archivos.views.generar_url_descarga")
     def test_versiones_no_disponibles_no_generan_urls_para_ningun_rol(self, descarga, preview):
@@ -384,11 +410,49 @@ class DescargasYPrevisualizacionTests(TestCase):
             response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(all(cuerpo.closed for cuerpo in cuerpos))
+        obtener_s3.return_value.close.assert_called_once()
         with zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content))) as paquete:
             for nombre in paquete.namelist():
                 self.assertEqual(paquete.read(nombre), contenido)
         response.close()
         self.assertTrue(temporal.closed)
+
+    @override_settings(ZIP_MAX_TAMANO_TOTAL=1)
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_limite_de_tamano_no_inicia_lecturas(self, obtener_s3):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 413)
+        obtener_s3.assert_not_called()
+
+    @override_settings(ZIP_MAX_ARCHIVOS=1)
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_limite_de_entradas_acota_metadatos_en_ram(self, obtener_s3):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 413)
+        obtener_s3.assert_not_called()
+
+    @patch("apps.estudios.views.shutil.disk_usage")
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_sin_espacio_no_inicia_lecturas(self, obtener_s3, espacio):
+        espacio.return_value.free = 0
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 507)
+        obtener_s3.assert_not_called()
+
+    @patch("apps.core.concurrencia.bloquear_recurso")
+    @patch("apps.estudios.views.get_s3_client")
+    def test_zip_otro_armado_en_curso_no_acumula_trabajos(self, obtener_s3, bloqueo):
+        from apps.core.concurrencia import RecursoOcupado
+
+        bloqueo.return_value.__enter__.side_effect = RecursoOcupado()
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response["Retry-After"], "2")
+        obtener_s3.assert_not_called()
 
     @patch("apps.estudios.views.get_s3_client")
     def test_zip_cierra_cuerpo_y_temporal_si_falla_la_lectura(self, obtener_s3):

@@ -16,6 +16,11 @@ class EstudioForm(forms.ModelForm):
 class ConfirmarImportacionForm(EstudioForm):
     """Formulario final: transforma una detección revisada en un estudio."""
 
+    estudios_revisados = forms.BooleanField(
+        required=False,
+        label="Revisé los estudios distintos y corresponde agruparlos en esta ficha con la fecha indicada.",
+    )
+
     derivante = forms.ModelChoiceField(
         label="Odontólogo derivante",
         queryset=Odontologo.objects.none(),
@@ -27,6 +32,7 @@ class ConfirmarImportacionForm(EstudioForm):
 
     def __init__(self, *args, importacion=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["estudios_revisados"].required = bool(importacion and importacion.requiere_revision_estudios)
         self.fields["derivante"].queryset = (
             Odontologo.objects.select_related("usuario")
             .filter(usuario__estado="HABILITADA")

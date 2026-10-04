@@ -14,14 +14,18 @@ import zlib
 
 import pydicom
 from django.db import transaction
+from django.db.models import Case, IntegerField, When
 
-from apps.archivos.services.storage import leer_objeto
+from apps.archivos.services.storage import leer_objeto, sesion_lectura
+from apps.archivos.models import Archivo
 from apps.core.enums import CategoriaArchivo, FormatoArchivo
 from apps.core.carga_log import registrar_carga
 from apps.pacientes.models import Paciente
+from .identidad import EstudiosLote, IdentidadesLote
 
 
 LIMITE_LECTURA_DICOM = 8 * 1024 * 1024
+LIMITE_CABECERA_DICOM = 256 * 1024
 LIMITE_LECTURA_GWG = 2 * 1024 * 1024
 LIMITE_XML_GWG = 4 * 1024 * 1024
 CABECERA_GWG16 = b"GWG16"
@@ -110,7 +114,7 @@ def _datos_desde_gwg16(contenido):
     nombre = _texto_xml(raiz, "FirstName")
     apellido = _texto_xml(raiz, "LastName")
     marca_tiempo = _texto_xml(raiz, "TimeStamp")
-    return {
+    datos = {
         "formato": "GALILEOS",
         "software_origen": (
             _texto_xml(raiz, "SoftwareVersion") or "GALILEOS / GALAXIS"
@@ -131,6 +135,15 @@ def _datos_desde_gwg16(contenido):
             "Los datos se extrajeron del archivo GALILEOS. Confirmá que correspondan al paciente antes de continuar."
         ],
     }
+    internas = IdentidadesLote()
+    for informacion in raiz.findall(".//PatientInfo"):
+        internas.agregar({
+            "nombre_paciente": " ".join(filter(None, (_texto_xml(informacion, "LastName"), _texto_xml(informacion, "FirstName")))),
+            "identificador_paciente": _texto_xml(informacion, "ID"),
+            "fecha_nacimiento": _fecha_iso(_texto_xml(informacion, "BirthDate")),
+        })
+    datos["_validacion_interna"] = internas.resumen()
+    return datos
 
 
 def _fecha_iso(valor):
@@ -150,24 +163,6 @@ def _es_dicom(contenido):
     return len(contenido) >= 132 and contenido[128:132] == b"DICM"
 
 
-def _archivo_dicom_candidato(importacion):
-    """Prioriza DICOMDIR sin importar su posición dentro de la carpeta."""
-
-    dicomdir = importacion.archivos.filter(
-        ruta_relativa__iendswith="DICOMDIR"
-    ).first()
-    archivos = []
-    if dicomdir:
-        archivos.append(dicomdir)
-    archivos.extend(
-        importacion.archivos.exclude(pk=getattr(dicomdir, "pk", None)).order_by("id")[:25]
-    )
-    for archivo in archivos:
-        contenido = leer_objeto(archivo.ruta_almacenamiento, LIMITE_LECTURA_DICOM)
-        if _es_dicom(contenido):
-            return archivo, contenido
-    return None, None
-
 
 def _nombre_legible(valor):
     """Convierte APELLIDO^NOMBRES de DICOM a texto legible y sin huecos."""
@@ -183,6 +178,7 @@ def _completar_desde_dicomdir(dataset, datos):
     for registro in getattr(dataset, "DirectoryRecordSequence", []):
         tipo = str(getattr(registro, "DirectoryRecordType", "")).upper()
         if tipo == "PATIENT":
+            serie_actual = ""
             datos["nombre_paciente"] = _nombre_legible(
                 getattr(registro, "PatientName", datos["nombre_paciente"])
             )
@@ -194,6 +190,7 @@ def _completar_desde_dicomdir(dataset, datos):
                 or datos["fecha_nacimiento"]
             )
         elif tipo == "STUDY":
+            serie_actual = ""
             datos["fecha_estudio"] = (
                 _fecha_iso(getattr(registro, "StudyDate", None))
                 or datos["fecha_estudio"]
@@ -213,76 +210,14 @@ def _completar_desde_dicomdir(dataset, datos):
                     ruta = "/".join(str(parte) for parte in referencia)
                 else:
                     ruta = str(referencia).replace("\\", "/")
-                rutas_por_serie[ruta.lower()] = serie_actual
+                clave = ruta.casefold()
+                if clave in rutas_por_serie and rutas_por_serie[clave] != serie_actual:
+                    rutas_por_serie[clave] = None
+                else:
+                    rutas_por_serie[clave] = serie_actual
     return rutas_por_serie
 
 
-def _guardar_series_en_archivos(importacion, rutas_por_serie):
-    """Anota el UID de serie en cada archivo sin crear una tabla adicional."""
-
-    if not rutas_por_serie:
-        return
-    actualizados = []
-    for archivo in importacion.archivos.all():
-        ruta = archivo.ruta_relativa.lower()
-        uid = next(
-            (uid for sufijo, uid in rutas_por_serie.items() if ruta.endswith(sufijo)),
-            None,
-        )
-        if uid and archivo.series_instance_uid != uid:
-            archivo.series_instance_uid = uid
-            actualizados.append(archivo)
-    if actualizados:
-        type(actualizados[0]).objects.bulk_update(
-            actualizados, ["series_instance_uid"], batch_size=500
-        )
-
-
-def _dicom_detectado(importacion):
-    archivo, contenido = _archivo_dicom_candidato(importacion)
-    if not archivo:
-        return None
-
-    advertencias = [
-        "El identificador DICOM es una sugerencia; confirmá que corresponda al DNI del paciente."
-    ]
-    try:
-        dataset = pydicom.dcmread(
-            BytesIO(contenido), stop_before_pixels=True, force=False
-        )
-    except Exception as error:
-        registrar_carga("parser_dicom_error", importacion_id=importacion.pk, archivo_id=archivo.pk, error=error)
-        return {
-            "formato": "DICOM",
-            "software_origen": "",
-            "advertencias": [
-                "Se detectó una firma DICOM, pero no fue posible leer sus metadatos."
-            ],
-        }
-
-    nombre = _nombre_legible(getattr(dataset, "PatientName", ""))
-    identificador = str(getattr(dataset, "PatientID", "")).strip()
-    software = " ".join(
-        str(getattr(dataset, campo, "")).strip()
-        for campo in ("Manufacturer", "ManufacturerModelName", "SoftwareVersions")
-        if getattr(dataset, campo, None)
-    )[:100]
-    datos = {
-        "formato": "DICOM",
-        "software_origen": software,
-        "nombre_paciente": nombre,
-        "identificador_paciente": identificador,
-        "fecha_nacimiento": _fecha_iso(getattr(dataset, "PatientBirthDate", None)),
-        "fecha_estudio": _fecha_iso(getattr(dataset, "StudyDate", None)),
-        "study_instance_uid": str(getattr(dataset, "StudyInstanceUID", "")).strip(),
-        "descripcion": str(getattr(dataset, "StudyDescription", "")).strip()[:255],
-        "advertencias": advertencias,
-    }
-    rutas_por_serie = _completar_desde_dicomdir(dataset, datos)
-    _guardar_series_en_archivos(importacion, rutas_por_serie)
-    if not datos["nombre_paciente"]:
-        advertencias.append("No se encontró el nombre del paciente en los metadatos DICOM.")
-    return datos
 
 
 def _nombre_desde_carpeta(nombre):
@@ -307,81 +242,199 @@ def _nombre_desde_carpeta(nombre):
     return nombre[:-4] if nombre.lower().endswith(" gal") else nombre
 
 
-def _galileos_detectado(importacion):
-    """Lee GWG16 y conserva el nombre de carpeta como fallback seguro."""
 
-    archivo = importacion.archivos.filter(ruta_relativa__iendswith=".gwg").first()
-    if not archivo:
-        return None
 
-    nombre_carpeta = _nombre_desde_carpeta(importacion.nombre_carpeta)
-    contenido = leer_objeto(archivo.ruta_almacenamiento, LIMITE_LECTURA_GWG)
-    try:
-        datos = _datos_desde_gwg16(contenido)
-    except (UnicodeDecodeError, ET.ParseError, ValueError, zlib.error) as error:
-        registrar_carga("parser_gwg16_error", importacion_id=importacion.pk, archivo_id=archivo.pk, error=error)
-        return {
-            "formato": "GALILEOS",
-            "software_origen": "GALILEOS / GALAXIS",
-            "nombre_paciente": nombre_carpeta,
-            "advertencias": [
-                "No se reconoció la versión interna del archivo GALILEOS. Se usó el nombre de la carpeta como sugerencia."
-            ],
-        }
 
-    if not datos["nombre_paciente"]:
-        datos["nombre_paciente"] = nombre_carpeta
-        datos["advertencias"].append(
-            "El archivo GALILEOS no contenía un nombre; se usó el nombre de la carpeta."
+def _identidad_dataset(dataset):
+    return {
+        "nombre_paciente": _nombre_legible(getattr(dataset, "PatientName", "")),
+        "identificador_paciente": str(getattr(dataset, "PatientID", "")).strip(),
+        "fecha_nacimiento": _fecha_iso(getattr(dataset, "PatientBirthDate", None)),
+    }
+
+
+def _inspeccionar_lote(importacion, control=None):
+    """Revisa todas las fuentes clínicas, una por vez, sin leer volúmenes completos."""
+    identidades = IdentidadesLote()
+    estudios = EstudiosLote()
+    datos_dicom = None
+    datos_gwg = None
+    extensiones = set()
+    referencias = {}
+    actualizados = []
+    cantidad = 0
+    hay_dicom = False
+    hay_gwg = False
+    prioridad = Case(When(ruta_relativa__iendswith="DICOMDIR", then=0), default=1, output_field=IntegerField())
+    archivos = importacion.archivos.only(
+        "nombre_archivo", "ruta_relativa", "ruta_almacenamiento", "formato", "categoria", "series_instance_uid", "tamano",
+    ).order_by(prioridad, "pk")
+
+    def guardar_actualizados():
+        if actualizados:
+            with transaction.atomic():
+                if control:
+                    control(cantidad, forzar=True)
+                Archivo.objects.bulk_update(actualizados, ["formato", "categoria", "series_instance_uid"], batch_size=500)
+            actualizados.clear()
+
+    with sesion_lectura():
+        for archivo in archivos.iterator(chunk_size=500):
+            cantidad += 1
+            if control:
+                control(cantidad)
+            ruta = PurePosixPath(archivo.ruta_relativa or archivo.nombre_archivo)
+            extension = ruta.suffix.lower()
+            extensiones.add(extension)
+            if extension == ".gwg":
+                hay_gwg = True
+                contenido = leer_objeto(archivo.ruta_almacenamiento, LIMITE_LECTURA_GWG)
+                try:
+                    detectados = _datos_desde_gwg16(contenido)
+                except (UnicodeDecodeError, ET.ParseError, ValueError, zlib.error) as error:
+                    identidades.no_legibles += 1
+                    registrar_carga("parser_gwg16_error", importacion_id=importacion.pk, archivo_id=archivo.pk, error=error)
+                else:
+                    interna = detectados.pop("_validacion_interna", {})
+                    if interna.get("estado") == "mezclado":
+                        identidades.conflictos.update(interna.get("campos_incompatibles", []))
+                    identidades.agregar(detectados)
+                    if datos_gwg is None:
+                        datos_gwg = detectados
+                continue
+            dicomdir = ruta.name.upper() == "DICOMDIR"
+            if not dicomdir and archivo.formato not in {FormatoArchivo.DICOM, FormatoArchivo.OTRO}:
+                identidades.no_legibles += 1
+                continue
+            if not dicomdir and archivo.formato == FormatoArchivo.OTRO:
+                if not _es_dicom(leer_objeto(archivo.ruta_almacenamiento, 132)):
+                    identidades.no_legibles += 1
+                    continue
+            hay_dicom = True
+            limite = LIMITE_LECTURA_DICOM if dicomdir else LIMITE_CABECERA_DICOM
+            if dicomdir and archivo.tamano > limite:
+                # Un índice truncado puede ocultar más registros de pacientes.
+                identidades.no_legibles += 1
+            contenido = leer_objeto(archivo.ruta_almacenamiento, limite)
+            cambio = False
+            if _es_dicom(contenido) and archivo.formato == FormatoArchivo.OTRO:
+                archivo.formato = FormatoArchivo.DICOM
+                archivo.categoria = CategoriaArchivo.DICOM
+                cambio = True
+            try:
+                opciones = {} if dicomdir else {"specific_tags": [
+                    "PatientName", "PatientID", "PatientBirthDate", "StudyDate", "StudyDescription",
+                    "StudyInstanceUID", "SeriesInstanceUID", "Manufacturer", "ManufacturerModelName", "SoftwareVersions",
+                ]}
+                dataset = pydicom.dcmread(BytesIO(contenido), stop_before_pixels=True, force=False, **opciones)
+            except Exception as error:
+                identidades.no_legibles += 1
+                registrar_carga("parser_dicom_error", importacion_id=importacion.pk, archivo_id=archivo.pk, error=error)
+            else:
+                detectados = _identidad_dataset(dataset)
+                estudios.agregar(getattr(dataset, "StudyInstanceUID", ""), _fecha_iso(getattr(dataset, "StudyDate", None)))
+                if not dicomdir or detectados["nombre_paciente"] or detectados["identificador_paciente"]:
+                    identidades.agregar(detectados)
+                for registro in getattr(dataset, "DirectoryRecordSequence", []):
+                    if str(getattr(registro, "DirectoryRecordType", "")).upper() == "PATIENT":
+                        identidades.agregar(_identidad_dataset(registro))
+                    elif str(getattr(registro, "DirectoryRecordType", "")).upper() == "STUDY":
+                        estudios.agregar(getattr(registro, "StudyInstanceUID", ""), _fecha_iso(getattr(registro, "StudyDate", None)))
+                detectados.update({
+                    "formato": "DICOM", "fecha_estudio": _fecha_iso(getattr(dataset, "StudyDate", None)),
+                    "study_instance_uid": str(getattr(dataset, "StudyInstanceUID", "")).strip(),
+                    "descripcion": str(getattr(dataset, "StudyDescription", "")).strip()[:255],
+                    "software_origen": " ".join(str(getattr(dataset, campo, "")) for campo in
+                        ("Manufacturer", "ManufacturerModelName", "SoftwareVersions") if getattr(dataset, campo, None))[:100],
+                    "advertencias": ["El identificador DICOM es una sugerencia; confirmá que corresponda al DNI del paciente."],
+                })
+                rutas = _completar_desde_dicomdir(dataset, detectados)
+                for referencia, uid in rutas.items():
+                    clave = (ruta.parent / referencia).as_posix().casefold()
+                    if clave in referencias and referencias[clave] != uid:
+                        referencias[clave] = None  # Una ruta ambigua nunca recibe un UID arbitrario.
+                    else:
+                        referencias[clave] = uid
+                uid = str(getattr(dataset, "SeriesInstanceUID", "")).strip()
+                if uid and archivo.series_instance_uid != uid:
+                    archivo.series_instance_uid = uid
+                    cambio = True
+                if datos_dicom is None or (not datos_dicom.get("identificador_paciente") and detectados.get("identificador_paciente")):
+                    datos_dicom = detectados
+            if cambio:
+                actualizados.append(archivo)
+                if len(actualizados) >= 500:
+                    guardar_actualizados()
+        guardar_actualizados()
+
+    # Lookup exacto O(n), no búsqueda por sufijos O(n*m) ni carpetas homónimas.
+    if referencias:
+        for archivo in importacion.archivos.only("ruta_relativa", "series_instance_uid").iterator(chunk_size=500):
+            if control:
+                control(cantidad)
+            uid = referencias.get(archivo.ruta_relativa.casefold())
+            if uid and not archivo.series_instance_uid:
+                archivo.series_instance_uid = uid
+                actualizados.append(archivo)
+                if len(actualizados) >= 500:
+                    with transaction.atomic():
+                        if control:
+                            control(cantidad, forzar=True)
+                        Archivo.objects.bulk_update(actualizados, ["series_instance_uid"], batch_size=500)
+                    actualizados.clear()
+        if actualizados:
+            with transaction.atomic():
+                if control:
+                    control(cantidad, forzar=True)
+                Archivo.objects.bulk_update(actualizados, ["series_instance_uid"], batch_size=500)
+
+    if datos_dicom is not None:
+        datos = datos_dicom
+    elif hay_dicom:
+        datos = {"formato": "DICOM", "advertencias": ["Se detectaron archivos DICOM, pero no fue posible leer sus datos clínicos."]}
+    elif datos_gwg is not None:
+        datos = datos_gwg
+    elif hay_gwg:
+        datos = {"formato": "GALILEOS", "software_origen": "GALILEOS / GALAXIS",
+                 "nombre_paciente": _nombre_desde_carpeta(importacion.nombre_carpeta),
+                 "advertencias": ["No se reconoció la versión interna del archivo GALILEOS. Se usó el nombre de la carpeta como sugerencia."]}
+    elif extensiones and extensiones <= {".stl", ".ply"}:
+        datos = {"formato": "STL" if ".stl" in extensiones else "PLY", "software_origen": "Modelo 3D",
+                 "advertencias": ["Los modelos 3D no contienen datos clínicos verificables; seleccioná el paciente manualmente."]}
+    elif extensiones and extensiones <= {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
+        datos = {"formato": "RADIOGRAFIA", "software_origen": "Radiografía digital",
+                 "advertencias": ["La radiografía no aporta datos clínicos estructurados; seleccioná el paciente manualmente."]}
+    else:
+        datos = {"formato": "DESCONOCIDO", "advertencias": ["No fue posible identificar el formato de la carpeta."]}
+    validacion = identidades.resumen()
+    validacion["archivos_inspeccionados"] = cantidad
+    datos["validacion_pacientes"] = validacion
+    datos["validacion_estudios"] = estudios.resumen()
+    if datos["validacion_estudios"]["requiere_revision"]:
+        # No elegir silenciosamente la fecha del primero/último DICOM.
+        datos.pop("fecha_estudio", None)
+        datos.setdefault("advertencias", []).append(
+            "La carpeta contiene identificadores o fechas de estudios distintos del mismo paciente. "
+            "Revisá si deben cargarse por separado. Para agruparlos, elegí la fecha del registro y confirmá expresamente la revisión."
+        )
+    if validacion["estado"] == "mezclado":
+        for campo in ("nombre_paciente", "identificador_paciente", "fecha_nacimiento"):
+            datos.pop(campo, None)
+        datos.setdefault("advertencias", []).append(
+            "La carpeta contiene identidades de pacientes incompatibles. Separá los estudios y cargá una carpeta por paciente. No se permite confirmar este lote."
+        )
+    elif validacion["estado"] in {"parcial", "no_verificable"}:
+        datos.setdefault("advertencias", []).append(
+            "No fue posible verificar la identidad en todas las fuentes clínicas. Revisá la carpeta original antes de confirmar; los archivos sin metadatos no garantizan un único paciente."
         )
     return datos
 
 
-def _formato_no_dicom(importacion):
-    """Clasifica formatos no DICOM y profundiza en GALILEOS GWG16."""
-
-    rutas = [archivo.ruta_relativa.lower() for archivo in importacion.archivos.all()]
-    extensiones = {PurePosixPath(ruta).suffix for ruta in rutas}
-    galileos = _galileos_detectado(importacion)
-    if galileos:
-        return galileos
-    if extensiones and extensiones <= {".stl", ".ply"}:
-        return {
-            "formato": "STL" if ".stl" in extensiones else "PLY",
-            "software_origen": "Modelo 3D",
-            "advertencias": [
-                "Los modelos 3D no contienen datos clínicos verificables; seleccioná el paciente manualmente."
-            ],
-        }
-    if extensiones and extensiones <= {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
-        return {
-            "formato": "RADIOGRAFIA",
-            "software_origen": "Radiografía digital",
-            "advertencias": [
-                "La radiografía no aporta datos clínicos estructurados; seleccioná el paciente manualmente."
-            ],
-        }
-    return {
-        "formato": "DESCONOCIDO",
-        "software_origen": "",
-        "advertencias": ["No fue posible identificar el formato de la carpeta."],
-    }
-
-
-def _actualizar_metadatos_archivos(importacion, datos):
-    """Ajusta metadatos técnicos sin alterar la relación Archivo -> Estudio."""
-
-    if datos.get("formato") == "DICOM":
-        importacion.archivos.update(
-            formato=FormatoArchivo.DICOM,
-            categoria=CategoriaArchivo.DICOM,
-        )
-
-
-def analizar_importacion(importacion):
+def analizar_importacion(importacion, control=None):
     """Analiza una importación completa y deja el lote listo para confirmación."""
 
-    datos = _dicom_detectado(importacion) or _formato_no_dicom(importacion)
+    # Todas las lecturas remotas ocurren antes de abrir la transacción de estado.
+    datos = _inspeccionar_lote(importacion, control=control)
     # Solo códigos fijos: nunca el JSON de metadatos ni sus advertencias clínicas.
     formato_log = datos.get("formato")
     if formato_log not in {"DICOM", "GALILEOS", "STL", "PLY", "RADIOGRAFIA"}:
@@ -394,9 +447,19 @@ def analizar_importacion(importacion):
         paciente = Paciente.objects.filter(dni=identificador).first()
 
     with transaction.atomic():
+        actual = type(importacion).objects.select_for_update().get(pk=importacion.pk)
+        if control:
+            control(forzar=True)
+        elif actual.estado != "PROCESANDO" or actual.estudio_id:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("El lote ya no admite resultados de análisis.")
+        importacion = actual
+        if (actual.datos_detectados or {}).get("_carga"):
+            datos["_carga"] = actual.datos_detectados["_carga"]
+        if control:
+            datos["_analisis"] = {"estado": "completo", "procesados": importacion.cantidad_archivos}
         importacion.datos_detectados = datos
         importacion.paciente_sugerido = paciente
         importacion.save(update_fields=["datos_detectados", "paciente_sugerido", "updated_at"])
-        _actualizar_metadatos_archivos(importacion, datos)
         importacion.marcar_pendiente_confirmacion()
     return importacion

@@ -117,7 +117,7 @@ class CargaArchivosTests(TestCase):
         iniciar.assert_not_called()
         self.assertFalse(Archivo.objects.exists())
 
-    @patch("apps.archivos.views.logger.exception")
+    @patch("apps.archivos.views.logger.error")
     @patch("apps.archivos.views.abortar_multipart_upload")
     @patch("apps.archivos.views.generar_urls_prefirmadas")
     @patch("apps.archivos.views.iniciar_multipart_upload")
@@ -125,7 +125,8 @@ class CargaArchivosTests(TestCase):
         self, iniciar, generar, abortar, registrar_error
     ):
         iniciar.return_value = "upload-prueba"
-        generar.side_effect = RuntimeError("fallo interno")
+        secreto = "fallo interno https://storage.example.test/?X-Amz-Signature=secreto-ficticio"
+        generar.side_effect = RuntimeError(secreto)
         self.client.force_login(self.admin)
 
         response = self.post_json(
@@ -137,9 +138,25 @@ class CargaArchivosTests(TestCase):
         self.assertNotContains(response, "fallo interno", status_code=502)
         abortar.assert_called_once()
         registrar_error.assert_called_once()
+        self.assertNotIn("secreto-ficticio", str(registrar_error.call_args))
+        self.assertFalse(registrar_error.call_args.kwargs.get("exc_info", False))
         archivo = Archivo.objects.get()
         self.assertEqual(archivo.estado, EstadoArchivo.INCORRECTO)
         self.assertIsNone(archivo.upload_id)
+
+    @patch("apps.archivos.views.eliminar_objeto", side_effect=RuntimeError("Storage inaccesible simulado"))
+    @patch("apps.archivos.views.abortar_multipart_upload", return_value=True)
+    def test_cancelacion_con_limpieza_fallida_conserva_referencia(self, abortar, eliminar):
+        archivo = self.crear_archivo_cargando()
+        upload_id = archivo.upload_id
+        self.client.force_login(self.admin)
+        with self.assertLogs("apps.archivos.views", level="ERROR"):
+            response = self.client.post(reverse("archivo_cancelar", args=[archivo.pk]))
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["status"], "limpieza_pendiente")
+        archivo.refresh_from_db()
+        self.assertEqual(archivo.estado, EstadoArchivo.INCORRECTO)
+        self.assertEqual(archivo.upload_id, upload_id)
 
     @patch("apps.archivos.views.calcular_sha256_objeto")
     @patch("apps.archivos.views.completar_multipart_upload")
@@ -200,13 +217,15 @@ class CargaArchivosTests(TestCase):
         self.assertEqual(response.status_code, 400)
         completar.assert_not_called()
 
+    @patch("apps.archivos.views.eliminar_objeto", return_value=True)
     @patch("apps.archivos.views.abortar_multipart_upload", return_value=True)
-    def test_cancelacion_marca_el_archivo_como_incorrecto(self, abortar):
+    def test_cancelacion_marca_el_archivo_como_incorrecto(self, abortar, eliminar):
         archivo = self.crear_archivo_cargando()
         self.client.force_login(self.admin)
         response = self.client.post(reverse("archivo_cancelar", args=[archivo.pk]))
         self.assertEqual(response.status_code, 200)
         abortar.assert_called_once()
+        eliminar.assert_called_once_with(archivo.ruta_almacenamiento)
         archivo.refresh_from_db()
         self.assertEqual(archivo.estado, EstadoArchivo.INCORRECTO)
         self.assertIsNone(archivo.upload_id)

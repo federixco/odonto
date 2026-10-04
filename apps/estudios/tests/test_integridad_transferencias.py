@@ -75,12 +75,12 @@ class IntegridadTransferenciasTests(TestCase):
         self.assertEqual(self.archivo.estudio_id, original.pk)
 
     @patch("apps.estudios.views.analizar_importacion")
-    def test_no_admite_otro_analisis_mientras_esta_procesando(self, analizar):
+    def test_repetir_solicitud_no_duplica_analisis_en_proceso(self, analizar):
         self.lote.estado = EstadoImportacion.CARGANDO
         self.lote.save(update_fields=["estado"])
         self.lote.marcar_procesando()
         response = self.client.post(reverse("importacion_analizar", args=[self.lote.pk]))
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.status_code, 202)
         analizar.assert_not_called()
         self.lote.refresh_from_db()
         self.assertEqual(self.lote.estado, EstadoImportacion.PROCESANDO)
@@ -90,15 +90,12 @@ class IntegridadTransferenciasTests(TestCase):
         self.lote.estado = EstadoImportacion.ERROR
         self.lote.save(update_fields=["estado"])
 
-        def completar(lote):
-            lote.marcar_pendiente_confirmacion()
-            return lote
-
-        analizar.side_effect = completar
         response = self.client.post(reverse("importacion_analizar", args=[self.lote.pk]))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 202)
+        analizar.assert_not_called()
         self.lote.refresh_from_db()
-        self.assertEqual(self.lote.estado, EstadoImportacion.PENDIENTE_CONFIRMACION)
+        self.assertEqual(self.lote.estado, EstadoImportacion.PROCESANDO)
+        self.assertEqual(self.lote.datos_detectados["_analisis"]["estado"], "pendiente")
 
     def test_no_crea_estudio_si_la_importacion_esta_incompleta(self):
         self.archivo.estado = EstadoArchivo.CARGANDO
@@ -112,7 +109,8 @@ class IntegridadTransferenciasTests(TestCase):
     @patch("apps.estudios.views.iniciar_multipart_upload", return_value="upload-simulado")
     def test_fallo_de_firma_revierte_fila_y_permite_reintentar_ruta(self, iniciar, firmar, abortar):
         self.lote.estado = EstadoImportacion.CARGANDO
-        self.lote.save(update_fields=["estado"])
+        self.lote.cantidad_archivos, self.lote.tamano_total = 2, 20
+        self.lote.save(update_fields=["estado", "cantidad_archivos", "tamano_total"])
         url = reverse("importacion_archivo_iniciar", args=[self.lote.pk])
         datos = {"ruta_relativa": "carpeta/otro.dcm", "tamano": 10}
         firmar.side_effect = RuntimeError("Fallo de firma simulado")
@@ -134,14 +132,15 @@ class IntegridadTransferenciasTests(TestCase):
     def test_intento_duplicado_no_borra_archivo_existente(self, iniciar, firmar, abortar):
         self.lote.estado = EstadoImportacion.CARGANDO
         self.lote.save(update_fields=["estado"])
-        with self.assertLogs("apps.estudios.views", level="ERROR"):
-            response = self.client.post(
-                reverse("importacion_archivo_iniciar", args=[self.lote.pk]),
-                {"ruta_relativa": self.archivo.ruta_relativa, "tamano": 10}, content_type="application/json",
-            )
-        self.assertEqual(response.status_code, 502)
+        response = self.client.post(
+            reverse("importacion_archivo_iniciar", args=[self.lote.pk]),
+            {"ruta_relativa": self.archivo.ruta_relativa, "tamano": 10}, content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "completo")
         self.archivo.refresh_from_db()
         self.assertEqual(self.archivo.estado, EstadoArchivo.COMPLETO)
         self.assertEqual(self.lote.archivos.count(), 1)
         firmar.assert_not_called()
-        abortar.assert_called_once()
+        iniciar.assert_not_called()
+        abortar.assert_not_called()
