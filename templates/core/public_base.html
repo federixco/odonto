@@ -11,16 +11,17 @@
     <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
     <link rel="stylesheet" href="{% static 'core/css/public.css' %}">
     <script src="{% static 'core/js/public.js' %}" defer></script>
+    {% block extra_styles %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
     <a class="skip-link" href="#contenido">Saltar al contenido</a>
-    <div class="contact-strip">
+    {% block contact_strip %}<div class="contact-strip">
         <div class="container strip-inner">
             <span>{% include 'core/includes/icon.html' with name='pin' %} Mitre 479 · Formosa, Argentina</span>
             <a href="tel:+543704422272">{% include 'core/includes/icon.html' with name='phone' %} 0370 442-2272 <span class="extension">· int. 2</span></a>
         </div>
-    </div>
-    <header class="site-header">
+    </div>{% endblock %}
+    {% block public_header %}<header class="site-header">
         <div class="container header-inner">
             {% include 'core/includes/brand.html' %}
             <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navegacion" hidden>
@@ -37,7 +38,7 @@
                 {% endif %}
             </nav>
         </div>
-    </header>
+    </header>{% endblock %}
     <main id="contenido" tabindex="-1">
         {% if messages %}
             <div class="container system-messages" aria-label="Mensajes del sistema" aria-live="polite">
@@ -46,7 +47,7 @@
         {% endif %}
         {% block content %}{% endblock %}
     </main>
-    <footer class="site-footer">
+    {% block public_footer %}<footer class="site-footer">
         <div class="container footer-main">
             <div>{% include 'core/includes/brand.html' %}<p>El punto de partida para<br>un tratamiento exitoso.</p></div>
             <nav aria-label="Navegación del pie de página">
@@ -64,6 +65,6 @@
             <div class="footer-contact"><strong>Estamos para ayudarte</strong><a href="tel:+543704422272">0370 442-2272 · int. 2</a><a href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a><span>Mitre 479, Formosa</span></div>
         </div>
         <div class="container footer-bottom"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span><span>Formosa, Argentina</span></div>
-    </footer>
+    </footer>{% endblock %}
 </body>
 </html>
