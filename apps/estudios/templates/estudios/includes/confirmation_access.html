@@ -1,0 +1,12 @@
+<section class="confirmation-access" data-derivante-selector data-selector-url="{% url 'selector_odontologos' %}" aria-label="Odontólogo y acceso al estudio">
+    <div class="confirmation-section-heading"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='tooth' %}</span><div><h2>Odontólogo derivante</h2><p>Elegí al profesional que podrá consultar el estudio.</p></div></div>
+    <input type="hidden" name="derivante" value="{{ form.derivante.value|default_if_none:'' }}" data-selector-value>
+    <div class="search-field confirmation-search"><label>Buscar odontólogo<div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input type="search" data-selector-search autocomplete="off" placeholder="Nombre, matrícula o correo"></div></label></div>
+    <div class="derivante-results" data-selector-results></div>
+    <p class="confirmation-help" data-review-empty hidden>No encontramos coincidencias. Probá con otro nombre, matrícula o correo, o dejá el estudio sin asignar.</p>
+    <p class="confirmation-selection" data-selector-selection aria-live="polite"></p>
+    <div class="confirmation-selector-footer"><p data-selector-status role="status"></p><div><button type="button" class="button button-secondary button-small" data-selector-prev>Anterior</button><button type="button" class="button button-secondary button-small" data-selector-next>Siguiente</button></div></div>
+    {% for error in form.derivante.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+    <div class="confirmation-access-options"><button class="confirmation-text-button" type="button" data-selector-clear>Dejar sin asignar por ahora</button><a href="{% url 'odontologo_crear' %}?next={{ request.get_full_path|urlencode }}">Registrar odontólogo {% include 'core/includes/icon.html' with name='plus' %}</a></div>
+    <noscript><p>Activá JavaScript para buscar y asignar un odontólogo. Si confirmás sin asignarlo, el estudio se guardará como borrador.</p></noscript>
+</section>

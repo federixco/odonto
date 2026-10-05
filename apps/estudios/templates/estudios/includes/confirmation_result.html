@@ -1,0 +1,4 @@
+<div class="confirmation-result" aria-label="Resultado previsto de la confirmación">
+    <div class="confirmation-result-copy"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='lock' %}</span><div><h2>Al confirmar</h2><p data-review-result>{% if form.derivante.value %}Se asociará el estudio al odontólogo seleccionado y se intentará publicarlo si supera las verificaciones.{% else %}El estudio se guardará como borrador, sin odontólogo derivante. Todavía no estará disponible para consulta.{% endif %}</p><span data-review-destination></span><small>El estado final se mostrará en el detalle del estudio.</small></div></div>
+    <button type="submit" class="button confirmation-submit" data-review-submit><span data-review-submit-label>{% if form.derivante.value %}Confirmar y publicar{% else %}Guardar como borrador{% endif %}</span> {% include 'core/includes/icon.html' with name='arrow' %}</button>
+</div>

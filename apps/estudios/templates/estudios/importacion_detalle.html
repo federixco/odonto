@@ -1,159 +1,82 @@
 {% extends 'core/admin_base.html' %}
 {% load static %}
-
-{% block title %}Confirmar estudio | D.O.C.{% endblock %}
-
+{% block title %}Revisar y confirmar estudio | D.O.C.{% endblock %}
+{% block body_class %}confirmation-page{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'core/css/confirmation.css' %}?v=claridad-clinica-1">{% endblock %}
+{% block public_link_icon %}{% include 'core/includes/icon.html' with name='arrow' %}{% endblock %}
+{% block mobile_navigation %}
+<details class="confirmation-nav">
+    <summary>{% include 'core/includes/icon.html' with name='grid' %} Gestión del centro {% include 'core/includes/icon.html' with name='plus' %}</summary>
+    <nav aria-label="Administración en móvil"><a href="{% url 'importacion_crear' %}" aria-current="page">Cargar estudio</a><a href="{% url 'estudio_lista' %}">Estudios</a><a href="{% url 'paciente_lista' %}">Pacientes</a><a href="{% url 'odontologo_lista' %}">Odontólogos derivantes</a></nav>
+</details>
+{% endblock %}
 {% block content %}
-<div class="review-page">
-    <a class="admin-back-link text-link" href="{% url 'importacion_crear' %}"><span aria-hidden="true">←</span> Cargar otra carpeta</a>
-    <header class="review-heading">
-        <p class="eyebrow">CARPETA ANALIZADA</p>
-        <h1>Confirmá el <span>estudio detectado.</span></h1>
-        <p>{{ importacion.nombre_carpeta }} · {{ importacion.cantidad_archivos }} archivos · {{ importacion.tamano_total|filesizeformat }}</p>
-    </header>
-
-    {% if importacion.advertencias %}
-    <div class="notice warning review-warning" role="status">
-        <strong>Hay datos que conviene revisar</strong>
-        <ul>{% for advertencia in importacion.advertencias %}<li>{{ advertencia }}</li>{% endfor %}</ul>
-    </div>
-    {% endif %}
-
+<div class="confirmation-work">
+    <nav class="confirmation-breadcrumb" aria-label="Ruta de navegación"><a href="{% url 'importacion_crear' %}">Cargar estudio</a><span aria-hidden="true">/</span><span>Revisar carpeta</span></nav>
+    <header class="confirmation-heading"><div><h1>Revisar y confirmar estudio</h1><p>Verificá los datos y definí quién podrá consultar el estudio.</p></div><span class="confirmation-stage">{% if importacion.estado == 'PENDIENTE_CONFIRMACION' %}Pendiente de confirmación{% else %}{{ importacion.get_estado_display }}{% endif %}</span></header>
+    <div class="confirmation-source">{% include 'core/includes/icon.html' with name='folder' %}<span>{{ importacion.nombre_carpeta }}</span><span>{{ importacion.cantidad_archivos }} archivos · {{ importacion.tamano_total|filesizeformat }}</span></div>
+    {% if importacion.advertencias %}<div class="confirmation-notice confirmation-warning" role="status"><strong>Revisá estas observaciones antes de confirmar</strong><ul>{% for advertencia in importacion.advertencias %}<li>{{ advertencia }}</li>{% endfor %}</ul></div>{% endif %}
     {% if importacion.estado == 'PENDIENTE_CONFIRMACION' %}
-    <section data-analisis-lote="{{ importacion.pk }}" data-estado="{{ importacion.estado }}" style="margin-bottom:1rem">
-        {% csrf_token %}<p data-analisis-mensaje role="status"></p>
-        <button type="button" class="button button-secondary" data-analisis-cancelar>Descartar esta carpeta y sus archivos</button>
-    </section>
-    {% if importacion.pacientes_mezclados %}
-    <section class="admin-card" role="alert">
-        <h2>No podemos asociar esta carpeta a un paciente</h2>
-        <p>Encontramos identificadores, nombres o fechas de nacimiento incompatibles. Separá los estudios y volvé a cargar una carpeta por paciente.</p>
-        <p>Elegir una ficha manualmente no resuelve la mezcla de archivos.</p>
-        <a class="button" href="{% url 'importacion_crear' %}">Cargar carpetas separadas</a>
-    </section>
-    {% else %}
-    {% if importacion.paciente_sugerido_id %}
-    <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-card detection-card" novalidate>
-        {% csrf_token %}
-        <div class="detection-success">
-            {% include 'core/includes/icon.html' with name='check' %}
-            <span><strong>Datos encontrados automáticamente</strong><small>Revisalos y confirmá. No hace falta volver a escribirlos.</small></span>
-        </div>
-
-        {% if form.errors %}<div class="notice error" role="alert"><strong>No pudimos confirmar el estudio.</strong> Revisá el derivante y los datos indicados.</div>{% endif %}
-
-        <dl class="detection-grid">
-            <div><dt>Paciente</dt><dd>{{ importacion.paciente_sugerido }}</dd><small>DNI {{ importacion.paciente_sugerido.dni }}</small></div>
-            <div><dt>Tipo de estudio</dt><dd>{{ form.tipo.value|default:'No identificado' }}</dd></div>
-            <div><dt>Fecha</dt><dd>{{ form.fecha_estudio.value|default:'No identificada' }}</dd></div>
-            <div><dt>Archivos</dt><dd>{{ importacion.archivos.count }} completos</dd><small>{{ importacion.datos_detectados.software_origen|default:'Origen no identificado' }}</small></div>
-        </dl>
-
-        <details class="detected-edit detected-edit-prominent" {% if form.errors or importacion.requiere_revision_estudios %}open{% endif %}>
-            <summary>
-                <span class="detected-edit-icon">{% include 'core/includes/icon.html' with name='edit' %}</span>
-                <span><strong>¿Hay un dato incorrecto?</strong><small>Corregir paciente o datos detectados antes de asociar el odontólogo.</small></span>
-                <span class="detected-edit-action">Corregir datos</span>
-            </summary>
-            <div class="admin-form detection-edit-form">
-                <p class="form-help">Modificá únicamente lo que no coincida con la carpeta original.</p>
-                
-                {% include 'estudios/paciente_selector.html' %}
-
-                {% include 'core/includes/form_field.html' with field=form.tipo %}
-                {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
-                {% include 'core/includes/form_field.html' with field=form.observaciones %}
-            </div>
-        </details>
-
-        {% include 'estudios/derivante_selector.html' %}
-
-        {% include 'estudios/revision_estudios.html' %}
-
-        <div class="review-actions">
-            <button type="submit" class="button review-confirm-button">Confirmar estudio</button>
-            <span>Se autopublicará si asignás un derivante.</span>
-        </div>
-
-    </form>
-    {% else %}
-    <section class="admin-card patient-exception-card">
-        <div class="exception-heading">
-            <span class="exception-icon">?</span>
-            <div><p class="eyebrow">REVISIÓN NECESARIA</p><h2>No encontramos una ficha coincidente</h2><p>Los datos detectados ya están completados. Verificá el DNI y creá la ficha para continuar.</p></div>
-        </div>
-
-        <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" id="compact-patient-form" class="admin-form compact-patient-form" novalidate>
-            {% csrf_token %}
-            {% if paciente_form.errors %}<div class="notice error" role="alert">Revisá los campos indicados.</div>{% endif %}
-            <div class="form-grid">
-                {% include 'core/includes/form_field.html' with field=paciente_form.nombre %}
-                {% include 'core/includes/form_field.html' with field=paciente_form.apellido %}
-                {% include 'core/includes/form_field.html' with field=paciente_form.dni %}
-            </div>
-            <details class="detected-edit optional-patient-data" {% if paciente_form.fecha_nacimiento.errors or paciente_form.obra_social.errors %}open{% endif %}>
-                <summary>Agregar datos opcionales</summary>
-                <div class="form-grid">
-                    {% include 'core/includes/form_field.html' with field=paciente_form.fecha_nacimiento %}
-                    {% include 'core/includes/form_field.html' with field=paciente_form.obra_social %}
-                </div>
-            </details>
-            <div class="review-actions"><button type="submit" class="button review-confirm-button">Crear paciente y continuar</button></div>
-        </form>
-
-        <details class="existing-patient-option" {% if form.errors %}open{% endif %}>
-            <summary style="display: flex; align-items: center; gap: 10px; background: #eef2f6; padding: 16px; border-radius: 8px; border: 1px dashed #b9ccd8; font-size: 0.95rem; font-weight: 600; color: var(--navy); cursor: pointer; margin-top: 15px; transition: background 0.2s;" onmouseover="this.style.background='#e2eaf1'" onmouseout="this.style.background='#eef2f6'">
-    {% include 'core/includes/icon.html' with name='search' %}
-    ¿Este estudio pertenece a un paciente ya registrado? Hacé clic para buscarlo y asociarlo.
-</summary>
-            <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form" novalidate>
+        {% if importacion.pacientes_mezclados %}
+        <section class="confirmation-document confirmation-exception" role="alert"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='people' %}</span><h2>No podemos asociar esta carpeta</h2><p>La carpeta contiene datos de distintos pacientes. Encontramos identificadores, nombres o fechas de nacimiento incompatibles. Separá los estudios y volvé a cargar una carpeta por paciente.</p><p>Elegir una ficha manualmente no resuelve la mezcla de archivos.</p><a class="button" href="{% url 'importacion_crear' %}">Cargar carpetas separadas</a></section>
+        {% else %}
+            {% if importacion.paciente_sugerido_id %}
+            <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="confirmation-document" data-review-form novalidate>
                 {% csrf_token %}
-                {% if form.errors %}<div class="notice error" role="alert">No pudimos confirmar el estudio. Revisá los datos indicados.</div>{% endif %}
-                
-                {% include 'estudios/paciente_selector.html' %}
-
-                {% include 'core/includes/form_field.html' with field=form.tipo %}
-                {% include 'core/includes/form_field.html' with field=form.fecha_estudio %}
-                {% include 'core/includes/form_field.html' with field=form.observaciones %}
-                {% include 'estudios/derivante_selector.html' %}
-                {% include 'estudios/revision_estudios.html' %}
-                <div class="admin-form-actions"><button type="submit" class="button button-secondary">Usar esta ficha y confirmar</button></div>
+                {% if form.errors %}<div class="confirmation-notice confirmation-error" role="alert"><strong>No pudimos confirmar el estudio.</strong><p>Revisá los campos indicados. Todavía no se confirmó esta carpeta.</p>{{ form.non_field_errors }}</div>{% endif %}
+                <dl class="confirmation-context" aria-label="Paciente, estudio y acceso">
+                    <div><dt>Paciente</dt><dd data-review-patient>{{ importacion.paciente_sugerido }}</dd><span data-review-patient-detail>DNI {{ importacion.paciente_sugerido.dni }}</span></div>
+                    <div><dt>Estudio</dt><dd data-review-type>{{ form.tipo.value|default:'Tipo no identificado' }}</dd><span data-review-date>{{ form.fecha_estudio.value|default:'Fecha no identificada' }}</span></div>
+                    <div><dt>Acceso</dt><dd data-review-access>Sin derivante asignado</dd><span data-review-access-detail>Se guardará como borrador</span></div>
+                </dl>
+                <div class="confirmation-grid">
+                    <section class="confirmation-data" aria-labelledby="review-data-title">
+                        <div class="confirmation-section-heading"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='scan' %}</span><div><h2 id="review-data-title">Datos del estudio</h2><p>Detectados a partir de la carpeta original.</p></div></div>
+                        <dl class="confirmation-facts"><div><dt>Archivos cargados</dt><dd>{{ importacion.archivos.count }} completos</dd></div><div><dt>Origen</dt><dd>{{ importacion.datos_detectados.software_origen|default:'No identificado' }}</dd></div><div><dt>Observaciones</dt><dd>{{ form.observaciones.value|default:'Sin observaciones' }}</dd></div></dl>
+                        <details class="confirmation-correction" {% if form.errors or importacion.requiere_revision_estudios %}open{% endif %}>
+                            <summary>{% include 'core/includes/icon.html' with name='edit' %}<span>Corregir paciente o datos</span>{% include 'core/includes/icon.html' with name='plus' %}</summary>
+                            <div class="confirmation-correction-body admin-form"><p class="confirmation-help">Modificá únicamente lo que no coincida con la carpeta original.</p>{% include 'estudios/paciente_selector.html' %}{% include 'core/includes/form_field.html' with field=form.tipo %}{% include 'core/includes/form_field.html' with field=form.fecha_estudio %}{% include 'core/includes/form_field.html' with field=form.observaciones %}</div>
+                        </details>
+                        {% include 'estudios/revision_estudios.html' %}
+                    </section>
+                    {% include 'estudios/includes/confirmation_access.html' %}
+                </div>
+                {% include 'estudios/includes/confirmation_result.html' %}
             </form>
-        </details>
-    </section>
-    {% endif %}
-    {% endif %}
+            {% else %}
+            <section class="confirmation-document confirmation-exception">
+                <div class="confirmation-section-heading"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='people' %}</span><div><h2>Identificá al paciente para continuar</h2><p>No encontramos una ficha coincidente. Revisá los datos detectados antes de crearla.</p></div></div>
+                <form method="post" action="{% url 'importacion_registrar_paciente' importacion.pk %}" id="compact-patient-form" class="admin-form confirmation-patient-form" novalidate>
+                    {% csrf_token %}
+                    {% if paciente_form.errors %}<div class="confirmation-notice confirmation-error" role="alert">Revisá los campos indicados.{{ paciente_form.non_field_errors }}</div>{% endif %}
+                    <div class="form-grid">{% include 'core/includes/form_field.html' with field=paciente_form.nombre %}{% include 'core/includes/form_field.html' with field=paciente_form.apellido %}{% include 'core/includes/form_field.html' with field=paciente_form.dni %}</div>
+                    <details class="confirmation-correction" {% if paciente_form.fecha_nacimiento.errors or paciente_form.obra_social.errors %}open{% endif %}><summary>Agregar datos opcionales {% include 'core/includes/icon.html' with name='plus' %}</summary><div class="form-grid confirmation-correction-body">{% include 'core/includes/form_field.html' with field=paciente_form.fecha_nacimiento %}{% include 'core/includes/form_field.html' with field=paciente_form.obra_social %}</div></details>
+                    <div class="confirmation-patient-actions"><span class="confirmation-help">Crear la ficha todavía no publica el estudio.</span><button type="submit" class="button">Crear paciente y continuar {% include 'core/includes/icon.html' with name='arrow' %}</button></div>
+                </form>
+                <details class="existing-patient-option" {% if form.errors %}open{% endif %}>
+                    <summary>{% include 'core/includes/icon.html' with name='search' %}<span>Buscar un paciente ya registrado</span>{% include 'core/includes/icon.html' with name='plus' %}</summary>
+                    <form method="post" action="{% url 'importacion_confirmar' importacion.pk %}" class="admin-form confirmation-correction-body" data-review-form novalidate>
+                        {% csrf_token %}
+                        {% if form.errors %}<div class="confirmation-notice confirmation-error" role="alert">No pudimos confirmar el estudio. Revisá los datos indicados.{{ form.non_field_errors }}</div>{% endif %}
+                        {% include 'estudios/paciente_selector.html' %}{% include 'core/includes/form_field.html' with field=form.tipo %}{% include 'core/includes/form_field.html' with field=form.fecha_estudio %}{% include 'core/includes/form_field.html' with field=form.observaciones %}{% include 'estudios/includes/confirmation_access.html' %}{% include 'estudios/revision_estudios.html' %}{% include 'estudios/includes/confirmation_result.html' %}
+                    </form>
+                </details>
+            </section>
+            {% endif %}
+        {% endif %}
+        <div class="confirmation-discard" data-analisis-lote="{{ importacion.pk }}" data-estado="{{ importacion.estado }}">{% csrf_token %}<p data-analisis-mensaje role="status"></p><button type="button" class="confirmation-discard-button" data-analisis-cancelar>Descartar esta carpeta y sus archivos</button></div>
     {% else %}
-    <section class="admin-card" data-analisis-lote="{{ importacion.pk }}" data-estado="{{ importacion.estado }}">
-        {% csrf_token %}
-        <h2>Estado de la carpeta: {{ importacion.get_estado_display }}</h2>
-        <p data-analisis-mensaje role="status">El análisis se realiza en segundo plano. Podés dejar esta página y volver desde Cargar estudios.</p>
-        {% if importacion.estado == 'ERROR' or importacion.estado == 'CARGANDO' %}<button type="button" class="button" data-analisis-reintentar>Reintentar análisis</button>{% endif %}
-        {% if importacion.estado != 'CONFIRMADA' and importacion.estado != 'CANCELADA' %}<button type="button" class="button button-secondary" data-analisis-cancelar>Cancelar importación y descartar sus archivos</button>{% endif %}
+    <section class="confirmation-document confirmation-exception" data-analisis-lote="{{ importacion.pk }}" data-estado="{{ importacion.estado }}">
+        {% csrf_token %}<h2>Estado de la carpeta: {{ importacion.get_estado_display }}</h2><p data-analisis-mensaje role="status">El análisis se realiza en segundo plano. Podés volver desde Cargar estudio para consultar el estado.</p>
+        <div class="confirmation-state-actions">{% if importacion.estado == 'ERROR' or importacion.estado == 'CARGANDO' %}<button type="button" class="button" data-analisis-reintentar>Reintentar análisis</button>{% endif %}{% if importacion.estado != 'CONFIRMADA' and importacion.estado != 'CANCELADA' %}<button type="button" class="button button-secondary" data-analisis-cancelar>Cancelar importación y descartar sus archivos</button>{% endif %}</div>
     </section>
     {% endif %}
-<style>#dni-confirm-dialog::backdrop { background: rgba(10, 25, 41, 0.6); backdrop-filter: blur(2px); }</style>
-<dialog id="dni-confirm-dialog" class="admin-card" style="border:none; padding:2rem; border-radius:12px; width:100%; max-width:450px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-    <div style="text-align: center;">
-        <div style="background: #e7eeee; color: #005a9e; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.5rem; font-weight: bold;">
-            {% include 'core/includes/icon.html' with name='people' %}
-        </div>
-        <h2 style="margin-bottom: 0.5rem;">Paciente ya registrado</h2>
-        <p style="color: var(--slate); margin-bottom: 1.5rem; line-height: 1.5;" id="dni-confirm-text"></p>
-        <div style="display: flex; gap: 1rem; justify-content: center;">
-            <button type="button" class="button button-secondary" id="dni-confirm-cancel" style="flex:1;">Cancelar</button>
-            <button type="button" class="button" id="dni-confirm-accept" style="flex:1;">Sí, asignar estudio</button>
-        </div>
-    </div>
-</dialog>
+    <dialog id="dni-confirm-dialog" class="confirmation-dialog" aria-labelledby="dni-confirm-title" aria-describedby="dni-confirm-text"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='people' %}</span><h2 id="dni-confirm-title">Paciente ya registrado</h2><p id="dni-confirm-text"></p><div class="confirmation-dialog-actions"><button type="button" class="button button-secondary" id="dni-confirm-cancel">Cancelar</button><button type="button" class="button" id="dni-confirm-accept">Sí, asignar estudio</button></div></dialog>
 </div>
 {% endblock %}
-
-
-
-
 {% block extra_scripts %}
-
 <script src="{% static 'core/js/selectores_remotos.js' %}?v=20261003" defer></script>
 <script src="{% static 'core/js/paciente_selector.js' %}?v=20261003" defer></script>
-<script src="{% static 'core/js/analisis_estado.js' %}?v=20261003" defer></script>{% endblock %}
+<script src="{% static 'core/js/analisis_estado.js' %}?v=20261003" defer></script>
+<script src="{% static 'core/js/confirmation.js' %}?v=claridad-clinica-1" defer></script>
+{% endblock %}
