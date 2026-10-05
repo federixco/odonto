@@ -45,7 +45,7 @@
                 {% include 'core/includes/icon.html' with name='lock' %}
             </span>
             <div style="font-size: 0.86rem; color: #1e3a47; line-height: 1.6;">
-                <strong>Resguardo de Información Clínica:</strong> En este portal podés previsualizar tus radiografías, tomografías e informes en línea, y descargar los archivos clínicos de tus estudios publicados para guardarlos o presentarlos a tus profesionales de salud.
+                <strong>Acceso a tus estudios:</strong> En este portal podés visualizar tus radiografías, tomografías compatibles e informes publicados. La descarga de archivos está reservada al centro y a los odontólogos autorizados.
             </div>
         </div>
 
@@ -87,8 +87,8 @@
                     <a href="{% url 'estudio_ver' estudio.pk %}" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.5rem 0.75rem;">
                         {% include 'core/includes/icon.html' with name='eye' %} Ver estudio
                     </a>
-                    <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button button-small" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.5rem 0.75rem; background: #007788; color: white;" title="Descargar la carpeta completa del estudio">
-                        {% include 'core/includes/icon.html' with name='download' %} Descargar carpeta
+                    <a href="{% url 'visor_estudio' estudio.pk %}" class="button button-small" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.5rem 0.75rem; background: #007788; color: white;" title="Abrir visor de modelos y tomografías compatibles">
+                        {% include 'core/includes/icon.html' with name='eye' %} Visor 3D
                     </a>
                 </div>
             </article>

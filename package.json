@@ -1,0 +1,27 @@
+{
+  "name": "doc-visualizador",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "node --test frontend/visor/tests/*.test.js",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@cornerstonejs/core": "5.11.4",
+    "@cornerstonejs/metadata": "5.11.4",
+    "@cornerstonejs/dicom-image-loader": "5.11.4",
+    "@cornerstonejs/tools": "5.11.4",
+    "three": "0.186.1",
+    "events": "3.3.0"
+  },
+  "overrides": {
+    "fflate": "0.7.5",
+    "adm-zip": "0.6.1",
+    "uuid": "11.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "vite": "8.3.2"
+  }
+}

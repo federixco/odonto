@@ -575,43 +575,9 @@ class DescargarArchivoView(View):
         if not estudio:
             raise Http404("El archivo no está asociado a ningún estudio.")
 
-        # Validación de permisos por rol
-        rol = request.user.rol
-        if rol == RolUsuario.PACIENTE:
-            if estudio.estado != EstadoEstudio.PUBLICADO:
-                raise PermissionDenied("El estudio no se encuentra publicado.")
-            try:
-                paciente = request.user.paciente
-            except Exception:
-                raise PermissionDenied("La cuenta no está asociada a una ficha clínica.")
+        from apps.core.permisos_estudios import comprobar_acceso_estudio
+        comprobar_acceso_estudio(request.user, estudio, descargar=True)
 
-            if estudio.paciente_id != paciente.pk:
-                raise PermissionDenied("No tenés acceso a los archivos de este estudio.")
-
-        elif rol == RolUsuario.ODONTOLOGO:
-            # Debe existir una autorización vigente para este estudio y odontólogo
-            if estudio.estado != EstadoEstudio.PUBLICADO:
-                raise PermissionDenied("El estudio no está publicado.")
-
-            from apps.accesos.models import Autorizacion
-            try:
-                odontologo = request.user.odontologo
-            except Exception:
-                raise PermissionDenied("La cuenta no está asociada a un odontólogo.")
-
-            autorizado = Autorizacion.objects.filter(
-                estudio=estudio,
-                odontologo=odontologo,
-                estado_acceso=EstadoAcceso.VIGENTE,
-            ).exists()
-            if not autorizado:
-                raise PermissionDenied("No tenés autorización vigente para descargar archivos de este estudio.")
-
-        elif rol == RolUsuario.ADMINISTRADOR:
-            # El administrador del centro tiene acceso completo
-            pass
-        else:
-            raise PermissionDenied("Rol no autorizado.")
 
         # Registrar auditoría de descarga
         LogActividad.objects.create(
@@ -658,37 +624,9 @@ class PrevisualizarArchivoView(View):
         if archivo.formato not in self.FORMATOS_PREVISUALIZABLES:
             raise Http404("Este formato de archivo no admite previsualización directa en el navegador.")
 
-        rol = request.user.rol
-        if rol == RolUsuario.ADMINISTRADOR:
-            pass
-        elif rol == RolUsuario.ODONTOLOGO:
-            if estudio.estado != EstadoEstudio.PUBLICADO:
-                raise PermissionDenied("El estudio no está publicado.")
-            from apps.accesos.models import Autorizacion
-            try:
-                odontologo = request.user.odontologo
-            except Exception:
-                raise PermissionDenied("La cuenta no está asociada a un odontólogo.")
+        from apps.core.permisos_estudios import comprobar_acceso_estudio
+        comprobar_acceso_estudio(request.user, estudio)
 
-            autorizado = Autorizacion.objects.filter(
-                estudio=estudio,
-                odontologo=odontologo,
-                estado_acceso=EstadoAcceso.VIGENTE,
-            ).exists()
-            if not autorizado:
-                raise PermissionDenied("No tenés autorización vigente para visualizar este estudio.")
-        elif rol == RolUsuario.PACIENTE:
-            if estudio.estado != EstadoEstudio.PUBLICADO:
-                raise PermissionDenied("El estudio no está publicado.")
-            try:
-                paciente = request.user.paciente
-            except Exception:
-                raise PermissionDenied("La cuenta no está asociada a una ficha de paciente.")
-
-            if estudio.paciente_id != paciente.pk:
-                raise PermissionDenied("No podés acceder a estudios que no te pertenecen.")
-        else:
-            raise PermissionDenied("Rol no autorizado.")
 
         # Registrar auditoría de visualización
         LogActividad.objects.create(

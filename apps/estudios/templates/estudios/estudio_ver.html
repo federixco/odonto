@@ -13,7 +13,8 @@
             </div>
             
             <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                {% if tree %}
+                <a href="{% url 'visor_estudio' estudio.pk %}" class="button">Abrir visor 3D y cortes</a>
+                {% if tree and request.user.rol != 'PACIENTE' %}
                 <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #007788; color: white; padding: 0.55rem 1.15rem; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.88rem;" title="Descargar toda la carpeta del estudio en un archivo ZIP">
                     {% include 'core/includes/icon.html' with name='download' %} Descargar carpeta completa (.zip)
                 </a>
@@ -43,7 +44,7 @@
         {% endif %}
 
         <div class="explorer-container view-tiles" id="explorer-container" style="background: white; border: 1px solid #dcdfe4; border-radius: 12px; padding: 1.5rem; min-height: 400px;">
-            {% if archivos_pagina.has_other_pages %}<p>Los archivos se muestran por página. El ZIP descarga la carpeta completa.</p>{% endif %}
+            {% if archivos_pagina.has_other_pages %}<p>Los archivos se muestran por página. El visor reúne las series completas.</p>{% endif %}
             {% if tree %}
                 {% include "estudios/_folder_explorer_node.html" with node=tree %}
             {% else %}

@@ -152,13 +152,13 @@ class DescargasYPrevisualizacionTests(TransactionTestCase):
         self.assertIn(reverse("login"), resp.url)
 
     @patch("apps.archivos.views.generar_url_descarga")
-    def test_paciente_autorizado_puede_descargar_y_audita(self, mock_generar):
+    def test_paciente_titular_no_puede_descargar_rf20(self, mock_generar):
         mock_generar.return_value = "http://s3.doc.local/presigned-paciente-download-url"
         self.client.login(username="paciente_doc", password=self.password)
         url = reverse("archivo_descargar", args=[self.archivo_dcm.pk])
         resp = self.client.get(url)
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp.url, "http://s3.doc.local/presigned-paciente-download-url")
+        self.assertEqual(resp.status_code, 403)
+        mock_generar.assert_not_called()
 
         # Verificar auditoría
         log = LogActividad.objects.filter(
@@ -166,7 +166,7 @@ class DescargasYPrevisualizacionTests(TransactionTestCase):
             usuario=self.user_paciente,
             tipo_evento=TipoEvento.DESCARGA,
         ).first()
-        self.assertIsNotNone(log)
+        self.assertIsNone(log)
 
     def test_paciente_no_puede_descargar_estudio_ajeno(self):
         self.client.login(username="paciente_ajeno", password=self.password)
@@ -262,7 +262,7 @@ class DescargasYPrevisualizacionTests(TransactionTestCase):
         self.assertIn("Descarga de carpeta raíz", log.detalles)
 
     @patch("apps.estudios.views.get_s3_client")
-    def test_descargar_estudio_completo_paciente_autorizado(self, mock_s3_getter):
+    def test_descargar_estudio_completo_paciente_bloqueado_rf20(self, mock_s3_getter):
         mock_client = Mock()
         self.estudio.archivos.update(tamano=len(b"fake file content"))
         mock_client.get_object.side_effect = lambda **kwargs: {"Body": io.BytesIO(b"fake file content")}
@@ -272,8 +272,8 @@ class DescargasYPrevisualizacionTests(TransactionTestCase):
         url = reverse("estudio_descargar_completo", args=[self.estudio.pk])
         resp = self.client.get(url)
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("application/zip", resp.headers.get("Content-Type", ""))
+        self.assertEqual(resp.status_code, 403)
+        mock_s3_getter.assert_not_called()
         resp.close()
 
     def test_descargar_estudio_completo_paciente_ajeno_bloqueado(self):
@@ -375,7 +375,7 @@ class DescargasYPrevisualizacionTests(TransactionTestCase):
     def test_zip_rechaza_objeto_truncado(self, obtener_s3):
         cuerpo = io.BytesIO(b"contenido demasiado corto")
         obtener_s3.return_value.get_object.return_value = {"Body": cuerpo}
-        self.client.force_login(self.user_paciente)
+        self.client.force_login(self.user_odon)
         with self.assertLogs("apps.estudios.views", level="ERROR"):
             response = self.client.get(reverse("estudio_descargar_completo", args=[self.estudio.pk]))
         self.assertEqual(response.status_code, 502)

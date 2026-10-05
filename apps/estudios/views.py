@@ -811,7 +811,7 @@ class VerEstudioView(EstudioAccesoMixin, DetailView):
 
 class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
     """Permite descargar la carpeta completa (raíz) del estudio en un archivo ZIP.
-    Disponible para Administradores, Odontólogos con autorización vigente y Pacientes titulares.
+    Disponible para Administradores y Odontólogos con autorización vigente (RF-20).
     """
 
     model = Estudio
@@ -819,6 +819,9 @@ class DescargarEstudioCompletoView(EstudioAccesoMixin, SingleObjectMixin, View):
     @transferencia_exclusiva(lambda request, **kwargs: "preparacion-zip")
     def get(self, request, *args, **kwargs):
         estudio = self.get_object()
+
+        from apps.core.permisos_estudios import comprobar_acceso_estudio
+        comprobar_acceso_estudio(request.user, estudio, descargar=True)
 
         archivos = estudio.archivos.filter(
             estado=EstadoArchivo.COMPLETO,
