@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Revisar y confirmar estudio | D.O.C.{% endblock %}
 {% block body_class %}confirmation-page{% endblock %}
-{% block extra_styles %}<link rel="stylesheet" href="{% static 'core/css/confirmation.css' %}?v=claridad-clinica-1">{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'core/css/confirmation.css' %}?v=admin-navegacion-unificada-2">{% endblock %}
 {% block public_link_icon %}{% include 'core/includes/icon.html' with name='arrow' %}{% endblock %}
 {% block mobile_navigation %}
 <details class="confirmation-nav">
@@ -75,6 +75,7 @@
 </div>
 {% endblock %}
 {% block extra_scripts %}
+<script src="{% static 'core/js/odontologo_confirmacion.js' %}?v=claridad-clinica-1" data-admin-id="{{ user.pk }}" data-style-url="{% static 'core/css/odontologos.css' %}?v=claridad-clinica-1" data-directory-url="{% url 'odontologo_lista' %}" data-selector-url="{% url 'selector_odontologos' %}" defer></script>
 <script src="{% static 'core/js/selectores_remotos.js' %}?v=20261003" defer></script>
 <script src="{% static 'core/js/paciente_selector.js' %}?v=20261003" defer></script>
 <script src="{% static 'core/js/analisis_estado.js' %}?v=20261003" defer></script>

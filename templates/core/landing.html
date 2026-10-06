@@ -1,15 +1,20 @@
 {% extends 'core/public_base.html' %}
 {% load static %}
 {% block body_class %}landing-page{% endblock %}
-{% block extra_styles %}<link rel="stylesheet" href="{% static 'core/css/landing.css' %}?v=claridad-clinica-1">{% endblock %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{% static 'core/css/landing.css' %}?v=claridad-clinica-3">{% endblock %}
 {% block contact_strip %}{% endblock %}
 {% block public_header %}
 <header class="site-header landing-header">
     <div class="container header-inner">
         {% include 'core/includes/brand.html' %}
-        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navegacion" hidden><span class="menu-lines" aria-hidden="true"></span><span>Menú</span></button>
-        <nav class="site-nav" id="navegacion" aria-label="Navegación principal"><a href="#servicios">Servicios</a><a href="#nosotros">El centro</a><a href="#contacto">Contacto</a></nav>
-        {% if user.is_authenticated %}<a class="button button-secondary landing-account" href="{% url 'redireccion_roles' %}">{% include 'core/includes/icon.html' with name='lock' %} Ir a mi cuenta</a>{% else %}<a class="button button-secondary landing-account" href="{% url 'login' %}">{% include 'core/includes/icon.html' with name='lock' %} Acceder a estudios</a>{% endif %}
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="navegacion" hidden><span
+                class="menu-lines" aria-hidden="true"></span><span>Menú</span></button>
+        <nav class="site-nav" id="navegacion" aria-label="Navegación principal"><a href="#servicios">Servicios</a><a
+                href="#nosotros">El centro</a><a href="#contacto">Contacto</a></nav>
+        {% if user.is_authenticated %}<a class="button button-secondary landing-account"
+            href="{% url 'redireccion_roles' %}">{% include 'core/includes/icon.html' with name='lock' %} Ir a mi
+            cuenta</a>{% else %}<a class="button button-secondary landing-account" href="{% url 'login' %}">{% include 'core/includes/icon.html' with name='lock' %} Acceder a estudios</a>{% endif %}
     </div>
 </header>
 {% endblock %}
@@ -17,56 +22,138 @@
 <section class="landing-opening" aria-labelledby="hero-title">
     <div class="container">
         <div class="landing-intro">
-            <h1 id="hero-title">Un buen tratamiento empieza con un buen diagnóstico.</h1>
-            <div class="landing-intro-copy"><p>Imágenes digitales en 2D y 3D para acompañar cada decisión de tu odontólogo. Tecnología y atención personalizada, en Formosa.</p><div class="landing-actions"><a class="button" href="#contacto">Consultar al centro {% include 'core/includes/icon.html' with name='arrow' %}</a><a class="landing-text-link" href="#servicios">Conocer los estudios</a></div></div>
+            <h1 id="hero-title">Un buen tratamiento empieza con <span>un buen diagnóstico.</span></h1>
+            <div class="landing-intro-copy">
+                <p>Imágenes digitales en 2D y 3D para acompañar cada decisión de tu odontólogo. Tecnología y atención
+                    personalizada, en Formosa.</p>
+                <div class="landing-actions"><a class="button" href="#contacto">Consultar al centro {% include 'core/includes/icon.html' with name='arrow' %}</a><a class="landing-text-link"
+                        href="#servicios">Conocer los estudios</a></div>
+            </div>
         </div>
-        <figure class="landing-equipment"><div class="landing-equipment-window"><img src="{% static 'core/images/landing/doc-equipo-original.jpg' %}" width="1754" height="2480" alt="Equipo de diagnóstico por imágenes del material institucional de D.O.C." fetchpriority="high"></div><figcaption>Equipo de diagnóstico por imágenes <span>Tecnología Cone Beam</span></figcaption></figure>
+        <figure class="landing-equipment">
+            <div class="landing-equipment-window"><img src="{% static 'core/images/landing/doc-equipo-original.jpg' %}"
+                    width="1754" height="2480"
+                    alt="Equipo de diagnóstico por imágenes del material institucional de D.O.C." fetchpriority="high">
+            </div>
+            <figcaption><strong>Tecnología<br>Cone Beam</strong><span>Equipo de diagnóstico por imágenes</span>
+            </figcaption>
+        </figure>
     </div>
 </section>
 <section class="landing-section landing-services" id="servicios" aria-labelledby="services-title">
     <div class="container">
-        <div class="landing-section-heading"><h2 id="services-title">Estudios odontológicos</h2><p>Imágenes para el diagnóstico y la planificación de cada caso.</p></div>
+        <div class="landing-section-heading">
+            <h2 id="services-title">Estudios odontológicos</h2>
+            <p>Imágenes para el diagnóstico y la planificación de cada caso.</p>
+        </div>
         <div class="landing-service-list">
-            <article class="landing-service" aria-labelledby="radiography-title">
+            <article class="landing-service landing-service-radiography" aria-labelledby="radiography-title">
                 <h3 id="radiography-title">Radiografías digitales</h3>
-                <div class="landing-service-copy"><p>Una visión de las estructuras dentales para la evaluación del profesional.</p><ul><li>Panorámicas y telerradiografías digitales.</li><li>Radiografía carpal y cefalometrías.</li><li>Estudios de ATM y senos maxilares.</li></ul></div>
-                <figure class="landing-service-image"><img src="{% static 'core/images/landing/doc-radiografias.jpg' %}" width="316" height="260" loading="lazy" alt="Ejemplos de radiografías odontológicas del folleto institucional de D.O.C."></figure>
+                <div class="landing-service-copy">
+                    <p>Una visión de las estructuras dentales para la evaluación del profesional.</p>
+                    <ul>
+                        <li>Panorámicas y telerradiografías digitales.</li>
+                        <li>Radiografía carpal y cefalometrías.</li>
+                        <li>Estudios de ATM y senos maxilares.</li>
+                    </ul>
+                </div>
+                <figure class="landing-service-image"><img src="{% static 'core/images/landing/doc-radiografias.jpg' %}"
+                        width="316" height="260" loading="lazy"
+                        alt="Ejemplos de radiografías odontológicas del folleto institucional de D.O.C."></figure>
             </article>
-            <article class="landing-service" aria-labelledby="tomography-title">
+            <article class="landing-service landing-service-tomography" aria-labelledby="tomography-title">
                 <h3 id="tomography-title">Tomografía 3D</h3>
-                <div class="landing-service-copy"><p>Imágenes tridimensionales para explorar la anatomía desde distintas perspectivas.</p><ul><li>Planificación para implantes.</li><li>Evaluación de estructuras óseas y dentales.</li><li>Apoyo a distintas especialidades odontológicas.</li></ul></div>
-                <figure class="landing-service-image"><img src="{% static 'core/images/landing/doc-planificacion.png' %}" width="604" height="532" loading="lazy" alt="Reconstrucción tridimensional para planificación odontológica del material institucional de D.O.C."></figure>
+                <div class="landing-service-copy">
+                    <p>Imágenes tridimensionales para explorar la anatomía desde distintas perspectivas.</p>
+                    <ul>
+                        <li>Planificación para implantes.</li>
+                        <li>Evaluación de estructuras óseas y dentales.</li>
+                        <li>Apoyo a distintas especialidades odontológicas.</li>
+                    </ul>
+                </div>
+                <figure class="landing-service-image"><img
+                        src="{% static 'core/images/landing/doc-planificacion.png' %}" width="604" height="532"
+                        loading="lazy"
+                        alt="Reconstrucción tridimensional para planificación odontológica del material institucional de D.O.C.">
+                </figure>
             </article>
             <article class="landing-service landing-service-complementary" aria-labelledby="complementary-title">
                 <h3 id="complementary-title">Estudios complementarios</h3>
-                <div class="landing-service-copy"><p>Información para acompañar la planificación de tratamientos y el seguimiento de cada caso.</p><ul><li>Estudios para ortodoncia.</li><li>Fotografía odontológica.</li></ul></div>
+                <div class="landing-service-copy">
+                    <p>Información para acompañar la planificación de tratamientos y el seguimiento de cada caso.</p>
+                    <ul>
+                        <li>Estudios para ortodoncia.</li>
+                        <li>Fotografía odontológica.</li>
+                    </ul>
+                </div>
             </article>
         </div>
-        <p class="landing-service-help">¿No sabés qué estudio necesitás? Consultá con tu odontólogo o <a href="#contacto">comunicate con nosotros</a>.</p>
+        <p class="landing-service-help">¿No sabés qué estudio necesitás? Consultá con tu odontólogo o <a
+                href="#contacto">comunicate con nosotros</a>.</p>
     </div>
 </section>
 <section class="landing-section landing-center" id="nosotros" aria-labelledby="about-title">
     <div class="container landing-center-grid">
-        <div><h2 id="about-title">El centro</h2><p>En D.O.C. —Diagnóstico Odontológico Computado— acompañamos a los profesionales de la odontología con imágenes digitales y una atención ajustada a cada caso.</p></div>
-        <div class="landing-team"><h3>Profesionales del centro</h3><ul><li>Dra. María Luisa Stechina</li><li>Dr. Pedro Eduardo Morales</li></ul></div>
+        <div class="landing-center-identity" aria-hidden="true"><img src="{% static 'core/images/doc-isotipo.svg' %}"
+                width="104" height="104" alt="" loading="lazy"></div>
+        <div>
+            <h2 id="about-title">El centro</h2>
+            <p>En D.O.C. acompañamos a los profesionales de la odontología con imágenes digitales y una atención
+                ajustada a cada caso.</p>
+        </div>
+        <div class="landing-team">
+            <h3>Profesionales del centro</h3>
+            <ul>
+                <li>Dra. María Luisa Stechina</li>
+                <li>Dr. Pedro Eduardo Morales</li>
+            </ul>
+        </div>
     </div>
 </section>
 <section class="landing-section landing-access" id="estudios" aria-labelledby="portal-title">
     <div class="container landing-access-panel">
-        <div class="landing-access-intro"><h2 id="portal-title">Accedé a tus estudios</h2><p>Ingresá con tu cuenta para consultar el espacio de estudios que te corresponde.</p>{% if user.is_authenticated %}<a class="button button-white" href="{% url 'redireccion_roles' %}">Ir a mi cuenta {% include 'core/includes/icon.html' with name='arrow' %}</a>{% else %}<a class="button button-white" href="{% url 'login' %}">Acceder a estudios {% include 'core/includes/icon.html' with name='arrow' %}</a>{% endif %}<a class="landing-access-recovery" href="{% url 'password_reset' %}">Recuperar contraseña</a></div>
-        <div class="landing-access-help"><h3>¿Cómo solicito acceso?</h3>
-            <details><summary>Soy odontólogo {% include 'core/includes/icon.html' with name='plus' %}</summary><p>Podés <a href="{% url 'odontologo_autoregistro' %}">solicitar tu cuenta desde la web</a>. Quedará pendiente hasta que el centro la habilite. También podés comunicarte con nosotros para solicitar el alta.</p></details>
-            <details><summary>Soy paciente {% include 'core/includes/icon.html' with name='plus' %}</summary><p><a href="#contacto">Comunicate con el centro</a> para solicitar acceso. El equipo de D.O.C. te indicará cómo ingresar con una cuenta vinculada a tus estudios.</p></details>
+        <div class="landing-access-intro">
+            <h2 id="portal-title">Accedé a tus estudios</h2>
+            <p>Ingresá con tu cuenta para consultar el espacio de estudios que te corresponde.</p>{% if user.is_authenticated %}<a class="button button-white" href="{% url 'redireccion_roles' %}">Ir a mi cuenta
+                {% include 'core/includes/icon.html' with name='arrow' %}</a>{% else %}<a class="button button-white"
+                href="{% url 'login' %}">Acceder a estudios {% include 'core/includes/icon.html' with name='arrow' %}</a>{% endif %}<a class="landing-access-recovery" href="{% url 'password_reset' %}">Recuperar
+                contraseña</a>
+        </div>
+        <div class="landing-access-help">
+            <h3>¿Cómo solicito acceso?</h3>
+            <details>
+                <summary>Soy odontólogo {% include 'core/includes/icon.html' with name='plus' %}</summary>
+                <p>Podés <a href="{% url 'odontologo_autoregistro' %}">solicitar tu cuenta desde la web</a>. Quedará
+                    pendiente hasta que el centro la habilite. También podés comunicarte con nosotros para solicitar el
+                    alta.</p>
+            </details>
+            <details>
+                <summary>Soy paciente {% include 'core/includes/icon.html' with name='plus' %}</summary>
+                <p><a href="#contacto">Comunicate con el centro</a> para solicitar acceso. El equipo de D.O.C. te
+                    indicará cómo ingresar con una cuenta vinculada a tus estudios.</p>
+            </details>
         </div>
     </div>
 </section>
 <section class="landing-section landing-contact" id="contacto" aria-labelledby="contact-title">
     <div class="container">
-        <div class="landing-section-heading"><h2 id="contact-title">Contacto</h2><p>Consultanos por un estudio o un turno. Indicá el estudio solicitado y los datos de contacto de tu odontólogo.</p></div>
+        <div class="landing-section-heading">
+            <h2 id="contact-title">Contacto</h2>
+            <p>Consultanos por un estudio o un turno. Indicá el estudio solicitado y los datos de contacto de tu
+                odontólogo.</p>
+        </div>
         <address class="landing-contact-grid">
-            <div>{% include 'core/includes/icon.html' with name='pin' %}<h3>Dirección</h3><p><strong>Mitre 479</strong><br>Ciudad de Formosa, Argentina</p><a class="landing-text-link" href="https://www.google.com/maps/search/?api=1&amp;query=Mitre%20479%2C%20Formosa%2C%20Argentina" target="_blank" rel="noopener noreferrer">Cómo llegar {% include 'core/includes/icon.html' with name='arrow' %}</a></div>
-            <div>{% include 'core/includes/icon.html' with name='phone' %}<h3>Teléfono</h3><a class="landing-contact-value" href="tel:+543704422272">0370 442-2272</a><p>Interno 2</p></div>
-            <div>{% include 'core/includes/icon.html' with name='mail' %}<h3>Correo</h3><a class="landing-contact-value" href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a></div>
+            <div>{% include 'core/includes/icon.html' with name='pin' %}<h3>Dirección</h3>
+                <p><strong>Mitre 479</strong><br>Ciudad de Formosa, Argentina</p><a class="landing-text-link"
+                    href="https://www.google.com/maps/search/?api=1&amp;query=Mitre%20479%2C%20Formosa%2C%20Argentina"
+                    target="_blank" rel="noopener noreferrer">Cómo llegar {% include 'core/includes/icon.html' with name='arrow' %}</a>
+            </div>
+            <div>{% include 'core/includes/icon.html' with name='phone' %}<h3>Teléfono</h3><a
+                    class="landing-contact-value" href="tel:+543704422272">0370 442-2272</a>
+                <p>Interno 2</p>
+            </div>
+            <div>{% include 'core/includes/icon.html' with name='mail' %}<h3>Correo</h3><a class="landing-contact-value"
+                    href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a></div>
         </address>
     </div>
 </section>
@@ -75,9 +162,14 @@
 <footer class="landing-footer">
     <div class="container landing-footer-main">
         <div>{% include 'core/includes/brand.html' %}</div>
-        <nav aria-label="Navegación del pie de página"><strong>D.O.C.</strong><a href="#servicios">Servicios</a><a href="#nosotros">El centro</a><a href="#contacto">Contacto</a></nav>
-        <nav aria-label="Accesos a la plataforma"><strong>Estudios</strong><a href="{% url 'redireccion_roles' %}">Ingresar a mi cuenta</a><a href="{% url 'odontologo_autoregistro' %}">Registro de odontólogos</a><a href="{% url 'password_reset' %}">Recuperar contraseña</a></nav>
+        <nav aria-label="Navegación del pie de página"><strong>D.O.C.</strong><a href="#servicios">Servicios</a><a
+                href="#nosotros">El centro</a><a href="#contacto">Contacto</a></nav>
+        <nav aria-label="Accesos a la plataforma"><strong>Estudios</strong><a
+                href="{% url 'redireccion_roles' %}">Ingresar a mi cuenta</a><a
+                href="{% url 'odontologo_autoregistro' %}">Registro de odontólogos</a><a
+                href="{% url 'password_reset' %}">Recuperar contraseña</a></nav>
     </div>
-    <div class="container landing-footer-bottom"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span><span>Formosa, Argentina</span></div>
+    <div class="container landing-footer-bottom"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico
+            Computado.</span><span>Formosa, Argentina</span></div>
 </footer>
 {% endblock %}

@@ -95,10 +95,11 @@ components:
     padding: "10px 12px"
     typography: "{typography.body}"
   navigation-current:
-    backgroundColor: "{colors.nav-active}"
-    textColor: "{colors.white}"
-    rounded: "{rounded.option}"
-    padding: "12px 10px"
+    backgroundColor: "{colors.pale}"
+    textColor: "{colors.navy}"
+    rounded: "10px"
+    padding: "11px 13px"
+    height: "64px"
   stage:
     backgroundColor: "{colors.stage-surface}"
     textColor: "{colors.warning-ink}"
@@ -125,13 +126,13 @@ components:
 
 **Creative North Star: "Claridad clínica"**
 
-Este documento registra los tokens del prototipo implementado en la confirmación de estudios, bajo `.confirmation-page`. La aplicación institucional posterior se documenta en `docs/diseno/landing-claridad-clinica.md`, con una jerarquía propia para la landing. El usuario aceptó el trabajo realizado en ambas pantallas; esto no autoriza extender la dirección al resto del sistema. El admin global y las demás páginas conservan su presentación. El material de marca oficial completo sigue pendiente.
+Este documento registra los tokens del prototipo implementado en la confirmación de estudios, bajo `.confirmation-page`. La aplicación institucional posterior se documenta en `docs/diseno/landing-claridad-clinica.md`, con una jerarquía propia para la landing. El usuario aprobó la dirección y manifestó que le gusta la base v2 de la landing; su amplificación v3 está pendiente de validación visual y no autoriza extender la dirección al resto del sistema. El polish de odontólogos autoriza una extensión concreta: el sidebar administrativo compartido usa un rail blanco y el mismo estado activo pale en todas sus secciones. El explorador con cuatro vistas y carga directa se documenta en `docs/diseno/odontologos-carga-directa.md`; esa extensión no redefine las demás superficies. El material de marca oficial completo sigue pendiente.
 
-La administración cotidiana desde PC determina la densidad: un documento blanco de trabajo, navegación azul D.O.C., jerarquía contenida y separadores finos. La consulta móvil conserva información y acciones legibles. El logo SVG existente mantiene azul, turquesa y coral; no se generaron imágenes ni nuevos activos de marca.
+La administración cotidiana desde PC determina la densidad: un documento blanco de trabajo, sidebar blanco con selección pale y texto azul D.O.C., jerarquía contenida y separadores finos. La consulta móvil conserva información y acciones legibles. El logo SVG existente mantiene azul, turquesa y coral; no se generaron imágenes ni nuevos activos de marca.
 
 **Key Characteristics:**
 - Documento de trabajo claro y plano.
-- Navegación azul y selección en turquesa oscuro.
+- Sidebar blanco y selección pale con texto azul D.O.C.
 - Sans de sistema legible para el modo Operate.
 - Separadores finos, radios moderados y estados con texto visible.
 - Reflow móvil sin perder el contexto de revisión.
@@ -140,10 +141,10 @@ Fuentes: `static/core/css/confirmation.css`, `static/core/js/confirmation.js`, `
 
 ## Colors
 
-La paleta de este prototipo combina blanco de documento, azul de navegación y un turquesa oscuro legible para interacción. Los valores normativos están en el frontmatter.
+La paleta de este prototipo combina blanco de documento y sidebar, azul para acciones y navegación activa, y un turquesa oscuro legible para interacción. Los valores normativos están en el frontmatter.
 
 ### Primary
-- **Azul D.O.C.** (`navy`): rail, botones principales y enlaces de acción; `navy-hover` oscurece botones.
+- **Azul D.O.C.** (`navy`): texto del sidebar activo, menú móvil de confirmación, botones principales y enlaces de acción; `navy-hover` oscurece botones.
 - **Turquesa de interacción** (`teal`): selección, radios, iconos funcionales, caret y foco. Conserva el parentesco con el turquesa del logo.
 
 ### Secondary
@@ -155,7 +156,7 @@ La paleta de este prototipo combina blanco de documento, azul de navegación y u
 - **Lienzo** (`canvas`) y **documento** (`white`): separación entre entorno y trabajo.
 - **Línea** (`line`) y **borde de campo** (`field-line`): divisiones y controles.
 - **Superficie suave** (`pale`), **selección** (`selected-surface`) y **resultado** (`result-surface`): estados y zonas con tonalidad discreta.
-- `nav-active` y `nav-hover` distinguen el módulo actual y la interacción en el rail.
+- `pale`, `navy` y `field-line` distinguen el módulo actual en el sidebar compartido. `nav-active` permanece en el menú móvil de confirmación; `nav-hover` registra un tono heredado que el sidebar actual ya no usa.
 - `warning-*`, `stage-surface` y `error-*` acompañan estados explícitos; `disabled-*` mantiene legibles las acciones deshabilitadas.
 
 **The Visible State Rule.** En este prototipo, el color de selección acompaña un radio y una identidad visible; los avisos siempre incluyen texto.
@@ -203,7 +204,9 @@ Botón azul con texto blanco, mínimo de 46px, línea 1.4 y sin desplazamiento a
 Campos blancos de mínimo 46px, texto de 16px y borde de campo. El foco cambia el borde a turquesa oscuro y elimina sombras. Los errores usan borde y ayuda en `error-ink`. Los placeholders permanecen opacos y legibles.
 
 ### Navigation
-Rail azul con opciones de mínimo 70px, icono, título y ayuda. La opción actual combina fondo, borde y `aria-current`. A 900px aparece un `details/summary` con enlaces de 48px; Escape cierra el menú y devuelve el foco al summary.
+El sidebar compartido de `admin.css` tiene rail blanco, opciones de mínimo 64px, radio de 10px, padding de 11px × 13px e icono de 21px. El título usa .8rem, peso 650 y línea 1.25; la ayuda usa .65rem y línea 1.3. La opción actual combina `pale`, texto `navy`, borde de 1px en `field-line` y `aria-current="page"`; sólo el módulo actual recibe ese estado, incluida Carga de estudios. Hover usa fondo `#f4fafa`, texto teal y borde `#dceced`. No hay tratamiento propio para Odontólogos ni override azul en Confirmación. El foco compartido usa outline teal de 2px y offset de 2px; las superficies `.confirmation-page` conservan su foco general de 3px y offset de 3px.
+
+A 900px la confirmación y el explorador de odontólogos muestran un `details/summary` con enlaces de 48px; ese menú móvil conserva su fondo navy, activo `nav-active` y foco claro. Escape cierra el menú y devuelve el foco al summary. La unificación autorizada del sidebar no modifica esta composición móvil.
 
 ### Chips
 La etiqueta de estado es informativa: texto de 12px y peso 600 sobre `stage-surface`. Expresa el estado real de la importación y no actúa como filtro.
@@ -217,12 +220,12 @@ Opciones de mínimo 74px, radio de 18px, identidad de 14px y metadatos de 13px. 
 ### Confirmation Result
 La consecuencia y el destinatario se actualizan desde la selección real. Sin derivante, el texto y el botón indican borrador; con derivante, explican el intento de publicación sujeto a verificaciones. La presentación no inventa una publicación exitosa ni cambia el formulario o la validación del servidor.
 
-El foco general usa outline turquesa de 3px con offset de 3px; sobre navegación azul usa un tono claro. Las transiciones de selección duran 120ms, el disclosure 140ms; se respetan las preferencias de movimiento reducido.
+El foco general usa outline turquesa de 3px con offset de 3px; el menú móvil azul usa un tono claro. Las transiciones de selección duran 120ms, el disclosure 140ms; se respetan las preferencias de movimiento reducido.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** limitar estos tokens y patrones al prototipo de confirmación hasta su validación.
+- **Do** limitar los patrones de confirmación a su superficie; el sidebar claro y su estado activo compartido son la extensión administrativa autorizada.
 - **Do** conservar el logo SVG y los colores existentes de D.O.C.
 - **Do** mantener campos de 16px, botones de al menos 44px y foco visible.
 - **Do** expresar selección y consecuencias con datos reales y texto legible.

@@ -1,93 +1,73 @@
 {% extends 'core/admin_base.html' %}
 {% load static %}
 {% block title %}Odontólogos derivantes | D.O.C.{% endblock %}
+{% block body_class %}confirmation-page dentist-directory-page{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'core/css/confirmation.css' %}?v=derivantes-vistas-2"><link rel="stylesheet" href="{% static 'core/css/odontologos.css' %}?v=derivantes-vistas-2">{% endblock %}
+{% block public_link_icon %}{% include 'core/includes/icon.html' with name='arrow' %}{% endblock %}
+{% block mobile_navigation %}<details class="confirmation-nav"><summary>{% include 'core/includes/icon.html' with name='grid' %} Gestión del centro {% include 'core/includes/icon.html' with name='plus' %}</summary><nav aria-label="Administración en móvil"><a href="{% url 'importacion_crear' %}">Cargar estudio</a><a href="{% url 'estudio_lista' %}">Estudios</a><a href="{% url 'paciente_lista' %}">Pacientes</a><a href="{% url 'odontologo_lista' %}" aria-current="page">Odontólogos derivantes</a></nav></details>{% endblock %}
 {% block content %}
-<div class="admin-page-heading">
-    <div><p class="eyebrow">GESTIÓN DE PROFESIONALES</p><h1>Odontólogos <span>derivantes.</span></h1><p>Los profesionales que se conectan con el centro, en un solo lugar.</p></div>
-    <a class="button" href="{% url 'odontologo_crear' %}">{% include 'core/includes/icon.html' with name='plus' %} Registrar odontólogo</a>
-</div>
-<section class="admin-card directory-card" aria-labelledby="listado-title">
-    <div class="directory-heading">
-        <div><h2 id="listado-title">{% if busqueda %}Resultados de búsqueda{% else %}Profesionales registrados{% endif %}</h2><p>Consultá su información y administrá sus cuentas.</p></div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <span class="directory-count">{{ page_obj.paginator.count }} resultado{{ page_obj.paginator.count|pluralize }}</span>
-            <div class="view-mode-selector" style="position: relative; display: inline-block;">
-                <button type="button" class="button button-secondary" id="view-mode-btn" aria-haspopup="true" aria-expanded="false" style="display: flex; gap: 0.5rem; align-items: center;">
-                    {% include 'core/includes/icon.html' with name='grid' %} Ver
-                </button>
-                <div class="view-mode-menu" id="view-mode-menu" hidden style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid #dcdfe4; border-radius: 8px; margin-top: 0.5rem; padding: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; min-width: 150px;">
-                    <button type="button" class="view-option" data-view="view-list" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Lista</button>
-                    <button type="button" class="view-option" data-view="view-details" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Detalles</button>
-                    <button type="button" class="view-option is-active" data-view="view-tiles" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px; font-weight: 600;">Mosaicos</button>
-                    <button type="button" class="view-option" data-view="view-icons" style="display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.5rem; border: none; background: transparent; cursor: pointer; text-align: left; border-radius: 4px;">Iconos grandes</button>
+<header class="confirmation-heading dentist-heading"><div><h1>Odontólogos derivantes</h1><p>Administrá las cuentas profesionales y cargá estudios para un derivante.</p></div><a class="button" href="{% url 'odontologo_crear' %}">{% include 'core/includes/icon.html' with name='plus' %} Registrar odontólogo</a></header>
+<div class="dentist-instruction"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='file-up' %}</span><div><strong>Soltá una carpeta o archivos sobre un odontólogo habilitado.</strong><p>También podés usar «Cargar estudio» en cada vista. Revisarás los datos antes de publicar.</p></div><a href="{% url 'importacion_crear' %}">Ir a Carga de estudios {% include 'core/includes/icon.html' with name='arrow' %}</a></div>
+<p class="dentist-drag-message" data-drop-message role="status" aria-live="polite" hidden></p>
+<section class="dentist-upload" data-importacion-uploader data-admin-id="{{ user.pk }}" aria-labelledby="upload-recipient" hidden>
+    {% csrf_token %}
+    <div hidden><input id="folder-input" type="file" webkitdirectory multiple><button id="folder-select-button" type="button">Seleccionar carpeta</button><div id="drop-zone"></div></div>
+    <header class="dentist-upload-heading"><span class="confirmation-section-icon">{% include 'core/includes/icon.html' with name='tooth' %}</span><div><h2 id="upload-recipient" tabindex="-1">Cargar estudio</h2><p data-upload-license></p></div><button type="button" class="confirmation-text-button" data-selection-cancel>Cancelar selección</button></header>
+    <p class="dentist-file-summary" data-file-summary role="status">Elegí la carpeta original o los archivos del estudio.</p>
+    <div class="dentist-upload-actions" data-preparation-actions><button type="button" class="button button-secondary" data-pick-folder>{% include 'core/includes/icon.html' with name='folder' %} Elegir carpeta</button><button type="button" class="button button-secondary" data-pick-files>{% include 'core/includes/icon.html' with name='file-up' %} Elegir archivos</button><button type="button" class="button" data-upload-start disabled>Cargar y analizar {% include 'core/includes/icon.html' with name='arrow' %}</button></div>
+    <input type="file" id="dentist-folder-input" webkitdirectory multiple hidden aria-label="Elegir carpeta del estudio"><input type="file" id="dentist-files-input" multiple hidden aria-label="Elegir archivos del estudio">
+    <div id="upload-error" class="confirmation-notice confirmation-error" role="alert" hidden></div>
+    <div id="upload-progress-container" class="dentist-progress" hidden><h3 id="progress-title">Cargando archivos</h3><p id="progress-text" role="status" aria-live="polite"></p><div class="progress-bar-wrap" role="progressbar" aria-label="Carga del estudio" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar"></div></div><ol class="dentist-upload-stages" aria-label="Etapas de carga"><li id="stage-upload">Carga de archivos</li><li id="stage-analyze">Análisis</li><li id="stage-review">Revisión y confirmación</li></ol></div>
+</section>
+<section class="dentist-directory" aria-labelledby="listado-title">
+    <div class="dentist-directory-heading">
+        <h2 id="listado-title">{% if busqueda %}Resultados de búsqueda{% else %}Profesionales registrados{% endif %}</h2>
+        <div class="dentist-view-tools"><span>{{ page_obj.paginator.count }} resultado{{ page_obj.paginator.count|pluralize }}</span>
+            <div class="view-mode-selector">
+                <button type="button" class="button button-secondary" id="view-mode-btn" aria-expanded="false" aria-controls="view-mode-menu" hidden>{% include 'core/includes/icon.html' with name='grid' %}<span data-view-label>Ver: Mosaicos</span></button>
+                <div id="view-mode-menu" class="view-mode-menu" aria-label="Forma de visualizar los odontólogos" hidden>
+                    <button type="button" class="view-option" data-view="view-list" aria-pressed="false">Lista</button>
+                    <button type="button" class="view-option" data-view="view-details" aria-pressed="false">Detalles</button>
+                    <button type="button" class="view-option is-active" data-view="view-tiles" aria-pressed="true">Mosaicos</button>
+                    <button type="button" class="view-option" data-view="view-icons" aria-pressed="false">Iconos grandes</button>
                 </div>
             </div>
         </div>
     </div>
-    <form method="get" class="directory-search" role="search" aria-label="Buscar odontólogos">
-        <div class="search-field"><label for="buscar-odontologo">Buscar un profesional</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-odontologo" type="search" name="q" value="{{ busqueda }}" placeholder="Nombre, apellido, matrícula o correo"></div></div>
-        <button class="button button-small" type="submit">Buscar</button>
-        {% if busqueda %}<a class="text-link" href="{% url 'odontologo_lista' %}">Limpiar búsqueda</a>{% endif %}
-    </form>
+    <form method="get" class="dentist-search" role="search" aria-label="Buscar odontólogos"><div class="search-field"><label for="buscar-odontologo">Buscar un profesional</label><div class="search-input">{% include 'core/includes/icon.html' with name='search' %}<input id="buscar-odontologo" type="search" name="q" value="{{ busqueda }}" placeholder="Nombre, apellido, matrícula o correo"></div></div><button class="button" type="submit">Buscar</button>{% if busqueda %}<a class="confirmation-text-button" href="{% url 'odontologo_lista' %}">Limpiar búsqueda</a>{% endif %}</form>
     {% if odontologos %}
-    <div class="explorer-container view-tiles" id="explorer-container">
-        <div class="directory-table-wrap view-details-only">
-        <table class="directory-table" role="table">
-            <caption class="visually-hidden">Odontólogos derivantes: datos profesionales, estado de la cuenta y acciones.</caption>
-            <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Profesional</th><th scope="col" role="columnheader">Matrícula</th><th scope="col" role="columnheader">Contacto</th><th scope="col" role="columnheader">Estado</th><th scope="col" role="columnheader">Acciones</th></tr></thead>
-            <tbody role="rowgroup">
-                {% for odontologo in odontologos %}
-                <tr role="row">
-                    <th scope="row" role="rowheader" class="professional-cell"><div class="professional-identity"><span class="professional-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span><span><strong>{{ odontologo.apellido }}, {{ odontologo.nombre }}</strong><small>@{{ odontologo.usuario.username }}</small></span></div></th>
-                    <td role="cell" data-label="Matrícula" class="matricula-cell">{{ odontologo.matricula }}</td>
-                    <td role="cell" data-label="Contacto" class="contact-cell"><span>{{ odontologo.usuario.email|default:"Sin correo registrado" }}</span>{% if odontologo.usuario.telefono %}<small>{{ odontologo.usuario.telefono }}</small>{% endif %}</td>
-                    <td role="cell" data-label="Estado" class="status-cell">{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}</td>
-                    <td role="cell" class="row-actions patient-actions"><a class="patient-view-link" href="{% url 'odontologo_detalle' odontologo.pk %}" aria-label="Ver ficha de {{ odontologo }}">Ver ficha <span aria-hidden="true">↗</span></a><a class="patient-edit-link" href="{% url 'odontologo_editar' odontologo.pk %}" aria-label="Editar a {{ odontologo }}">{% include 'core/includes/icon.html' with name='edit' %} Editar</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div id="explorer-container" class="explorer-container dentist-explorer view-tiles">
+        <div class="view-details-only">
+    <table class="dentist-table"><caption class="visually-hidden">Odontólogos derivantes, matrícula, estado de cuenta y acciones. Los habilitados pueden recibir un estudio.</caption><thead><tr><th scope="col">Profesional</th><th scope="col">Matrícula</th><th scope="col">Contacto</th><th scope="col">Estado de cuenta</th><th scope="col">Acciones</th></tr></thead><tbody>
+    {% for odontologo in odontologos %}
+        <tr class="dentist-row" {% if odontologo.usuario.estado == 'HABILITADA' %}data-dentist-target data-dentist-id="{{ odontologo.pk }}" data-dentist-name="{{ odontologo.apellido }}, {{ odontologo.nombre }}" data-dentist-license="{{ odontologo.matricula }}"{% endif %}>
+            <th scope="row"><div class="dentist-identity"><span class="dentist-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span><div><a href="{% url 'odontologo_detalle' odontologo.pk %}">{{ odontologo.apellido }}, {{ odontologo.nombre }}</a><small>@{{ odontologo.usuario.username }}</small><span class="dentist-drop-label" aria-hidden="true">Soltá aquí el estudio</span></div></div></th>
+            <td class="dentist-license"><span class="dentist-mobile-label">Matrícula</span>{{ odontologo.matricula }}</td>
+            <td class="dentist-contact"><span>{{ odontologo.usuario.email|default:'Sin correo registrado' }}</span>{% if odontologo.usuario.telefono %}<small>{{ odontologo.usuario.telefono }}</small>{% endif %}</td>
+            <td class="dentist-state">{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}</td>
+            <td>{% include 'usuarios/includes/odontologo_acciones.html' %}</td>
+        </tr>
+    {% endfor %}
+    </tbody></table>
         </div>
-
         <div class="explorer-file-list non-details-only">
-            {% for odontologo in odontologos %}
-            <a href="{% url 'odontologo_detalle' odontologo.pk %}" class="explorer-file-item" style="text-decoration: none; color: inherit;">
-                <div class="file-name-wrap">
-                    <span class="file-icon" style="background: #e7eeee; color: #005a9e;">
-                        <span class="professional-avatar" aria-hidden="true" style="width:100%;height:100%;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
-                    </span>
-                    <span class="file-name" title="{{ odontologo.apellido }}, {{ odontologo.nombre }}">{{ odontologo.apellido }}, {{ odontologo.nombre }}</span>
+        {% for odontologo in odontologos %}
+            <article class="explorer-file-item dentist-file" {% if odontologo.usuario.estado == 'HABILITADA' %}data-dentist-target data-dentist-id="{{ odontologo.pk }}" data-dentist-name="{{ odontologo.apellido }}, {{ odontologo.nombre }}" data-dentist-license="{{ odontologo.matricula }}"{% endif %}>
+                <div class="file-name-wrap dentist-identity">
+                    <span class="file-icon dentist-avatar" aria-hidden="true">{{ odontologo.nombre|first|upper }}{{ odontologo.apellido|first|upper }}</span>
+                    <div><a class="file-name" href="{% url 'odontologo_detalle' odontologo.pk %}" title="{{ odontologo.apellido }}, {{ odontologo.nombre }}">{{ odontologo.apellido }}, {{ odontologo.nombre }}</a><small class="dentist-file-license">Matrícula {{ odontologo.matricula }}</small><span class="dentist-drop-label" aria-hidden="true">Soltá aquí el estudio</span></div>
                 </div>
-                <div class="file-detail-col file-size">Mat: {{ odontologo.matricula }}</div>
-                <div class="file-detail-col file-type">{{ odontologo.usuario.email|default:'Sin correo' }}</div>
-            </a>
-            {% endfor %}
+                <div class="dentist-file-contact">{{ odontologo.usuario.email|default:'Sin correo registrado' }}{% if odontologo.usuario.telefono %}<small>{{ odontologo.usuario.telefono }}</small>{% endif %}</div>
+                <div class="dentist-state">{% include 'usuarios/includes/estado_cuenta.html' with usuario=odontologo.usuario %}</div>
+                {% include 'usuarios/includes/odontologo_acciones.html' %}
+            </article>
+        {% endfor %}
         </div>
     </div>
-    {% else %}
-    <div class="directory-empty">
-        <span class="panel-icon">{% include 'core/includes/icon.html' with name='search' %}</span>
-        <h3>{% if busqueda %}No encontramos coincidencias{% else %}Todavía no hay odontólogos registrados{% endif %}</h3>
-        <p>{% if busqueda %}No se encontraron odontólogos para “{{ busqueda }}”. Probá con otro nombre, matrícula o correo.{% else %}Registrá al primer profesional para comenzar a gestionar su cuenta.{% endif %}</p>
-        {% if busqueda %}<a class="text-link" href="{% url 'odontologo_lista' %}">Ver todos los odontólogos {% include 'core/includes/icon.html' with name='arrow' %}</a>{% else %}<a class="button button-small" href="{% url 'odontologo_crear' %}">Registrar odontólogo</a>{% endif %}
-    </div>
-    {% endif %}
-    {% include 'core/includes/paginacion.html' %}
-    <div class="directory-note">{% include 'core/includes/icon.html' with name='lock' %}<p>Una cuenta pendiente necesita la habilitación del centro para iniciar sesión.</p></div>
+    {% else %}<div class="dentist-empty"><h3>{% if busqueda %}No encontramos coincidencias{% else %}Todavía no hay odontólogos registrados{% endif %}</h3><p>{% if busqueda %}Probá con otro nombre, matrícula o correo.{% else %}Registrá al primer profesional para comenzar a gestionar su cuenta.{% endif %}</p><a class="button button-secondary" href="{% if busqueda %}{% url 'odontologo_lista' %}{% else %}{% url 'odontologo_crear' %}{% endif %}">{% if busqueda %}Ver todos los odontólogos{% else %}Registrar odontólogo{% endif %}</a></div>{% endif %}
+    {% if page_obj.paginator.num_pages > 1 %}<nav class="dentist-pagination" aria-label="Paginación">{% if page_obj.has_previous %}<a class="button button-secondary" href="{% querystring page=page_obj.previous_page_number %}">Anterior</a>{% endif %}<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ page_obj.paginator.count }}</span>{% if page_obj.has_next %}<a class="button button-secondary" href="{% querystring page=page_obj.next_page_number %}">Siguiente</a>{% endif %}</nav>{% endif %}
+    <p class="dentist-note">{% include 'core/includes/icon.html' with name='lock' %} Las cuentas pendientes requieren la habilitación del centro para iniciar sesión y recibir estudios.</p>
+    <noscript><p class="dentist-note">Para cargar desde esta lista, activá JavaScript. Podés continuar desde <a href="{% url 'importacion_crear' %}">Carga de estudios</a>.</p></noscript>
 </section>
-<style>
-.view-details .non-details-only { display: none !important; }
-.view-details .view-details-only { display: block !important; }
-.view-list .view-details-only,
-.view-tiles .view-details-only,
-.view-icons .view-details-only { display: none !important; }
-.view-list .non-details-only,
-.view-tiles .non-details-only,
-.view-icons .non-details-only { display: grid !important; }
-.view-list .non-details-only { display: flex !important; flex-direction: column; }
-</style>
 {% endblock %}
-
-{% block extra_scripts %}
-<script src="{% static 'core/js/file_view.js' %}?v=revision-20261003" defer></script>
-{% endblock %}
+{% block extra_scripts %}<script src="{% static 'core/js/file_view.js' %}?v=revision-20261003" defer></script><script src="{% static 'core/js/importacion.js' %}?v=derivantes-1" defer></script><script src="{% static 'core/js/odontologo_carga.js' %}?v=derivantes-vistas-2" defer></script>{% endblock %}

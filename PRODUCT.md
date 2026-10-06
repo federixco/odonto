@@ -47,4 +47,4 @@ Para el prototipo de confirmación, el usuario pidió expresamente mantener el l
 
 - Material de marketing pendiente de adjuntar y revisar.
 - «Claridad clínica» se implementa como prototipo en la confirmación de estudios. Su validación visual y la extensión al sistema están pendientes.
-- Se autorizó e implementó también la landing como primera aplicación pública: servicios y contacto prioritarios. Los cambios realizados fueron aceptados por el usuario; no se autoriza extenderlos a más pantallas ni modificar framework o lógica de negocio.
+- El usuario aprobó la dirección «claridad clínica» y manifestó que le gusta la base v2 de la landing, con servicios y contacto prioritarios y acceso a estudios visible. La amplificación v3 implementada está pendiente de validación visual del usuario; no autoriza extender la dirección al resto del sistema ni modificar framework o lógica de negocio.

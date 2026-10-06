@@ -27,20 +27,8 @@
 .confirmation-page .admin-account-name small { font-size: 12px; }
 .confirmation-page .admin-account .button { font-size: 14px; min-height: 44px; }
 .confirmation-page .admin-workspace { grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 87px); }
-.confirmation-page .admin-sidebar { background: var(--navy); border: 0; }
 .confirmation-page .admin-sidebar-inner { min-height: calc(100vh - 87px); padding: 30px 14px 24px; }
-.confirmation-page .admin-sidebar-label { color: #c2e2e9; font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 500; margin-bottom: 18px; }
-.confirmation-page .admin-sidebar-link { min-height: 70px; padding: 12px 10px; gap: 10px; color: #f4fbfd; border-radius: 8px; }
-.confirmation-page .admin-sidebar-link::before { content: none; }
-.confirmation-page .admin-sidebar-link > .icon { color: inherit; }
-.confirmation-page .admin-sidebar-link strong { font-size: 14px; line-height: 1.4; }
-.confirmation-page .admin-sidebar-link small { font-size: 12px; color: #c2e2e9; }
-.confirmation-page .admin-sidebar-link:hover { background: #075b73; border-color: transparent; }
-.confirmation-page .admin-sidebar-link[aria-current="page"] { background: #09647b; border-color: #328498; color: white; }
-.confirmation-page .admin-sidebar-link[aria-current="page"] small { color: #d1edf2; }
-.confirmation-page .admin-sidebar .admin-site-link { color: #d1edf2; border-color: #328498; font-size: 13px; min-height: 44px; }
 .confirmation-page .admin-site-link > .icon { width: 16px; height: 16px; transform: rotate(-45deg); }
-.confirmation-page .admin-sidebar :is(a):focus-visible { outline-color: #8ae0e4; }
 .confirmation-page .admin-content { min-height: calc(100vh - 87px); }
 .confirmation-page .admin-main { width: min(1220px, calc(100% - 64px)); padding-block: 28px 40px; }
 .confirmation-page .admin-footer { width: min(1220px, calc(100% - 64px)); font-size: 12px; }

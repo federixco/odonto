@@ -1,79 +1,84 @@
-# D.O.C. — primera aplicación pública de claridad clínica
+# D.O.C. — landing de claridad clínica, v3
 
-Fecha: 5 de octubre de 2026. Alcance: únicamente la landing institucional. El usuario aceptó el trabajo realizado; la extensión a otras pantallas requiere una nueva instrucción.
+Fecha: 5 de octubre de 2026. Estado: amplificación v3 implementada y revisada, pendiente de validación visual del usuario. El usuario aprobó la dirección «claridad clínica» y manifestó que le gusta la base v2; pidió más personalidad y presencia. Esa aprobación permite este refinamiento de la landing y no equivale a aprobar su resultado v3 ni una identidad global.
 
-La instrucción vigente del usuario prioriza **conocer servicios y contactar al centro**. Esta implementación extiende la dirección de `docs/diseno/direccion-visual-propuesta.md` y los rasgos del prototipo registrados en `DESIGN.md`; no aprueba ni reemplaza el sistema global. La rampa compacta de confirmación corresponde a gestión; la propuesta institucional permite más libertad de composición y fotografía, manteniendo familia y marca.
+La prioridad permanece en **conocer servicios y contactar al centro**, con acceso a estudios siempre visible. V3 conserva estructura, marca, familia sans, colores, fotografías, contenido y destinos; amplifica hero, transiciones entre superficies, jerarquía fotográfica y ritmo editorial. La expresión busca un centro profesional, moderno y creíble mediante material institucional real. No incorpora tarjetas SaaS, gradientes, vidrio, métricas, testimonios, prestaciones ni promesas inventadas.
 
-La autorización es concreta: aplicar esa dirección únicamente a la landing, conservar fotografías, marca, familia sans y colores existentes, sin cambiar backend, rutas, permisos ni otras páginas. Esta autorización resuelve sólo la implementación institucional presente y no constituye aprobación duradera de una identidad global.
+El contrato local de seis bloques está en `.impeccable/surfaces/templates-core-landing-html.md`. Es una extensión ordinaria del mundo elegido, con seed heredado `ceada702`, sin nueva elección de dirección ni comp. Sólo se aplica a la landing; no autoriza cambios en otras pantallas, framework, backend, rutas, permisos o lógica de negocio.
 
-## Composición y contenido
+## Composición implementada
 
-- Encabezado con identidad, navegación institucional y acceso a estudios siempre visible, incluso con el menú móvil cerrado.
-- Una introducción, dos acciones hacia contacto y servicios, y una banda del equipo fotografiado en el material institucional.
-- Catálogo de tres familias en filas editoriales: radiografías digitales, tomografía 3D y estudios complementarios. Sus prestaciones quedan visibles sin abrir tarjetas.
-- Presentación breve del centro y los dos profesionales existentes.
-- Acceso y ayuda nativa diferenciada para odontólogos y pacientes. Se conserva la habilitación profesional pendiente y la vinculación de la cuenta del paciente; no se promete un alta automática.
-- Contacto con dirección, teléfono e interno y correo existentes. Teléfono y correo aparecen una vez. Pie breve de navegación.
+- Encabezado blanco con marca, navegación y acceso a estudios visible también con el menú móvil cerrado.
+- Hero azul con el énfasis «un buen diagnóstico» en el tono turquesa claro existente. Una línea de 1 px ordena la banda de explicación y acciones. La fotografía del equipo cruza el cierre azul con mayor presencia; su pie azul queda integrado y lleva un acento coral de 2 px, sin tarjeta blanca flotante ni radio.
+- Servicios en dos columnas desiguales, con radiografías primero como imagen y explicación, y tomografía como explicación e imagen. El desplazamiento vertical de tomografía produce un catálogo escalonado. Complementarios cierra transversalmente con una línea de 1 px, sin placa de fondo suave; todas las prestaciones permanecen visibles.
+- Centro sobre superficie fría con isotipo existente y profesionales reales. Los nombres de Dra. María Luisa Stechina y Dr. Pedro Eduardo Morales ganan jerarquía y se separan con divisores finos.
+- Acceso como composición continua azul y blanca: introducción, acción blanca y recuperación en azul; ayuda nativa sobre blanco. No hay tarjeta flotante, borde exterior ni radio. Se conserva la habilitación profesional pendiente y la vinculación de la cuenta del paciente a sus estudios.
+- Contacto final azul con título reforzado y los datos existentes de dirección, teléfono e interno, correo y ubicación; pie blanco con navegación breve.
 
-Se eliminaron la repetición de explicaciones institucionales, la cita ornamental, la tira superior de contacto y el FAQ separado. La información útil del FAQ queda junto al acceso; la planificación de implantes figura en tomografía y deja de repetirse entre complementarios. No se incorporaron métricas, testimonios, horarios ni servicios nuevos. Se preservan los nombres, contacto y catálogo de la landing anterior, con la procedencia registrada en `docs/landing-page.md`.
+El comparador de fuente contra `.local/landing-bolder-before/landing.html` normaliza whitespace, el span del h1 y la versión de CSS: confirma la conservación de textos, condiciones de autenticación y destinos del inicio de esta iteración. La comparación renderizada confirma enlaces, imágenes y alt idénticos. Hay un h1 y una aparición del teléfono y del correo en la landing; permanecen las tres familias de estudios.
 
-## Lenguaje implementado en esta superficie
+## Lenguaje local y adaptación
 
-La landing usa Segoe UI y el wordmark existente. Colores principales heredados: azul `#004b64`, turquesa de interacción `#007d85`, tinta `#163c48`, secundario `#50666f`, líneas `#d7e3e7`, fondo suave `#edf6f6`, blanco y canvas `#f4f7f8`. Turquesa y coral del isotipo se conservan. El foco usa turquesa y un tono claro sobre el panel azul.
+Segoe UI continúa la sans existente y el wordmark conserva Arial. Azul `#004b64`, turquesa de interacción `#007d85`, tinta `#163c48`, secundario `#50666f`, líneas `#d7e3e7`, superficie suave `#edf6f6`, blanco y colores auxiliares ya presentes sostienen la composición. El énfasis del hero y la recuperación usan `#8ae0e4`; el coral `#f66d68` del isotipo se aplica al acento del pie fotográfico. La comparación de literales contra el CSS v2 no encontró colores nuevos. No se añadieron fuentes, radios, sombras ni activos.
 
-Escala observada exclusiva de la landing: h1 56/48/46/36 px según ancho; h2 34/28 px; h3 de servicios 22 px; texto 15–17 px, base 16 px. Acciones principales de al menos 48 px y controles de navegación de 44 px. Radios de botones de 6 px, separadores finos, sin sombras añadidas ni animaciones de entrada. El pequeño descriptor del wordmark conserva su tratamiento de marca y no se utiliza para el contenido.
+La jerarquía pública sigue siendo local a esta superficie:
 
-Contenedor de hasta 1220 px; márgenes laterales de 40 px en escritorio, 24 px bajo 860 px y 16 px bajo 600 px. Los servicios pasan de tres columnas a dos y luego a una. El menú móvil se abre en el flujo del encabezado; Escape lo cierra y devuelve el foco. Sin JavaScript, los enlaces permanecen disponibles. El desplazamiento a las anclas contempla el encabezado fijo. Se respeta movimiento reducido.
-
-## Archivos y aislamiento
-
-- `templates/core/landing.html`: composición, contenido y overrides de cabecera/pie.
-- `static/core/css/landing.css`: hoja cargada sólo por la landing; estilos bajo `.landing-page` y sus clases propias.
-- `templates/core/public_base.html`: bloques de herencia nuevos que conservan el contenido predeterminado para las demás páginas.
-- `static/core/images/landing/`: tres copias institucionales con metadatos de procedencia.
-
-`public.css`, `public.js`, login, registro, recuperación, pantallas internas, rutas, modelos, permisos y lógica de negocio conservan su implementación anterior a este trabajo. Los cambios preexistentes del prototipo de confirmación quedan fuera de esta entrega.
-
-## Fotografías
-
-Se mantienen los originales compartidos sin modificarlos. Las copias de uso exclusivo de la landing tienen las mismas dimensiones y los mismos píxeles decodificados, verificados con Pillow; sólo incorporan procedencia en metadatos. El encuadre del folleto del equipo se hace mediante CSS, sin retocar la fotografía.
-
-| Archivo | Fuente documentada |
+| Rol | Implementación en v3 |
 | --- | --- |
-| `doc-equipo-original.jpg` | `MARKETIN (1).pptx`, `ppt/media/image6.jpeg` |
-| `doc-radiografias.jpg` | Mismo PowerPoint, `ppt/media/image1.jpeg` |
-| `doc-planificacion.png` | Conversión existente de `ppt/media/image2.tiff` del mismo PowerPoint |
+| h1 | `clamp(44px, 4.5vw, 64px)`, peso 650, línea 1.08; 48 px bajo 860 px, 38 px bajo 600 px con línea 1.12 y 36 px hasta 360 px. Rampa intacta. |
+| h2 de servicios y contacto | 48 / 40 / 30 px en escritorio, tablet y móvil; valores de la rampa existente, peso 650 y línea 1.15. |
+| Otros h2 | 40 / 34 / 30 px; peso 650 y línea 1.15. |
+| Títulos de servicios | 34 / 28 / 24 px; complementarios usa 28 px en escritorio y 24 px en móvil. |
+| Pie del equipo | 40 / 34 / 28 / 20 px según los cortes de 1100, 860 y 600 px. |
+| Profesionales | 24 px en escritorio y 18 px bajo 1100 px. |
+| Lectura y acciones | Cuerpo base de 16 px, textos de 15–17 px y línea base 1.6; acciones de 15 px y peso 600. Los títulos auxiliares conservan tamaños según su función. |
 
-Escaneo de procedencia: tres rasters, ninguno sin metadatos. No se generaron fotografías ni activos de marca.
+El contenedor llega a 1220 px, con márgenes laterales de 40 px, 24 px bajo 860 px y 16 px bajo 600 px. Servicios usa columnas de proporción 1 / 1.1 y separación de 80 px en escritorio, reducida en tablet. Tomografía se desplaza 64 / 40 / 0 px; las columnas se apilan bajo 600 px. La imagen de radiografías se muestra a 340 px en escritorio dentro de la superficie fría; conserva su fuente de 316 × 260 px y pasa a 300 px en móvil.
 
-## Verificación y límites
+El encuadre del equipo usa ventanas de 400 / 340 / 300 px. La imagen se presenta a 760 / 640 / 560 px, con desplazamiento superior de −325 / −290 / −255 px en escritorio, tablet y móvil. El pie pasa debajo de la imagen en móvil. El isotipo del centro mide 104 px en escritorio, 80 px bajo 1100 px y se oculta bajo 860 px; el texto y los profesionales permanecen. Centro y acceso terminan en una columna, y contacto se apila bajo 860 px.
 
-Pasaron 19 pruebas existentes de `apps.core.tests.test_landing` y `apps.core.tests.test_public_forms` con settings de test. Las comprobaciones de navegador cubrieron 1440, 1024, 768, 390 y 320 px, menú abierto, acceso autenticado sintético, ayuda abierta, navegación sin JavaScript y movimiento reducido. No se detectó desbordamiento horizontal, fotos sin cargar, controles principales menores de 44 px ni referencias ARIA rotas en los casos medidos.
+Los botones mantienen 48 px, navegación y enlaces principales al menos 44 px y radios de control de 6 px. Fondos contrastantes, fotografía y líneas finas aportan profundidad. Hover sin desplazamiento, transiciones de 150 ms y foco de 3 px con offset de 4 px, claro sobre azul. Se respeta movimiento reducido. El menú móvil abre en el flujo del encabezado; Escape lo cierra y devuelve el foco. Sin JavaScript, la navegación queda disponible. Las anclas contemplan el encabezado sticky y la ayuda usa `details/summary` nativos.
 
-`zoom-200.png` representa reflow equivalente a una ventana física de 640 px al 200%: viewport CSS de 320 px y escala 2. No es una prueba de zoom real del navegador ni de ampliación exclusiva del texto. La vista previa loopback renderiza templates reales sin base clínica y no valida un flujo de autenticación real. No se activaron enlaces externos de correo, teléfono o mapa.
+## Fuentes, fotografías y aislamiento
 
-Se utilizaron once capturas y mediciones de navegador. El servidor de vista previa se reinició antes de las capturas finales para descartar templates en caché. El detector se ejecutó una vez: 29 advertencias informativas (8 de color y 21 de tamaño); ninguna de severidad superior. Los tamaños corresponden a la jerarquía pública de esta página; los tonos auxiliares se documentan como usos locales. El negro inferido en includes de Django no corresponde al color renderizado. No se modificó el sistema global para silenciar advertencias.
+Los cambios de interfaz de v3 están en `templates/core/landing.html` y `static/core/css/landing.css`. La hoja adicional se carga sólo en la landing, con versión de caché `claridad-clinica-3`; sus overrides quedan bajo `.landing-page` y clases propias. El template añade el span del h1 y concentra cinco etiquetas Django previamente multilínea en una línea para corregir su parseo, sin cambiar expresiones ni condiciones. Se reutilizan `public_base.html`, `public.css`, `public.js`, `brand.html` y los SVG locales sin modificaciones en esta iteración.
 
-No hubo comp aprobada ni referencia externa disponible del catálogo QualityBar; el criterio de fidelidad es la dirección institucional fijada por el usuario y el material local. La revisión independiente y la comparación documental registran su alcance por separado; no sustituyen la validación humana ni autorizan extender el diseño.
+Las tres fotografías institucionales se conservaron sin editar píxeles ni crear assets. Su procedencia permanece en metadatos:
+
+| Archivo en `static/core/images/landing/` | Fuente documentada |
+| --- | --- |
+| `doc-equipo-original.jpg` | `MARKETIN (1).pptx`, `ppt/media/image6.jpeg`. |
+| `doc-radiografias.jpg` | Mismo PowerPoint, `ppt/media/image1.jpeg`. |
+| `doc-planificacion.png` | Conversión existente de `ppt/media/image2.tiff` del mismo PowerPoint. |
+
+El escaneo de procedencia registra tres rasters y ninguno sin metadatos. No se modificaron backend, rutas, permisos, lógica de negocio, otras pantallas ni framework. No se crearon commits ni se hicieron pushes en esta pasada.
+
+## Verificación actual y límites
+
+Pasaron 19 pruebas existentes de `apps.core.tests.test_landing` y `apps.core.tests.test_public_forms` con `config.settings.test`; `git diff --check` pasó. La evidencia actual está en `.impeccable/review/landing-bolder/verification.json`, `detector.json`, `review.md` y diez capturas finales. Helpers, capturas, brief, sidecar y skill permanecen locales en `.agents`, `.impeccable` y `.local`, carpetas ignoradas por Git por instrucción del usuario; la aplicación no depende de esos artefactos.
+
+Las mediciones cubrieron 1440, 1280, 1024, 768, 390 y 320 px, además de menú móvil y navegación sin JavaScript. No detectaron overflow horizontal, referencias ARIA rotas, imágenes sin cargar, errores de consola ni controles principales inferiores a 44 px. Los textos medidos cumplieron contraste AA, incluido el énfasis del hero, pie fotográfico y enlaces. Se verificaron menú, Escape, devolución de foco, ancla de contacto sin obstrucción, ayuda nativa y movimiento reducido. Estos resultados describen los casos medidos y no equivalen a una auditoría completa de accesibilidad.
+
+La vista previa v3 usa Django real en `http://127.0.0.1:8001/?v=3`. `GET /auth/login/` devolvió 200 con formulario, campos de usuario y contraseña y CSRF reales. No se enviaron credenciales, no se probó POST de autenticación ni el flujo autenticado completo, y no hubo escrituras en la base clínica ni migraciones. No se verificó zoom real al 200 %. Las pruebas históricas de otras versiones no se trasladan a esta entrega.
+
+El detector se ejecutó una vez: 48 observaciones advisory, 18 de color y 30 de tamaño, sin hallazgos hard. Se contrastaron con fuentes y render real: el negro inferido al analizar includes Django sin resolver no describe el texto renderizado; la rampa pública local difiere de la compacta de confirmación. No se alteró el sistema global para silenciar observaciones. El catálogo externo QualityBar estuvo indisponible y no hubo comp nueva: no se afirma un techo externo verificado.
 
 ## Comparación con el sistema registrado
 
-La comparación documental se realizó sobre `landing.css`, `landing.html`, `public_base.html`, la base y el script públicos, `confirmation.css`, `DESIGN.md` y `.impeccable/design.json`. Estos dos últimos registran exclusivamente el prototipo de confirmación; se preservan sin cambios conforme a la regla de extensiones ordinarias. Los siguientes usos describen esta landing y no agregan tokens globales.
+Se contrastaron template y CSS con `PRODUCT.md`, `DESIGN.md`, `.impeccable/design.json`, la propuesta visual y fuentes públicas compartidas; `confirmation.css` corrobora tonos auxiliares. La propuesta permite mayor libertad de composición y fotografía institucional con la misma familia y marca. DESIGN y sidecar registran confirmación: sus tokens permanecen intactos y la rampa de landing no se eleva a regla global.
 
-| Aspecto | Comparación de fuente y alcance |
+| Aspecto | Evidencia y alcance |
 | --- | --- |
-| Paleta | Los ocho colores principales coinciden con el frontmatter de `DESIGN.md`; hover azul `#003b50` y borde `#a9c0c8` también están registrados. El estado activo usa localmente `#002e40`. |
-| Tonos auxiliares | Selección `#c8ecec` y scrollbar `#8aabb4` / `#edf3f5` ya aparecen en `confirmation.css`. Ayuda sobre azul `#d1edf2`, línea `#328498` y foco `#8ae0e4` existen en confirmación y en snippets/foco del sidecar, aunque no son primitivos del frontmatter. Esta cobertura documental incompleta es previa a la landing. |
-| Familia y jerarquía | Segoe UI continúa la familia registrada; el wordmark conserva Arial. La rampa pública h1 56/48/46/36 px, h2 34/28 px y servicios 22 px adapta la composición institucional permitida. Cuerpo 15–17 px y línea 1.6 amplían el tratamiento compacto de gestión. El descriptor de marca es 6.5 px heredado en escritorio y 6 px en la landing móvil; no se convierte en escala de contenido. |
-| Formas y profundidad | Botones 6 px, fotografías de servicio 8 px y banda/panel 12 px coinciden con los radios registrados. Divisiones de 1 px y superficies planas continúan la gramática de confirmación; las filas de servicios no heredan sus formularios ni su densidad. |
-| Estados y comportamiento | Botón principal de 48 px, enlaces/navegación de 44 px y foco turquesa de 3 px continúan la intención accesible del prototipo, con offset local de 4 px. Hover sin desplazamiento ni sombra, transiciones de 150 ms, ayuda nativa y movimiento reducido son usos locales; el menú reutiliza `public.js` sin modificarlo. |
+| Paleta | Colores principales, hover `#003b50`, borde `#a9c0c8` y coral coinciden con el frontmatter. El activo `#002e40` es un uso local conservado. Todos los colores literales de v3 ya pertenecían al CSS v2. |
+| Tonos auxiliares | Selección `#c8ecec`, scrollbar `#8aabb4` / `#edf3f5`, apoyo sobre azul `#d1edf2`, línea `#328498` y foco `#8ae0e4` aparecen en confirmación; algunos están en snippets o foco del sidecar, sin ser primitivos del frontmatter. Su cobertura documental incompleta es preexistente. |
+| Tipografía | Misma Segoe UI y wordmark Arial. La rampa pública y línea 1.6 responden a la composición institucional; no sustituyen la rampa compacta de confirmación. El descriptor de marca de 6.5 px heredado, 6 px en móvil, no se canoniza como contenido. |
+| Forma y estados | Controles de 6 px, bordes finos, superficies planas y foco turquesa continúan la gramática registrada. Escala, encuadre, offsets y composiciones sin tarjetas son aplicaciones locales. |
+| Fuentes compartidas | `public.css` conserva tonos neutros, radios, sombras y tratamientos heredados distintos. Los overrides no normalizan otras páginas ni trasladan a gestión la composición pública. |
 
-No se canonizan ni reparan el descriptor diminuto de marca, los valores auxiliares no enumerados como primitivos ni los estilos públicos heredados fuera de alcance. Tampoco se traslada la jerarquía institucional a gestión.
+Se actualizó únicamente la última decisión de PRODUCT y la oración de estado de aprobación del Overview de DESIGN para registrar la dirección y base aceptadas y la validación de v3 pendiente. No se modificaron frontmatter, tokens, normativa ni sidecar. El overview del sidecar describe la interfaz pública anterior; la propuesta y otros pasajes de producto conservan pendientes históricos sobre marketing. Ese drift preexistente no se repara aquí ni valida v3. Tampoco se canonizan el descriptor diminuto de marca o los valores auxiliares incompletamente registrados.
 
-La revisión independiente tuvo disposición **ship**, sin arreglos materiales, después de inspeccionar las once capturas finales. Este documento conserva el resultado de esa revisión. El estado autenticado de la vista previa era sintético (`auth=1`) y las limitaciones de zoom y autenticación indicadas arriba permanecen vigentes.
+## Revisión y estado de entrega
 
-## Limpieza e integración
+La revisión independiente completa abrió doce capturas válidas: dos anteriores y diez finales. Sus cinco apartados —persistencia, fidelidad, techo, arreglos materiales y elementos a conservar— registran correspondencia con THESIS, OWN-WORLD, STORY, FIRST VIEWPORT y FORM. El reflow es la adaptación prevista. No pidió arreglos visuales materiales y recomendó conservar diagnóstico destacado, franja del equipo, catálogo escalonado, profesionales reales y acceso azul/blanco, con servicios y contacto prioritarios.
 
-Por solicitud del usuario se eliminaron capturas, resultados temporales, servidores de vista previa y la instalación local de la skill. La aplicación depende de los templates, CSS, JavaScript y fotografías institucionales conservados, y de su backend Django existente. No depende de estas herramientas de revisión. Para iniciar sesión se debe usar el servidor Django habitual; la antigua vista previa del puerto 8768 no implementaba autenticación.
-
-Antes de los commits, en la rama actual, pasaron 58 pruebas de landing, formularios públicos, vistas de estudios, lotes mezclados y paginación. Las fotos institucionales y los assets del visor se conservaron en el equipo; las exclusiones de Git distinguen recursos de la página de capturas y archivos generados.
+Su disposición final fue **ship**. El veredicto cubre el lote revisado y las verificaciones registradas; no confirma el techo externo ni sustituye la validación visual del usuario. La dirección y base v2 están aceptadas; la amplificación v3 permanece pendiente de esa validación humana y no autoriza extenderla a otras pantallas.

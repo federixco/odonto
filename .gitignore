@@ -8,7 +8,6 @@ htmlcov/
 # Entornos y secretos
 .venv/
 venv/
-.local/
 node_modules/
 static/visor/dist/
 test-results/
@@ -42,7 +41,7 @@ Thumbs.db
 logs/*
 !logs/.gitkeep
 
-# Evidencia temporal de revisión visual
-.impeccable/review/
-.impeccable/critique/
-.impeccable/config.local.json
+# Herramientas de agentes y archivos locales
+/.agents/
+/.impeccable/
+/.local/

@@ -311,6 +311,13 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {leyendo = false;}
     });
 
+    // Entradas alternativas usan exactamente el mismo lector y procesamiento.
+    root.docImportacion = Object.freeze({
+        cargar: procesar,
+        leerEntrada: recorrerEntrada,
+        get ocupada() {return root.dataset.busy === "true" || cancelando || leyendo || !!pendiente;},
+    });
+
     window.DOC_manejarDropOdontologo = async function(e, nombreOdontologo, idOdontologo) {
         e.preventDefault();
         e.stopPropagation();
