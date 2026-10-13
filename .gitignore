@@ -9,6 +9,11 @@ htmlcov/
 .venv/
 venv/
 .local/
+node_modules/
+static/visor/dist/
+test-results/
+playwright-report/
+data/visor/
 .env
 .env.*
 !.env.example

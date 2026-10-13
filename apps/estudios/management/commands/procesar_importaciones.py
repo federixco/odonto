@@ -4,6 +4,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import close_old_connections, connection, OperationalError
 from apps.estudios.services.trabajos import procesar_uno
 from apps.estudios.services.cancelacion import limpiar_cancelaciones
+from apps.estudios.services.visor import procesar_visor_uno
 
 
 class Command(BaseCommand):
@@ -22,6 +23,7 @@ class Command(BaseCommand):
                 try:
                     procesado = procesar_uno()
                     limpiar_cancelaciones()
+                    procesado = procesar_visor_uno() or procesado
                 except OperationalError:
                     if options["una_vez"]:
                         raise

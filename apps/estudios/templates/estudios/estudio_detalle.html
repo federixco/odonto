@@ -24,6 +24,7 @@
         {% endif %}
     </header>
 
+    {% if estudio.estado != 'ELIMINADO' %}<p><a class="button" href="{% url 'visor_estudio' estudio.pk %}">Abrir visor 3D y cortes</a></p>{% endif %}
     <section class="study-summary-grid" aria-label="Resumen del estudio">
         <article><span>Paciente</span><strong>{{ estudio.paciente }}</strong><a href="{% url 'paciente_detalle' estudio.paciente_id %}">Ver ficha →</a></article>
         <article><span>Fecha del estudio</span><strong>{{ estudio.fecha_estudio|date:'d/m/Y' }}</strong><small>Cargado {{ estudio.created_at|date:'d/m/Y H:i' }}</small></article>

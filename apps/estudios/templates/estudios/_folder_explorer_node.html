@@ -41,6 +41,10 @@
                             {% include 'core/includes/icon.html' with name='eye' %} Ver
                         </a>
                         {% endif %}
+                    {% elif archivo.formato == 'STL' or archivo.formato == 'PLY' or archivo.formato == 'DICOM' %}
+                        {% if archivo.estado == 'COMPLETO' and estudio.estado != 'ELIMINADO' %}
+                        <a class="button button-small" href="{% url 'visor_estudio' estudio.pk %}?archivo={{ archivo.pk }}">{% if archivo.formato == 'DICOM' %}Ver series{% else %}Ver en 3D{% endif %}</a>
+                        {% endif %}
                     {% elif archivo.formato == 'GALILEOS' or archivo.formato == 'SIDEXIS' %}
                         <span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: 600;" title="Paquete para visor externo instalado en la computadora del profesional">
                             Visor Externo

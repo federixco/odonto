@@ -1,4 +1,5 @@
 from django.urls import path
+from . import visor_views
 from .views_cargas import EstadoImportacionView, CancelarImportacionView, SelectorView
 from .views import (AgregarAccesoEstudioView, AnalizarImportacionView,
                     CompletarArchivoImportadoView, ConfirmarImportacionView, CrearEstudioView,
@@ -10,6 +11,11 @@ from .views import (AgregarAccesoEstudioView, AnalizarImportacionView,
                     RevocarAccesoEstudioView, PublicarEstudioView, VerEstudioView)
 
 urlpatterns = [
+    path("<int:pk>/visor/", visor_views.pagina, name="visor_estudio"),
+    path("<int:pk>/visor/catalogo/", visor_views.catalogo, name="visor_catalogo"),
+    path("<int:pk>/visor/series/<str:serie_id>/", visor_views.serie, name="visor_serie"),
+    path("<int:pk>/visor/archivos/<int:archivo_id>/contenido/", visor_views.contenido, name="visor_contenido"),
+    path("<int:pk>/visor/eventos/", visor_views.eventos, name="visor_eventos"),
     path("selectores/pacientes/", SelectorView.as_view(), name="selector_pacientes"),
     path("selectores/odontologos/", SelectorView.as_view(tipo="odontologos"), name="selector_odontologos"),
     path("importaciones/<int:importacion_id>/estado/", EstadoImportacionView.as_view(), name="importacion_estado"),

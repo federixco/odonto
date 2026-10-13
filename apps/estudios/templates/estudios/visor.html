@@ -1,0 +1,51 @@
+{% load static %}
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+  <title>Visor de estudios | D.O.C.</title>
+  <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'visor/dist/visor.css' %}">
+  <script type="module" src="{% static 'visor/dist/visor.js' %}"></script>
+</head>
+<body>
+  <header class="visor-header">
+    <a class="brand" href="{{ volver }}"><img src="{% static 'core/images/doc-isotipo.svg' %}" alt="">D.O.C.<span>Visor de estudios</span></a>
+    <a class="back" href="{{ volver }}">← Volver al estudio</a>
+  </header>
+  <main id="visor-app" class="visor-app">
+    <aside class="visor-panel" aria-label="Archivos y series disponibles">
+      <p class="eyebrow">EXPLORACIÓN VISUAL</p>
+      <h1>Tu estudio,<br>otra perspectiva.</h1>
+      <p class="study-label">{{ estudio.tipo }} · {{ estudio.fecha_estudio|date:'d/m/Y' }}</p>
+      <label for="contenido-selector">Elegí qué querés ver</label>
+      <select id="contenido-selector"><option value="">Cargando opciones…</option></select>
+      <div class="mode-buttons"><button id="cortes" type="button" disabled>Ver cortes</button><button id="volumen" type="button" disabled>Vista 3D</button></div>
+      <p id="compatibilidad" class="hint"></p>
+      <button id="actualizar" class="text-button" type="button">Actualizar opciones</button>
+      <p id="catalogo-estado" class="hint" aria-live="polite"></p>
+      <details class="help"><summary>¿Cómo lo uso?</summary><p>Modelos: arrastrá para rotar; botón derecho para desplazar. Rueda o dos dedos para zoom.</p><p>Cortes: arrastrá para desplazar y usá las flechas o la barra inferior para recorrerlos. En el volumen, arrastrá para rotar.</p><p>También podés usar los botones de la pantalla. No se incluyen mediciones ni herramientas clínicas.</p></details>
+      <p class="disclaimer">Visualización orientativa. No sustituye al software diagnóstico ni a la evaluación del profesional.</p>
+      {% if request.user.rol != 'PACIENTE' %}<a class="text-button" href="{% url 'estudio_ver' estudio.pk %}">Archivos originales y descarga →</a>{% endif %}
+    </aside>
+    <section class="viewer" aria-label="Visualizador interactivo">
+      <div class="toolbar" aria-label="Controles del visor">
+        <button id="reset" type="button" disabled>Restablecer</button>
+        <button id="zoom-in" type="button" disabled aria-label="Acercar">＋</button>
+        <button id="zoom-out" type="button" disabled aria-label="Alejar">−</button>
+        <button id="rotate" type="button" disabled>Rotar</button>
+        <button id="fullscreen" type="button">Pantalla completa</button>
+        <button id="close" type="button">Cerrar vista</button>
+      </div>
+      <div id="lienzo" class="canvas" tabindex="0" aria-label="Imagen del estudio; controles de navegación arriba y abajo"></div>
+      <div id="vacio" class="empty"><span class="empty-icon" aria-hidden="true">◎</span><h2>Elegí un modelo o una serie</h2><p>Los archivos se cargan al abrirlos.<br>Tu información permanece dentro del acceso privado.</p></div>
+      <div class="status"><span id="estado" role="status">Preparando catálogo…</span><progress id="progreso" max="100" hidden></progress><button id="reintentar" type="button" hidden>Volver a intentar</button></div>
+      <div id="slice-controls" class="slice-controls" hidden><button id="previous" type="button" aria-label="Corte anterior">←</button><label for="slice">Corte <output id="slice-value">1</output></label><input id="slice" type="range" min="1" max="1" value="1"><button id="next" type="button" aria-label="Corte siguiente">→</button></div>
+    </section>
+  </main>
+  <form hidden>{% csrf_token %}</form>
+  {{ visor_config|json_script:'visor-config' }}
+  <noscript>Para visualizar modelos y tomografías necesitás habilitar JavaScript.</noscript>
+</body>
+</html>

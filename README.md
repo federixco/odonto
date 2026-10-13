@@ -8,6 +8,10 @@ La estructura inicial se encuentra explicada en `docs/arquitectura/estructura-ca
 
 Antes de publicar, seguir la [guía de despliegue seguro](docs/entorno/despliegue-seguro.md).
 
+El [visualizador 3D y DICOM](docs/arquitectura/visualizador.md) requiere `npm ci` y
+`npm run build` antes de `collectstatic`. Para preparar series DICOM, mantener
+activo `python manage.py procesar_importaciones`. No hay migraciones nuevas por el visor.
+
 ## Arranque local
 
 Con Python instalado, ejecutar desde la raíz del proyecto:

@@ -163,6 +163,18 @@ ZIP_MAX_ARCHIVOS = _env_int("ZIP_MAX_ARCHIVOS", 5000)
 ZIP_RESERVA_DISCO = _env_int("ZIP_RESERVA_DISCO", 512 * 1024 * 1024)
 ZIP_TEMP_DIR = os.getenv("ZIP_TEMP_DIR") or None
 
+# Visor: caché técnica privada (nunca MEDIA/STATIC), compartida con el worker.
+VISOR_CACHE_DIR = BASE_DIR / "data" / "visor"
+VISOR_CACHE_TTL = _env_int("VISOR_CACHE_TTL", 3600)
+VISOR_HEADER_BYTES = _env_int("VISOR_HEADER_BYTES", 512 * 1024)
+VISOR_MAX_FILES = _env_int("VISOR_MAX_FILES", 5000)
+VISOR_MAX_MESH_BYTES = _env_int("VISOR_MAX_MESH_BYTES", 80 * 1024 * 1024)
+VISOR_MAX_VERTICES = _env_int("VISOR_MAX_VERTICES", 2000000)
+VISOR_MAX_FRAMES = _env_int("VISOR_MAX_FRAMES", 1500)
+VISOR_MAX_IMAGE_BYTES = _env_int("VISOR_MAX_IMAGE_BYTES", 64 * 1024 * 1024)
+VISOR_MAX_VOLUME_BYTES = _env_int("VISOR_MAX_VOLUME_BYTES", 256 * 1024 * 1024)
+VISOR_CONCURRENCY = max(1, min(4, _env_int("VISOR_CONCURRENCY", 4)))
+
 # Diagnóstico opt-in de pruebas: 5 MiB por archivo y tres copias anteriores.
 CARGA_LOG_ENABLED = _env_bool("CARGA_LOG_ENABLED", False)
 if CARGA_LOG_ENABLED:
