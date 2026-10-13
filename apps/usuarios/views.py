@@ -48,8 +48,15 @@ class DashboardAdminView(AdminRequeridoMixin, View):
         return redirect("importacion_crear")
 
 
-class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
+class DashboardOdontologoView(TemplateView):
     template_name = "usuarios/dashboard_odontologo.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect("login")
+        if request.user.rol not in (RolUsuario.ODONTOLOGO, RolUsuario.ADMINISTRADOR):
+            raise PermissionDenied("No tienes permisos para acceder a esta vista.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -65,6 +72,10 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
             base_qs = Estudio.objects.filter(
                 autorizaciones__odontologo=odontologo,
                 autorizaciones__estado_acceso=EstadoAcceso.VIGENTE,
+                estado=EstadoEstudio.PUBLICADO,
+            ).select_related("paciente")
+        elif self.request.user.rol == RolUsuario.ADMINISTRADOR:
+            base_qs = Estudio.objects.filter(
                 estado=EstadoEstudio.PUBLICADO,
             ).select_related("paciente")
         else:

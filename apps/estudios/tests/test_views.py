@@ -257,23 +257,22 @@ class EstudioViewsTests(TestCase):
             reverse("importacion_detalle", args=[importacion.pk])
         )
 
-        self.assertContains(response, "Datos encontrados automáticamente")
+        self.assertContains(response, "Datos del estudio")
         self.assertContains(response, "Gómez, María")
-        self.assertContains(response, "Confirmar estudio")
-        self.assertContains(response, "¿Hay un dato incorrecto?")
-        self.assertContains(response, "Corregir paciente o datos detectados")
-        self.assertContains(response, "Elegí el odontólogo derivante")
-        self.assertContains(response, "Nombre, apellido, matrícula o correo")
+        self.assertContains(response, "Guardar como borrador")
+        self.assertContains(response, "Corregir paciente o datos")
+        self.assertContains(response, "Odontólogo derivante")
+        self.assertContains(response, "Nombre, matrícula o correo")
         self.assertNotContains(response, "Torres, Ana")
         profesionales = self.client.get(reverse("selector_odontologos"), {"q": "Torres"})
         self.assertEqual(profesionales.status_code, 200)
         self.assertEqual(profesionales.json()["resultados"][0]["id"], self.derivante.pk)
         contenido = response.content.decode()
         self.assertLess(
-            contenido.index("¿Hay un dato incorrecto?"),
-            contenido.index("Elegí el odontólogo derivante"),
+            contenido.index("Corregir paciente o datos"),
+            contenido.index("Odontólogo derivante"),
         )
-        self.assertNotContains(response, '<details class="detected-edit" open>')
+        self.assertNotContains(response, '<details class="confirmation-correction" open>')
 
     def _crear_importacion_confirmable(self, nombre_carpeta):
         importacion = ImportacionEstudio.objects.create(

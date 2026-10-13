@@ -124,6 +124,18 @@ class TablerosEtapa4Tests(TestCase):
         self.assertContains(resp, "Mendoza, Lucas")
         self.assertNotContains(resp, "Ríos, María")
 
+    def test_dashboard_odontologo_incluye_guia_tutorial(self):
+        self.client.login(username="dr_perez", password=self.password)
+        resp = self.client.get(reverse("dashboard_odontologo"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "id=\"btn-abrir-tutorial\"")
+        self.assertContains(resp, "id=\"modal-tutorial-derivante\"")
+        self.assertContains(resp, "Guía del Consultorio Virtual")
+        self.assertContains(resp, "Búsqueda y Filtros de Pacientes")
+        self.assertContains(resp, "Visor Diagnóstico Web 2D y 3D")
+        self.assertContains(resp, "Descarga de Carpeta Completa (.ZIP)")
+        self.assertContains(resp, "Privacidad y Permisos de Derivación")
+
     def test_dashboard_paciente_aislamiento(self):
         self.client.login(username="paciente_uno", password=self.password)
         resp = self.client.get(reverse("dashboard_paciente"))
@@ -132,3 +144,54 @@ class TablerosEtapa4Tests(TestCase):
         self.assertContains(resp, "Panorámica Digital")
         # No debe ver estudios de María
         self.assertNotContains(resp, "Tomografía Cone Beam")
+
+
+class NotificacionesAdminTests(TestCase):
+    def setUp(self):
+        self.password = "Clave-Segura-2026!"
+        self.admin = User.objects.create_superuser(
+            username="admin_test",
+            password=self.password,
+            email="admin@test.com",
+            rol=RolUsuario.ADMINISTRADOR,
+            estado=EstadoCuenta.HABILITADA,
+        )
+
+    def test_notificacion_admin_badge_muestra_odontologos_pendientes(self):
+        self.client.login(username="admin_test", password=self.password)
+        
+        # Sin pendientes inicialmente
+        resp = self.client.get(reverse("odontologo_lista"))
+        self.assertEqual(resp.context["odontologos_pendientes_count"], 0)
+        self.assertNotContains(resp, "admin-notification-badge")
+        self.assertNotContains(resp, "admin-pending-pill")
+
+        # Crear odontólogo pendiente
+        user_pend = User.objects.create_user(
+            username="odon_pend",
+            password=self.password,
+            email="pend@test.com",
+            rol=RolUsuario.ODONTOLOGO,
+            estado=EstadoCuenta.PENDIENTE,
+        )
+        Odontologo.objects.create(
+            usuario=user_pend,
+            nombre="Laura",
+            apellido="Gómez",
+            matricula="MP-9999",
+        )
+
+        resp = self.client.get(reverse("odontologo_lista"))
+        self.assertEqual(resp.context["odontologos_pendientes_count"], 1)
+        self.assertContains(resp, "admin-notification-badge")
+        self.assertContains(resp, "admin-pending-pill")
+        self.assertContains(resp, "<strong>1</strong> pendiente")
+
+        # Habilitar el odontólogo
+        user_pend.estado = EstadoCuenta.HABILITADA
+        user_pend.save()
+
+        resp = self.client.get(reverse("odontologo_lista"))
+        self.assertEqual(resp.context["odontologos_pendientes_count"], 0)
+        self.assertNotContains(resp, "admin-notification-badge")
+        self.assertNotContains(resp, "admin-pending-pill")

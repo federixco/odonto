@@ -1,0 +1,125 @@
+/* Familia de acceso D.O.C.; cargada exclusivamente por auth_base. */
+.access-page { --navy:#004b64; --teal:#007d85; --ink:#163c48; --muted:#50666f; --line:#d7e3e7; --pale:#edf6f6; --field-line:#a9c0c8; background:#fff; color:var(--ink); font-family:"Segoe UI",sans-serif; font-size:16px; line-height:1.6; accent-color:var(--teal); scrollbar-color:#8aabb4 #edf3f5; }
+.access-page ::selection { background:#c8ecec; color:#003b50; }
+.access-page { display:flex; flex-direction:column; min-height:100vh; }
+.access-page > main { flex:1; }
+.access-page .container { width:min(1120px,calc(100% - 80px)); }
+.access-page :is(a,button,input,summary):focus-visible { outline:3px solid var(--teal); outline-offset:3px; }
+.access-page a { text-underline-offset:4px; }
+.access-header { border-top:4px solid var(--navy); border-bottom:1px solid var(--line); background:#fff; }
+.access-header-inner { display:flex; justify-content:space-between; align-items:center; gap:24px; min-height:92px; padding-block:12px; }
+.access-back { display:inline-flex; align-items:center; gap:10px; min-height:44px; color:var(--navy); font-size:14px; font-weight:600; text-decoration:none; }
+.access-back:hover { text-decoration:underline; }
+.access-back .icon { width:18px; height:18px; transform:rotate(180deg); }
+.access-page .access-layout { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,.85fr); gap:80px; align-items:start; padding-block:64px 80px; }
+.access-main { min-width:0; }
+.access-main h1 { font-size:2.5rem; font-weight:650; line-height:1.15; letter-spacing:-.025em; text-wrap:balance; }
+.access-description { color:var(--muted); font-size:16px; margin-top:16px; max-width:58ch; }
+.access-page .access-form { margin-top:32px; }
+.access-page .form-field { margin:0 0 24px; min-width:0; }
+.access-page .form-field label { display:block; font-size:14px; line-height:1.5; font-weight:600; margin-bottom:8px; }
+.access-page .optional-label { color:var(--muted); font-size:13px; font-weight:400; }
+.access-page .form-field input { width:100%; min-height:48px; padding:11px 14px; border:1px solid var(--field-line); border-radius:6px; background:#fff; color:var(--ink); font-size:16px; line-height:1.5; caret-color:var(--teal); box-shadow:none; }
+.access-page .form-field input:hover { border-color:var(--teal); }
+.access-page .form-field input:focus { border-color:var(--teal); }
+.access-page .form-field input::placeholder { color:var(--muted); opacity:1; }
+.access-page .form-field input:disabled { color:#687c84; background:#f2f5f6; opacity:1; cursor:not-allowed; }
+.access-page .form-field.has-error input, .access-page .form-field input[aria-invalid="true"] { border-color:#8a3633; }
+.access-page .password-field { position:relative; }
+.access-page .password-field input { padding-right:96px; }
+.access-page .password-toggle { position:absolute; right:2px; top:2px; bottom:2px; min-height:44px; min-width:76px; padding:8px; font-size:14px; font-weight:600; border:0; border-radius:6px; color:var(--teal); background:transparent; }
+.access-page .password-toggle:hover { background:var(--pale); }
+.access-page .errorlist { margin:0; padding:0; list-style:none; color:#8a3633; font-size:14px; line-height:1.5; }
+.access-page .errorlist li + li { margin-top:6px; }
+.access-field-errors { margin-top:8px; }
+.access-page .form-errors { padding:16px 18px; margin:0 0 24px; border:1px solid #e9bdb7; border-radius:8px; background:#fff4f2; color:#8a3633; font-size:14px; line-height:1.5; scroll-margin-block:24px; }
+.access-page .form-errors:focus { outline:3px solid #8a3633; outline-offset:3px; }
+.access-page .form-errors > p { font-weight:600; }
+.access-page .form-errors > p + .errorlist:not(:empty) { margin-top:8px; }
+.access-page .button { min-height:48px; padding:12px 18px; border:1px solid var(--navy); border-radius:6px; background:var(--navy); color:#fff; font-size:15px; font-weight:600; line-height:1.4; box-shadow:none; transition:background-color 150ms ease-out,border-color 150ms ease-out; }
+.access-page .button:hover { background:#003b50; border-color:#003b50; transform:none; box-shadow:none; }
+.access-page .button:active { background:#002e40; border-color:#002e40; }
+.access-page .button:disabled { background:#f2f5f6; color:#687c84; border-color:var(--line); cursor:not-allowed; }
+.access-page .button .icon { width:18px; height:18px; }
+.access-page .login-submit { width:100%; justify-content:space-between; margin-top:16px; gap:16px; }
+.access-recovery { display:flex; justify-content:end; align-items:center; min-height:44px; font-size:14px; margin-top:-8px; }
+.access-page .auth-bottom-link { font-size:14px; margin-top:20px; }
+.access-page .auth-bottom-link a { display:inline-flex; align-items:center; min-height:44px; }
+.access-aside { min-width:0; background:var(--navy); color:#fff; padding:40px; }
+.access-aside h2 { font-size:20px; font-weight:600; line-height:1.35; letter-spacing:-.01em; }
+.access-aside > h2:first-child::after { content:""; display:block; width:40px; height:2px; background:#f66d68; margin-top:24px; }
+.access-aside p { color:#d1edf2; font-size:15px; margin-top:20px; }
+.access-aside a { color:#8ae0e4; }
+.access-aside a:focus-visible { outline-color:#8ae0e4; }
+.access-aside-link { display:inline-flex; align-items:center; min-height:44px; gap:12px; font-size:15px; font-weight:600; margin-top:20px; }
+.access-aside-link .icon { width:18px; height:18px; }
+.access-patient-help { border-top:1px solid #328498; margin-top:32px; padding-top:28px; }
+.access-page .recovery-layout .access-aside { background:var(--pale); color:var(--ink); }
+.access-page .recovery-layout .access-aside p { color:var(--muted); }
+.access-page .recovery-layout .access-aside a { color:var(--navy); }
+.access-page .recovery-layout .access-aside a:focus-visible { outline-color:var(--teal); }
+.access-page .notice { background:var(--pale); color:var(--navy); padding:16px 18px; border:1px solid var(--line); border-radius:8px; font-size:15px; margin-top:24px; }
+.access-page .notice a { color:var(--navy); }
+.access-page .system-messages { padding-top:24px; }
+.access-page .system-messages .notice { margin:0; }
+.access-patient-note { font-size:14px; color:var(--muted); margin-top:20px; }
+.access-patient-note a { display:inline; }
+.access-page .registration-notice { display:flex; align-items:start; gap:12px; padding:16px 18px; margin-top:24px; background:var(--pale); border:1px solid var(--line); border-radius:8px; font-size:15px; }
+.access-page .registration-notice .icon { width:20px; height:20px; color:var(--teal); margin-top:2px; }
+.access-page .registration-notice p { margin:0; font-size:inherit; line-height:inherit; }
+.access-page .access-form fieldset { border:0; margin:0; padding:0; min-width:0; }
+.access-page .access-form fieldset + fieldset { border-top:1px solid var(--line); padding-top:8px; margin-top:28px; }
+.access-page .access-form legend { padding:0; font-size:18px; font-weight:600; margin-bottom:20px; }
+.access-page .form-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; }
+.access-page .form-grid .form-field { margin:0; }
+.access-page .form-field-wide { grid-column:1/-1; }
+.access-page .password-guidance { border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin-top:24px; padding-block:0; }
+.access-page .password-guidance summary { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:52px; padding-block:12px; font-size:14px; font-weight:600; color:var(--teal); }
+.access-page .password-guidance .icon { width:18px; height:18px; transition:transform 150ms ease-out; }
+.access-page .password-guidance[open] .icon { transform:rotate(45deg); }
+.access-page .field-help { font-size:14px; line-height:1.6; color:var(--muted); margin-top:8px; }
+.access-page .field-help ul { padding-left:20px; margin:0; }
+.access-page .field-help li + li { margin-top:6px; }
+.access-page .password-guidance .field-help { padding-block:0 16px; }
+.access-steps { list-style:decimal; padding-left:24px; margin:28px 0 0; font-size:15px; }
+.access-steps li { padding-left:8px; }
+.access-steps li::marker { color:#8ae0e4; font-weight:600; }
+.access-steps li + li { margin-top:24px; }
+.access-steps strong { display:block; color:#fff; font-weight:600; }
+.access-steps p { margin-top:8px; font-size:14px; }
+.access-page .status-message { display:block; padding:18px; margin-top:24px; border-radius:8px; background:var(--pale); color:var(--navy); font-size:15px; line-height:1.6; }
+.access-page .status-message-warning { color:#715017; background:#fff8e9; border:1px solid #e9d7b5; }
+.access-result-icon { color:var(--teal); margin-bottom:20px; }
+.access-result-icon .icon { width:28px; height:28px; }
+.access-footer { margin-top:auto; }
+.access-footer-inner { display:flex; justify-content:space-between; gap:24px; border-top:1px solid var(--line); padding-block:24px; color:var(--muted); font-size:12px; }
+.access-footer-inner { align-items:center; }
+.access-footer-inner a { display:inline-flex; align-items:center; min-height:44px; font-size:14px; }
+@media(max-width:1100px) {
+    .access-page .access-layout { gap:48px; }
+    .access-aside { padding:32px; }
+}
+@media(max-width:860px) {
+    .access-page .container { width:min(640px,calc(100% - 48px)); }
+    .access-page .access-layout { grid-template-columns:minmax(0,1fr); gap:40px; padding-block:40px 56px; }
+    .access-main h1 { font-size:2.125rem; }
+    .access-aside { padding:32px; }
+}
+@media(max-width:600px) {
+    .access-page .container { width:calc(100% - 32px); }
+    .access-header-inner { min-height:80px; gap:16px; }
+    .access-page .brand-mark { width:42px; height:42px; }
+    .access-page .brand-type strong { font-size:34px; }
+    .access-page .brand-type > span { font-size:6px; }
+    .access-back { font-size:13px; gap:8px; }
+    .access-back .icon { width:16px; height:16px; }
+    .access-page .access-layout { padding-block:32px 40px; gap:32px; }
+    .access-main h1 { font-size:1.875rem; }
+    .access-page .access-form { margin-top:28px; }
+    .access-page .form-grid { grid-template-columns:minmax(0,1fr); gap:24px; }
+    .access-aside { padding:28px 24px; }
+    .access-footer-inner { flex-direction:column; align-items:start; gap:8px; }
+}
+@media(prefers-reduced-motion:reduce) {
+    .access-page *, .access-page *::before, .access-page *::after { animation:none; transition:none; scroll-behavior:auto; }
+}

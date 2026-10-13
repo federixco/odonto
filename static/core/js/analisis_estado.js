@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data.estado === "PENDIENTE_CONFIRMACION" || data.estado === "CONFIRMADA") {location.reload(); return;}
             if (data.estado === "ERROR" || data.estado === "CANCELADA") {location.reload(); return;}
             const fase = data.fase === "verificacion" ? "Verificando archivos" : "Analizando metadatos";
-            text.textContent = data.trabajo === "pendiente" ? "Esperando al trabajador de análisis. Si no avanza, iniciá el worker." : `${fase}: ${data.procesados} de ${data.total}.`;
+            text.textContent = data.trabajo === "pendiente" ? "El análisis está en espera. Si tarda más de lo habitual, consultá con el soporte del centro." : `${fase}: ${data.procesados} de ${data.total}.`;
         } catch (_) {text.textContent = "No pudimos consultar el estado. Reintentando…";}
         timer = setTimeout(revisar, 3000);
     }

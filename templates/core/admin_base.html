@@ -9,10 +9,11 @@
     <title>{% block title %}Administración | D.O.C.{% endblock %}</title>
     <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
     <link rel="stylesheet" href="{% static 'core/css/public.css' %}?v=details-scope-2">
-    <link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=admin-correccion-eliminacion-6">
+    <link rel="stylesheet" href="{% static 'core/css/admin.css' %}?v=admin-navegacion-unificada-7">
     <script src="{% static 'core/js/public.js' %}" defer></script>
+    {% block extra_styles %}{% endblock %}
 </head>
-<body class="admin-page">
+<body class="admin-page {% block body_class %}{% endblock %}">
     <a class="skip-link" href="#contenido">Saltar al contenido</a>
     <header class="admin-header">
         <div class="admin-container admin-header-inner">
@@ -21,6 +22,12 @@
                 <span class="admin-header-caption">Plataforma de estudios<br><strong>Administración del centro</strong></span>
             </div>
             <div class="admin-account">
+                {% if odontologos_pendientes_count > 0 %}
+                <a href="{% url 'odontologo_lista' %}" class="admin-notification-badge" title="{{ odontologos_pendientes_count }} solicitud{{ odontologos_pendientes_count|pluralize }} pendiente{{ odontologos_pendientes_count|pluralize }} de habilitación">
+                    <span class="badge-dot" aria-hidden="true"></span>
+                    <span><strong>{{ odontologos_pendientes_count }}</strong> pendiente{{ odontologos_pendientes_count|pluralize }}</span>
+                </a>
+                {% endif %}
                 <div class="admin-account-name"><span class="account-avatar" aria-hidden="true">A</span><span><strong>{{ user.username }}</strong><small>Administrador</small></span></div>
                 <form action="{% url 'logout' %}" method="post">
                     {% csrf_token %}
@@ -29,6 +36,7 @@
             </div>
         </div>
     </header>
+    {% block mobile_navigation %}{% endblock %}
     <div class="admin-workspace">
         <aside class="admin-sidebar" aria-label="Módulos de administración">
             <div class="admin-sidebar-inner">
@@ -50,10 +58,13 @@
                         <a class="admin-sidebar-link" href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='tooth' %}
                             <span><strong>Odontólogos derivantes</strong><small>Cuentas profesionales</small></span>
+                            {% if odontologos_pendientes_count > 0 %}
+                            <span class="admin-pending-pill" title="{{ odontologos_pendientes_count }} solicitud{{ odontologos_pendientes_count|pluralize }} pendiente{{ odontologos_pendientes_count|pluralize }}">{{ odontologos_pendientes_count }}</span>
+                            {% endif %}
                         </a>
                     </nav>
                 </div>
-                <a class="admin-site-link" href="{% url 'core:landing' %}">Ver página pública <span aria-hidden="true">↗</span></a>
+                <a class="admin-site-link" href="{% url 'core:landing' %}">Ver página pública {% block public_link_icon %}<span aria-hidden="true">↗</span>{% endblock %}</a>
             </div>
         </aside>
         <div class="admin-content">

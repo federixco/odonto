@@ -112,7 +112,7 @@ class LotesMezcladosTests(TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(Paciente.objects.count(), 1)
         detalle = self.client.get(reverse("importacion_detalle", args=[self.lote.pk]))
-        self.assertContains(detalle, "No podemos asociar esta carpeta")
+        self.assertContains(detalle, "La carpeta contiene datos de distintos pacientes")
         self.assertNotContains(detalle, 'action="' + reverse("importacion_confirmar", args=[self.lote.pk]) + '"')
 
     def test_dicomdir_con_varios_pacientes_no_elije_el_ultimo(self):
