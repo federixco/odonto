@@ -89,6 +89,52 @@ def cerca(a, b, tol=1e-4):
     return a is not None and b is not None and len(a) == len(b) and all(abs(x-y) < tol for x, y in zip(a, b))
 
 
+def planificar_vista_3d(items, normal):
+    """Plan temporal del visor, no un modelo ni una conversión del original.
+
+    Se decodifica un corte por vez. El volumen Float32 puede remuestrearse
+    manteniendo los extremos físicos de los tres ejes; el presupuesto reserva
+    cuatro copias del volumen y buffers del mayor objeto, no toda la carpeta.
+    """
+    primero = items[0]
+    originales = [primero["columns"], primero["rows"], len(items)]
+    if min(originales[:2]) < 2 or originales[2] < 3:
+        return None
+    reserva = 8 * 1024 * 1024 + max(
+        i["bytes"] * 2 + i["rows"] * i["columns"] * 4 * 3 for i in items
+    )
+    disponibles = settings.VISOR_MAX_VOLUME_BYTES - reserva
+    if disponibles < 2 * 2 * 3 * 16:
+        return None
+    factor = max(1, max(originales) / 512,
+                 (math.prod(originales) * 16 / disponibles) ** (1 / 3))
+    for _ in range(128):
+        dimensiones = [max(minimo, math.ceil(d / factor))
+                       for d, minimo in zip(originales, [2, 2, 3])]
+        memoria = reserva + math.prod(dimensiones) * 16
+        if memoria <= settings.VISOR_MAX_VOLUME_BYTES and max(dimensiones) <= 512:
+            break
+        factor *= 1.03
+    else:
+        return None
+    distancia = producto(items[-1]["position"], normal) - producto(primero["position"], normal)
+    espaciado = [primero["spacing"][1], primero["spacing"][0], distancia / (len(items) - 1)]
+    return {
+        "dimensiones_originales": originales,
+        "dimensiones": dimensiones,
+        "espaciado_original": espaciado,
+        "espaciado": [s * (a - 1) / (b - 1)
+                      for s, a, b in zip(espaciado, originales, dimensiones)],
+        "origen": primero["position"],
+        "direccion": [*primero["orientation"], *normal],
+        "reserva_bytes": reserva,
+        "memoria_estimada": memoria,
+        "reducida": dimensiones != originales,
+        "metadata": {"Modality": "CT" if primero["sop"] == "1.2.840.10008.5.1.4.1.1.2" else "MR",
+                     "FrameOfReferenceUID": primero["referencia"]},
+    }
+
+
 def agrupar(cabeceras):
     grupos = defaultdict(list)
     for c in cabeceras:
@@ -124,15 +170,20 @@ def agrupar(cabeceras):
         if not primero["spacing"] or min(primero["spacing"]) <= 0 or any(signature(i) != signature(primero) or not cerca(i["spacing"], primero["spacing"]) for i in items):
             motivo = "Dimensiones, escalas o espaciado de píxel inconsistentes."
         frames = sum(i["frames"] for i in items)
-        # Float32 reconstruido + buffers de decodificación/GPU: reserva conservadora x4.
-        memoria = sum(i["rows"]*i["columns"]*i["frames"]*4 for i in items) * 4 + sum(i["bytes"] for i in items)
         if frames < 3:
             motivo = "Se necesitan al menos tres cortes espaciales para esta vista 3D."
-        if memoria > settings.VISOR_MAX_VOLUME_BYTES or frames > settings.VISOR_MAX_FRAMES:
-            motivo = "El volumen supera el presupuesto de memoria del visor; usá cortes."
+        if frames > settings.VISOR_MAX_FRAMES:
+            motivo = "La serie supera la cantidad de cortes admitida por el visor."
+        plan = planificar_vista_3d(items, normal) if not motivo else None
+        if not motivo and plan is None:
+            motivo = "No hay memoria suficiente ni siquiera para una vista 3D reducida; usá cortes."
+        volumen = not motivo
+        if plan and plan["reducida"]:
+            motivo = "Vista 3D de resolución adaptada. Los cortes 2D conservan la resolución original."
         resultado.append({
             "id": hashlib.sha256("|".join(clave).encode()).hexdigest()[:24],
-            "frames": frames, "volumen": not motivo, "motivo": motivo,
-            "memoria_estimada": memoria, "archivos": items,
+            "frames": frames, "volumen": volumen, "motivo": motivo,
+            "memoria_estimada": plan["memoria_estimada"] if plan else 0,
+            "vista_3d": plan, "archivos": items,
         })
     return resultado

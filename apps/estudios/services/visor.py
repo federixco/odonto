@@ -25,7 +25,7 @@ def archivos_disponibles(estudio):
 
 def huella(estudio):
     filas = list(archivos_disponibles(estudio).values_list("pk", "hash_sha256", "tamano", "formato", "ruta_almacenamiento", "updated_at"))
-    politica = (2, settings.VISOR_MAX_VOLUME_BYTES, settings.VISOR_MAX_IMAGE_BYTES,
+    politica = (3, settings.VISOR_MAX_VOLUME_BYTES, settings.VISOR_MAX_IMAGE_BYTES,
                 settings.VISOR_MAX_FRAMES, settings.VISOR_HEADER_BYTES, settings.VISOR_MAX_FILES)
     return hashlib.sha256(repr((politica, filas)).encode()).hexdigest()
 

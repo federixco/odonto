@@ -2,6 +2,7 @@ import * as core from '@cornerstonejs/core';
 import { metaData } from '@cornerstonejs/metadata';
 import { init as initLoader, wadouri } from '@cornerstonejs/dicom-image-loader';
 import { init as initTools, addTool, ToolGroupManager, PanTool, ZoomTool, TrackballRotateTool, Enums as ToolEnums } from '@cornerstonejs/tools';
+import { adaptarPlan, escribirCorte } from './volumen.js';
 
 let initialized = false;
 let current = null;
@@ -64,12 +65,13 @@ export async function abrirDicom(element, serie, mode, ctx) {
     pendingSlice = null;
     ctx.signal.removeEventListener('abort', dispose);
     observer?.disconnect();
-    volume?.cancelLoading();
+    volume?.cancelLoading?.();
     for (const xhr of requests) xhr.abort();
     requests.clear();
     core.imageLoader.cancelLoadAll();
     ToolGroupManager.destroyToolGroup(id);
     engine.destroy();
+    volume?.destroy(); volume = null;
     core.cache.purgeCache();
     wadouri.dataSetCacheManager.purge();
     for (const type of Object.values(core.Enums.MetadataModules)) metaData.clear(type);
@@ -89,7 +91,7 @@ export async function abrirDicom(element, serie, mode, ctx) {
     return ['red','memoria','formato','webgl'].includes(source?.message) ? source.message : 'formato';
   };
   const loadSafe = async imageId => {
-    if (core.cache.isLoaded(imageId)) return;
+    if (core.cache.isLoaded(imageId)) return core.cache.getImage(imageId);
     // En 5.11.4 loadAndCacheImage no observa el rechazo de putImageLoadObject.
     // Esperamos ambas promesas explícitamente antes de pasarlas al viewport.
     const promise = core.imageLoader.loadImage(imageId);
@@ -97,6 +99,16 @@ export async function abrirDicom(element, serie, mode, ctx) {
     if (!core.cache.getImageLoadObject(imageId)) await abortable(core.cache.putImageLoadObject(imageId, object), ctx.signal);
     else await abortable(promise, ctx.signal);
     check();
+    const image = core.cache.getImage(imageId);
+    if (!image) throw new Error('formato');
+    return image;
+  };
+  const releaseImage = imageId => {
+    if (core.cache.getImageLoadObject(imageId)) core.cache.removeImageLoadObject(imageId);
+    const base = `wadouri:${wadouri.parseImageId(imageId).url}`;
+    for (const type of Object.values(core.Enums.MetadataModules)) {
+      metaData.clearQuery(type, imageId); metaData.clearQuery(type, base);
+    }
   };
   try {
     engine.enableElement({ viewportId: id, type: mode === 'volumen' ? core.Enums.ViewportType.VOLUME_3D : core.Enums.ViewportType.STACK,
@@ -109,24 +121,42 @@ export async function abrirDicom(element, serie, mode, ctx) {
     group.setToolActive(ZoomTool.toolName, { bindings: [{ mouseButton: ToolEnums.MouseBindings.Secondary }, { numTouchPoints: 2 }] });
     if (mode === 'volumen') group.setToolActive(PanTool.toolName, { bindings: [{ mouseButton: ToolEnums.MouseBindings.Auxiliary }] });
     if (mode === 'volumen') {
-      if (!serie.volumen || serie.memoria_estimada > ctx.limits.volumeBytes) throw new Error('memoria');
-      // Metadatos y decodificación verificados antes de reconstruir: nunca unir cortes fallidos.
-      let cursor = 0, loaded = 0;
+      if (!serie.volumen || !serie.vista_3d) throw new Error('formato');
+      // Consultar el límite GPU sin conservar un segundo contexto.
+      const probe = document.createElement('canvas');
+      const gl = probe.getContext('webgl2');
+      if (!gl) throw new Error('webgl');
+      const maxDimension = gl.getParameter(gl.MAX_3D_TEXTURE_SIZE);
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      const deviceGiB = Number(navigator.deviceMemory) || 4;
+      const budget = Math.min(ctx.limits.volumeBytes, Math.max(1, deviceGiB) * 64 * 1024 * 1024);
+      const plan = adaptarPlan(serie.vista_3d, budget, maxDimension);
+      if (imageIds.length !== plan.dimensiones_originales[2]) throw new Error('formato');
+      ctx.quality?.(plan.reducida, plan.dimensiones);
+      let scalarData = new Float32Array(plan.bytes / 4);
       ctx.status('Cargando cortes para el volumen…', 0);
-      await abortable(Promise.all(Array.from({ length: ctx.limits.concurrency }, async () => {
-        while (cursor < imageIds.length) {
-          check();
-          await loadSafe(imageIds[cursor++]);
-          check(); loaded++; ctx.status('Cargando cortes para el volumen…', Math.round(loaded / imageIds.length * 95));
-        }
-      })), ctx.signal);
+      // Solo un original y un volumen acotado, no toda la serie en caché.
+      // Un corte seleccionado corrupto invalida la vista, no se rellena con ceros.
+      for (let z = 0; z < plan.indices.length; z++) {
+        check();
+        const imageId = imageIds[plan.indices[z]];
+        try {
+          const image = await loadSafe(imageId);
+          check(); escribirCorte(scalarData, z, plan, image);
+        } finally { releaseImage(imageId); }
+        ctx.status('Cargando cortes para el volumen…', Math.round((z + 1) / plan.indices.length * 95));
+      }
       check(); ctx.status('Construyendo volumen…', 96);
-      volume = await abortable(core.volumeLoader.createAndCacheVolume(`cornerstoneStreamingImageVolume:${id}`, { imageIds }), ctx.signal);
-      check();
-      await abortable(new Promise((resolve, reject) => volume.load(s => {
-        if (!s.success) reject(new Error('formato'));
-        else if (s.framesLoaded === imageIds.length) resolve();
-      })), ctx.signal);
+      // "derived:" evita que Cornerstone intente recargar estos cortes locales
+      // con el loader HTTP al calcular el VOI inicial del actor.
+      volume = core.volumeLoader.createLocalVolume(`derived:doc-preview:${id}`, {
+        scalarData, dimensions: plan.dimensiones, spacing: plan.espaciado,
+        origin: plan.origen, direction: plan.direccion,
+        metadata: { ...plan.metadata, BitsAllocated: 32, BitsStored: 32, HighBit: 31,
+          SamplesPerPixel: 1, PhotometricInterpretation: 'MONOCHROME2', PixelRepresentation: 1 },
+      });
+      volume.isPreScaled = true;
+      scalarData = null; // Las vistas locales comparten el buffer, no lo duplican.
       check();
       await core.setVolumesForViewports(engine, [{ volumeId: volume.volumeId }], [id]);
       check(); viewport.setProperties({ preset: 'CT-Bone' });

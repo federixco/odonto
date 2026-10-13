@@ -51,10 +51,17 @@ async function open(newMode) {
   const guardedStatus = (...args) => { if (gen === generation) status(...args); };
   $('vacio').hidden = true; $('reintentar').hidden = true;
   $('cortes').setAttribute('aria-pressed', mode === 'cortes'); $('volumen').setAttribute('aria-pressed', mode === 'volumen');
+  if (mode === 'cortes') $('compatibilidad').textContent = `Cortes 2D a resolución original. ${selected.motivo || ''}`;
   try {
     comprobarWebGL(); guardedStatus('Preparando visualizador…');
     const ctx = { signal, limits: config.limites, status: guardedStatus,
       error(code) { if (gen === generation) error(code); },
+      quality(reduced, dimensions) {
+        if (gen !== generation) return;
+        $('compatibilidad').textContent = reduced
+          ? `Vista 3D de resolución adaptada (${dimensions.join(' × ')}). Para ver el detalle original, usá los cortes 2D. No usar esta vista para mediciones o diagnóstico.`
+          : 'Vista 3D a resolución original. Exploración visual, sin herramientas clínicas.';
+      },
       slice(n, total) {
         if (gen !== generation) return;
         currentSlice = n; $('slice').max = total; $('slice').value = n; $('slice-value').textContent = `${n} / ${total}`;

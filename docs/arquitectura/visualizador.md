@@ -8,7 +8,7 @@ Implementación en `feature/visualizador3D`, sobre la base de seguridad de `2bcd
 |---|---|---|
 | RF-19 | Three.js: STL ASCII/binario y PLY ASCII/binario, rotación, desplazamiento, zoom y restablecer. PLY conserva color y admite nubes de puntos. | PLY: propiedades escalares de vértice; caras triangulares/cuadrangulares. Otros elementos/listas se rechazan. No medir, editar ni convertir a STL. |
 | RF-17 | Cornerstone: selección de serie y cortes monocromáticos, anterior/siguiente, deslizador, rueda, zoom y desplazamiento. | DICOM Part 10 con sintaxis permitida. DICOMDIR y objetos sin imagen no se renderizan. Un paquete propietario no equivale a una imagen. |
-| RF-18 | Viewport volumétrico real de Cornerstone, con preset CT-Bone y navegación básica. No es una malla ficticia. | Geometría consistente CT/MR clásica de un frame por objeto, marco de referencia, al menos tres cortes y presupuesto de memoria. Enhanced/multiframe no habilitan volumen. No es software diagnóstico validado. |
+| RF-18 | Viewport volumétrico real de Cornerstone, con preset CT-Bone y navegación básica. Las series pesadas admiten una vista de resolución adaptada. | Geometría consistente CT/MR clásica de un frame por objeto, marco de referencia, al menos tres cortes y presupuesto de memoria. Enhanced/multiframe no habilitan volumen. No es software diagnóstico validado. |
 | RF-20 | Paciente titular ve sus estudios publicados. | **Sin descarga individual ni ZIP**, incluso por URL directa. El navegador necesariamente recibe bytes al visualizar; esto no es protección anticopia. |
 | RF-23 | Solicitud de apertura + un resultado reportado por cliente por apertura. | El reporte del cliente no certifica que una persona haya leído el estudio. No hay auditoría por frame ni por movimiento. |
 
@@ -106,7 +106,11 @@ La huella depende de los archivos actuales, hash, tamaño, formato, estado dispo
 | `VISOR_HEADER_BYTES` | 512 KiB |
 | `VISOR_CACHE_TTL` | 3.600 segundos |
 
-La estimación volumétrica reserva Float32 × cuatro copias para reconstrucción/GPU/buffers, más el tamaño de objetos originales. No es una medición exacta de la RAM/GPU ni una garantía contra archivos adversarios. Al superar el límite, se conservan cortes compatibles. No aumentar límites sin medir en el equipo del centro. Una tomografía de cientos de MB puede no admitir volumen con este presupuesto, aunque sí carga/descarga y cortes.
+El 3D se construye decodificando **un corte seleccionado por vez**, copiándolo a un único volumen Float32 y liberando inmediatamente sus bytes DICOM, píxeles y metadatos de caché. No se precarga ni retiene la carpeta completa. Se reservan cuatro copias del volumen para CPU/GPU/buffers, más buffers del mayor objeto y un margen fijo. Es una estimación conservadora, no una medición de RAM/GPU ni una garantía contra archivos adversarios.
+
+Si la resolución original excede ese presupuesto, se remuestrea únicamente la **vista 3D**: interpolación bilineal XY y selección del corte más próximo en Z. Se mantienen el origen, orientación y extremos físicos de todos los ejes. La interfaz avisa que la resolución está adaptada y que no debe usarse para mediciones o diagnóstico. No hay escritura en los originales ni conversión persistente: el detalle se conserva en los cortes 2D, las descargas y el software externo. El muestreo puede perder detalles finos, por lo que no certifica la integridad/lectura de los cortes no seleccionados.
+
+Cada eje se limita inicialmente a 512 muestras y además al límite de textura 3D del dispositivo. Cuando el navegador informa poca memoria, la vista utiliza un presupuesto menor. No se aumenta `VISOR_MAX_VOLUME_BYTES` para habilitar estudios grandes. Un objeto individual excesivo, una geometría inválida, una serie no soportada o un dispositivo incapaz siguen ofreciendo cortes cuando sea posible; no se inventa una reconstrucción espacial. La huella de caché se versionó para recalcular índices antiguos, sin modificar tablas ni migraciones.
 
 Los parsers de mallas trabajan en worker con límite de tiempo y conteos antes de materializar geometría. DICOM mantiene hasta dos workers de decodificación. En 5.11.4 se evita el atajo `loadAndCacheImage` en precarga: deja sin observar una promesa rechazada al cancelar. El adaptador espera explícitamente la carga y su registro en caché; el viewport recibe imágenes preparadas. No se modifica `node_modules` ni se suprimen globalmente errores del navegador.
 
@@ -127,7 +131,17 @@ Las pruebas Django crean la base temporal definida por `test_mysql`, con S3 simu
 
 Si se mantiene manualmente el servidor sintético con `python -m tests.visor_browser_server`, ejecutar las pruebas con `$env:VISOR_TEST_EXTERNAL_SERVER='1'`. Para la matriz ampliada, instalar Firefox de Playwright, tener Chrome/Edge instalados y usar `$env:VISOR_BROWSER_MATRIX='1'`.
 
-Ver el [informe de verificación](verificacion-visualizador.md) para resultados, entorno y pendientes. El diagnóstico inicial de almacenamiento local devolvió `NoSuchKey`: existen registros en MySQL sin objetos correspondientes en el MinIO disponible. No se borraron ni alteraron esos registros. Se necesita volver a disponer de una exportación representativa para verificarla privadamente; no declarar compatibilidad con ella basándose en fixtures sintéticos.
+El diagnóstico inicial de almacenamiento local devolvió `NoSuchKey`: existen registros en MySQL sin objetos correspondientes en el MinIO disponible. No se borraron ni alteraron esos registros. Se necesita volver a disponer de una exportación representativa para verificarla privadamente; no declarar compatibilidad con ella basándose en fixtures sintéticos.
+
+### Verificación de la vista 3D adaptada — 12/10/2026
+
+- 291 pruebas Django con MySQL temporal y almacenamiento simulado: correctas.
+- 10 pruebas JavaScript de mallas, presupuesto, remuestreo, escalas y entradas inválidas: correctas.
+- 11 pruebas de navegador Chromium: correctas; incluyen 3D/cortes, RLE, cierre, cancelación, errores de red, permisos y liberación de recursos.
+- Serie sintética de 80 cortes de 512×512: aproximadamente 40 MiB de originales y más de 256 MiB bajo la estimación anterior. Se visualiza en 3D adaptado, con una descarga de corte simultánea, y permite volver a sus 80 cortes originales. Se comprobó visualmente también el renderizado del volumen pequeño.
+- Compilación Vite y `makemigrations --check --dry-run`: correctas, sin cambios de modelos ni migraciones.
+
+No se dispuso del estudio pesado del centro durante esta mejora. Estos resultados no certifican su compatibilidad, todas las sintaxis comprimidas ni el consumo exacto de memoria GPU en el equipo del odontólogo. Falta una comprobación con esa exportación real.
 
 ## Documentación y diagrama de clases
 

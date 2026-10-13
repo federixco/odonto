@@ -20,16 +20,22 @@ import django
 django.setup()
 from django.template.loader import render_to_string
 from apps.estudios.visor_views import limites
-from tests.visor_fixtures import STL, PLY, dicom, dicom_multiframe, dicom_rle
+from apps.estudios.services.visor_dicom import cabecera, agrupar
+from tests.visor_fixtures import STL, PLY, dicom, dicom_multiframe, dicom_rle, dicom_grande
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {1: STL, 2: PLY, 200: dicom_multiframe(),
-         **{100+z: dicom(z) for z in range(16)}, **{300+z: dicom_rle(z) for z in range(3)}}
+         **{100+z: dicom(z) for z in range(16)}, **{300+z: dicom_rle(z) for z in range(3)},
+         **{400+z: dicom_grande(z) for z in range(80)}}
 SERIES = {
     'sintetica': {'archivos': list(range(100,116)), 'frames': 16, 'volumen': True},
     'multiframe': {'archivos': [200], 'frames': 3, 'volumen': False},
     'rle': {'archivos': [300,301,302], 'frames': 3, 'volumen': True},
+    'grande': {'archivos': list(range(400,480)), 'frames': 80, 'volumen': True},
 }
+for serie in SERIES.values():
+    indice = agrupar([cabecera(FILES[pk], pk, len(FILES[pk]))[0] for pk in serie['archivos']])[0]
+    serie.update(vista_3d=indice['vista_3d'], motivo=indice['motivo'], volumen=indice['volumen'])
 READS = []
 EVENTS = []
 PREFIX = '/estudios/1/visor/'
@@ -75,11 +81,12 @@ class Handler(BaseHTTPRequestHandler):
                 {'id':pk, 'nombre':f'modelo.{fmt.lower()}', 'formato':fmt, 'bytes':len(FILES[pk]), 'disponible':True,
                  'url':PREFIX+f'archivos/{pk}/contenido/'} for pk,fmt in [(1,'STL'),(2,'PLY')]],
                 'series':[{'id':key,'nombre':f'Serie {key}','frames':s['frames'],'volumen':s['volumen'],
-                           'motivo':'','url':PREFIX+f'series/{key}/'} for key,s in SERIES.items()]})
+                           'motivo':s['motivo'],'url':PREFIX+f'series/{key}/'} for key,s in SERIES.items()]})
         series_match = re.fullmatch(PREFIX+r'series/(\w+)/', path)
         if series_match and series_match[1] in SERIES:
             key = series_match[1]; s = SERIES[key]
-            return self.send({'id':key,'frames':s['frames'],'volumen':s['volumen'],'motivo':'','memoria_estimada':2*1024*1024,
+            return self.send({'id':key,'frames':s['frames'],'volumen':s['volumen'],'motivo':s['motivo'],
+                              'vista_3d':s['vista_3d'], 'memoria_estimada':s['vista_3d']['memoria_estimada'] if s['vista_3d'] else 0,
                               'archivos':[{'id':pk, 'frames':3 if pk==200 else 1, 'bytes':len(FILES[pk]),
                                            'url':PREFIX+f'archivos/{pk}/contenido/'} for pk in s['archivos']]})
         match = re.fullmatch(PREFIX+r'archivos/(\d+)/contenido/', path)

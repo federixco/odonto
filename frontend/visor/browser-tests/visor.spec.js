@@ -169,3 +169,49 @@ test('permiso revocado durante la navegación cierra la imagen anterior', async 
   await expect(page.locator('#lienzo canvas')).toHaveCount(0);
   await expect(page.locator('#reintentar')).toBeHidden();
 });
+
+test('serie pesada reconstruye 3D adaptado, descarga secuencial y vuelve a los cortes originales', async ({ page, request }, info) => {
+  test.setTimeout(120000);
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  let active = 0, peak = 0;
+  const large = request => /\/archivos\/4\d\d\/contenido\/$/.test(new URL(request.url()).pathname);
+  page.on('request', request => { if (large(request)) { active++; peak = Math.max(peak, active); } });
+  page.on('requestfinished', request => { if (large(request)) active--; });
+  page.on('requestfailed', request => { if (large(request)) active--; });
+  await page.goto('/?archivo=400');
+  await expect(page.locator('#estado')).toContainText('Cortes listos', { timeout:30000 });
+  await expect(page.locator('#volumen')).toBeEnabled();
+  const serie = await (await request.get('/estudios/1/visor/series/grande/')).json();
+  expect(serie.vista_3d.reducida).toBe(true);
+  expect(serie.vista_3d.memoria_estimada).toBeLessThanOrEqual(256 * 1024 * 1024);
+  await page.locator('#volumen').click();
+  await expect(page.locator('#estado')).toContainText('Volumen listo', { timeout:90000 });
+  await expect(page.locator('#compatibilidad')).toContainText('resolución adaptada');
+  await expect(page.locator('#lienzo canvas')).toHaveCount(1);
+  await page.locator('#rotate').click(); await page.locator('#zoom-in').click();
+  await info.attach('volumen-grande-adaptado', { body:await page.locator('#lienzo').screenshot(), contentType:'image/png' });
+  expect(peak).toBeLessThanOrEqual(1);
+  await page.locator('#cortes').click();
+  await expect(page.locator('#estado')).toContainText('Cortes listos', { timeout:30000 });
+  await expect(page.locator('#slice-value')).toHaveText('1 / 80');
+  await page.locator('#slice').fill('80');
+  await expect(page.locator('#slice-value')).toHaveText('80 / 80');
+  await page.locator('#close').click();
+  await expect.poll(() => page.workers().length).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('un fallo al construir la vista 3D no presenta un volumen incompleto', async ({ page }) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/?archivo=100');
+  await expect(page.locator('#estado')).toContainText('Cortes listos');
+  await page.route('**/archivos/105/contenido/', route => route.fulfill({ status:503, body:'Prueba de fallo' }));
+  await page.locator('#volumen').click();
+  await expect(page.locator('#estado')).toContainText('No se pudo cargar', { timeout:30000 });
+  await expect(page.locator('#lienzo canvas')).toHaveCount(0);
+  await expect.poll(() => page.workers().length).toBe(0);
+  await page.unrouteAll();
+  await page.locator('#reintentar').click();
+  await expect(page.locator('#estado')).toContainText('Volumen listo', { timeout:30000 });
+  expect(errors).toEqual([]);
+});

@@ -211,6 +211,41 @@ class DicomMetadataTests(SimpleTestCase):
         self.assertFalse(serie['volumen'])
         self.assertEqual(serie['frames'], 3)
 
+    def test_serie_pesada_admite_volumen_reducido_sin_aumentar_limite(self):
+        cabeceras = [dict(self.parsed(z), rows=512, columns=512, bytes=525000)
+                     for z in range(200)]
+        serie = agrupar(cabeceras)[0]
+        self.assertTrue(serie['volumen'])
+        plan = serie['vista_3d']
+        self.assertTrue(plan['reducida'])
+        self.assertLessEqual(plan['memoria_estimada'], 256 * 1024 * 1024)
+        self.assertEqual(plan['dimensiones_originales'], [512, 512, 200])
+        self.assertEqual(len(serie['archivos']), 200)
+        # La reducción mantiene el tamaño físico, no aplasta la anatomía.
+        for original, reducido, antes, despues in zip(
+                plan['dimensiones_originales'], plan['dimensiones'],
+                plan['espaciado_original'], plan['espaciado']):
+            self.assertAlmostEqual((original - 1) * antes, (reducido - 1) * despues)
+
+    def test_resolucion_original_para_serie_pequena(self):
+        plan = agrupar([self.parsed(z) for z in range(16)])[0]['vista_3d']
+        self.assertFalse(plan['reducida'])
+        self.assertEqual(plan['dimensiones'], [64, 64, 16])
+
+    def test_memoria_no_habilita_geometrias_invalidas(self):
+        cabeceras = [dict(self.parsed(z), rows=512, columns=512, bytes=525000)
+                     for z in [0, 1, 5]]
+        serie = agrupar(cabeceras)[0]
+        self.assertFalse(serie['volumen'])
+        self.assertIsNone(serie['vista_3d'])
+
+    def test_cambio_de_presupuesto_invalida_el_plan_cacheado(self):
+        with override_settings(VISOR_MAX_VOLUME_BYTES=32 * 1024 * 1024):
+            plan = agrupar([dict(self.parsed(z), rows=512, columns=512, bytes=525000)
+                            for z in range(50)])[0]['vista_3d']
+        self.assertIsNotNone(plan)
+        self.assertLessEqual(plan['memoria_estimada'], 32 * 1024 * 1024)
+
     def test_rle_y_multiframe_tienen_capacidades_distintas(self):
         contenido = dicom_multiframe()
         metadata, reason = cabecera(contenido, 1, len(contenido))

@@ -105,6 +105,7 @@ def serie(request, estudio, serie_id):
     return JsonResponse({"id": seleccionada["id"], "frames": seleccionada["frames"],
                          "volumen": seleccionada["volumen"], "motivo": seleccionada["motivo"],
                          "memoria_estimada": seleccionada["memoria_estimada"],
+                         "vista_3d": seleccionada["vista_3d"],
                          "archivos": [{"id": a["archivo"], "frames": a["frames"], "bytes": a["bytes"],
                                        "url": reverse("visor_contenido", args=[estudio.pk, a["archivo"]])}
                                       for a in seleccionada["archivos"]]})

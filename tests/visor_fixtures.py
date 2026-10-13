@@ -64,6 +64,28 @@ def dicom_multiframe():
     return salida.getvalue()
 
 
+def dicom_grande(z=0):
+    """512×512: la serie de 80 cortes supera el antiguo límite para 3D."""
+    import math
+    d = pydicom.dcmread(io.BytesIO(dicom(z)))
+    d.Rows = d.Columns = 512
+    d.SeriesInstanceUID = '1.2.826.0.1.3680043.10.1000.600'
+    d.SOPInstanceUID = d.file_meta.MediaStorageSOPInstanceUID = f'1.2.826.0.1.3680043.10.1000.601.{z+1}'
+    d.PixelSpacing = [.4, .4]
+    pixels = bytearray(struct.pack('<h', -1000) * (512 * 512))
+    for y in range(512):
+        radio = 184 ** 2 - (y - 256) ** 2 - ((z - 40) * 5) ** 2
+        if radio > 0:
+            ancho = int(math.sqrt(radio))
+            desde, hasta = 256 - ancho, 256 + ancho + 1
+            inicio = (y * 512 + desde) * 2
+            pixels[inicio:inicio + (hasta - desde) * 2] = struct.pack('<h', 1000) * (hasta - desde)
+    d.PixelData = bytes(pixels)
+    salida = io.BytesIO()
+    d.save_as(salida, enforce_file_format=True)
+    return salida.getvalue()
+
+
 def dicom_rle(z=0):
     """Compresión sin pérdida con el encoder oficial de pydicom, sin NumPy."""
     from pydicom.encaps import encapsulate
