@@ -65,7 +65,7 @@ class PanelOdontologosPresentacionTests(TestCase):
         self.assertContains(
             odontologos, f'href="{reverse("importacion_crear")}"',
         )
-        self.assertContains(odontologos, 'aria-current="page"', count=1)
+        self.assertContains(odontologos, 'aria-current="page"', count=2)
 
         pacientes = self.client.get(reverse("paciente_lista"))
         self.assertContains(pacientes, 'aria-current="page"', count=1)

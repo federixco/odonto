@@ -209,9 +209,12 @@ details > summary::-webkit-details-marker { display: none; }
 .forgot-link { display: block; text-align: right; font-size: .78rem; margin-top: -4px; }
 .login-submit { width: 100%; margin-top: 24px; justify-content: space-between; }
 .login-registration { display: flex; flex-direction: column; gap: 5px; padding-top: 24px; margin-top: 27px; border-top: 1px solid var(--line); font-size: .81rem; text-align: center; }
-.login-card .login-help { margin-top: 22px; text-align: center; font-size: .74rem; line-height: 1.7; }
 .notice { padding: 16px 20px; background: var(--pale); border: 1px solid #bddbdb; border-radius: 9px; color: var(--navy); font-size: .88rem; }
-.system-messages { padding-top: 24px; }
+.notice.success { background: #eaf6f1; border-color: #badcce; color: #23624e; }
+.notice.info { background: #eef6fa; border-color: #bcd9e8; color: #175276; }
+.notice.warning { background: #fff6e8; border-color: #e9d3aa; color: #805923; }
+.notice.error { background: #fff2f0; border-color: #e7b6b2; color: #922f2b; }
+.system-messages { padding-top: 24px; display: grid; gap: 12px; }
 .form-errors { background: #fff2f0; border-left: 3px solid #b4433e; padding: 12px; border-radius: 5px; margin-bottom: 22px; }
 .errorlist { list-style: none; padding: 0; margin: 8px 0 0; color: #922f2b; font-size: .79rem; }
 .form-errors .errorlist { margin: 0; }
@@ -461,5 +464,124 @@ details > summary::-webkit-details-marker { display: none; }
     .pro-search-bar form {
         grid-template-columns: 1fr !important;
     }
+}
+
+/* Modal de Guía / Tutorial para Odontólogos Derivantes */
+.tutorial-dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 720px;
+    width: 92%;
+    background: #ffffff;
+    box-shadow: 0 20px 45px rgba(16, 44, 87, 0.22);
+    overflow: hidden;
+}
+.tutorial-dialog::backdrop {
+    background: rgba(16, 44, 87, 0.45);
+    backdrop-filter: blur(4px);
+}
+.tutorial-modal-header {
+    background: linear-gradient(135deg, #102c57 0%, #007788 100%);
+    color: #ffffff;
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.tutorial-modal-header h2 {
+    font-size: 1.35rem;
+    color: #ffffff;
+    margin: 0 0 0.35rem 0;
+    font-weight: 700;
+}
+.tutorial-modal-header p {
+    font-size: 0.88rem;
+    color: #e0f2fe;
+    margin: 0;
+    line-height: 1.4;
+}
+.tutorial-close-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #ffffff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+.tutorial-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+.tutorial-modal-body {
+    padding: 1.5rem 1.75rem;
+    max-height: 65vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+.tutorial-step-card {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1.15rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.tutorial-step-card:hover {
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.tutorial-step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.tutorial-step-card:nth-child(1) .tutorial-step-icon { background: #e0f2fe; color: #0284c7; }
+.tutorial-step-card:nth-child(2) .tutorial-step-icon { background: #ede9fe; color: #7c3aed; }
+.tutorial-step-card:nth-child(3) .tutorial-step-icon { background: #e0f2f1; color: #007788; }
+.tutorial-step-card:nth-child(4) .tutorial-step-icon { background: #fef3c7; color: #d97706; }
+
+.tutorial-step-content h3 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.35rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.tutorial-step-num {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    color: #475569;
+}
+.tutorial-step-content p {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: #475569;
+    margin: 0;
+}
+.tutorial-modal-footer {
+    padding: 1.15rem 1.75rem;
+    background: #f1f5f9;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1rem;
 }
 

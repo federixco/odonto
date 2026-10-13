@@ -31,7 +31,10 @@
                 </div>
             </div>
             
-            <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 0.5rem;">
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 0.5rem;">
+                <button type="button" class="button button-secondary" id="btn-abrir-tutorial" style="display: flex; align-items: center; gap: 0.5rem; background: #eef6fa; border-color: #bad9e9; color: #005a9e; font-weight: 600;">
+                    {% include 'core/includes/icon.html' with name='info' %} Guía del Consultorio
+                </button>
                 <form action="{% url 'logout' %}" method="post">
                     {% csrf_token %}
                     <button class="button button-secondary" type="submit" style="display: flex; align-items: center; gap: 0.5rem;">
@@ -211,6 +214,8 @@
         </section>
         {% endif %}
     </div>
+
+    {% include 'usuarios/includes/modal_tutorial_derivante.html' %}
 </section>
 {% include 'core/includes/paginacion.html' %}
 {% endblock %}

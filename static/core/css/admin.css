@@ -747,3 +747,63 @@
 }
 .explorer-folder-icon { color: #f4c022; }
 .explorer-folder-body { margin-left: 12px; padding-left: 12px; border-left: 1px solid #edf1f5; }
+
+/* ==========================================================================
+   Notificaciones administrativas y badges de estado
+   ========================================================================== */
+.admin-notification-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    background: #fff8e6;
+    border: 1px solid #ffd166;
+    border-radius: 999px;
+    color: #925800;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.admin-notification-badge:hover {
+    background: #ffefa8;
+    color: #7a4600;
+    transform: translateY(-1px);
+}
+.admin-notification-badge strong {
+    font-weight: 700;
+}
+.badge-dot {
+    width: 8px;
+    height: 8px;
+    background: #e67e22;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse-dot 2s infinite ease-in-out;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.admin-pending-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: #e67e22;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    margin-left: auto;
+    box-shadow: 0 1px 3px rgba(230, 126, 34, 0.4);
+}
+
+.admin-messages .info {
+    background: #eef6fa;
+    border-color: #bcd9e8;
+    color: #175276;
+}

@@ -1,0 +1,96 @@
+<!-- Modal de Guía / Tutorial del Consultorio Virtual -->
+<dialog id="modal-tutorial-derivante" class="tutorial-dialog" aria-labelledby="tutorial-title">
+    <div class="tutorial-modal-header">
+        <div>
+            <h2 id="tutorial-title">Guía del Consultorio Virtual</h2>
+            <p id="tutorial-desc">Herramientas y funciones disponibles para odontólogos derivantes en D.O.C.</p>
+        </div>
+        <button type="button" class="tutorial-close-btn" id="btn-cerrar-tutorial-x" aria-label="Cerrar guía">
+            {% include 'core/includes/icon.html' with name='close' %}
+        </button>
+    </div>
+    <div class="tutorial-modal-body">
+        <article class="tutorial-step-card">
+            <div class="tutorial-step-icon">
+                {% include 'core/includes/icon.html' with name='search' %}
+            </div>
+            <div class="tutorial-step-content">
+                <h3><span class="tutorial-step-num">1</span> Búsqueda y Filtros de Pacientes</h3>
+                <p>Localizá rápidamente a tus pacientes derivados buscando por nombre, apellido o DNI. Podés filtrar por tipo de estudio (Tomografía Cone Beam 3D, Panorámica, Telerradiografía o Modelos Digitales) y acotar por fecha.</p>
+            </div>
+        </article>
+
+        <article class="tutorial-step-card">
+            <div class="tutorial-step-icon">
+                {% include 'core/includes/icon.html' with name='eye' %}
+            </div>
+            <div class="tutorial-step-content">
+                <h3><span class="tutorial-step-num">2</span> Visor Diagnóstico Web 2D y 3D</h3>
+                <p>Al hacer clic en <strong>«Ver estudio»</strong>, accedés al visor interactivo en tiempo real sin requerir programas externos. Explorá cortes tomográficos (axial, sagital, coronal), radiografías de alta resolución o rotá modelos 3D de arcadas dentarias con zoom e inspección espacial.</p>
+            </div>
+        </article>
+
+        <article class="tutorial-step-card">
+            <div class="tutorial-step-icon">
+                {% include 'core/includes/icon.html' with name='download' %}
+            </div>
+            <div class="tutorial-step-content">
+                <h3><span class="tutorial-step-num">3</span> Descarga de Carpeta Completa (.ZIP)</h3>
+                <p>Con el botón <strong>«Descargar carpeta»</strong>, obtenés un paquete comprimido que respeta la estructura jerárquica original del estudio y todas sus series de archivos DICOM / STL. Ideal para importar en tus softwares de planificación quirúrgica o diseño (Galileos, Blue Sky Plan, Nemotec, etc.).</p>
+            </div>
+        </article>
+
+        <article class="tutorial-step-card">
+            <div class="tutorial-step-icon">
+                {% include 'core/includes/icon.html' with name='lock' %}
+            </div>
+            <div class="tutorial-step-content">
+                <h3><span class="tutorial-step-num">4</span> Privacidad y Permisos de Derivación</h3>
+                <p>Tu consultorio cuenta con estricta confidencialidad médica: únicamente tenés visibilidad de los estudios en los que figurás como odontólogo derivante asignado y que fueron formalmente aprobados y publicados por el centro D.O.C.</p>
+            </div>
+        </article>
+    </div>
+    <div class="tutorial-modal-footer">
+        <button type="button" class="button" id="btn-cerrar-tutorial">
+            Entendido, cerrar guía
+        </button>
+    </div>
+</dialog>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("modal-tutorial-derivante");
+    const btnAbrir = document.getElementById("btn-abrir-tutorial");
+    const btnCerrar = document.getElementById("btn-cerrar-tutorial");
+    const btnCerrarX = document.getElementById("btn-cerrar-tutorial-x");
+
+    if (modal && btnAbrir) {
+        btnAbrir.addEventListener("click", function () {
+            modal.showModal();
+        });
+
+        const cerrarModal = function () {
+            modal.close();
+            try {
+                localStorage.setItem("doc_tutorial_derivante_visto", "true");
+            } catch (e) {}
+        };
+
+        if (btnCerrar) btnCerrar.addEventListener("click", cerrarModal);
+        if (btnCerrarX) btnCerrarX.addEventListener("click", cerrarModal);
+
+        modal.addEventListener("click", function (e) {
+            if (e.target === modal) {
+                cerrarModal();
+            }
+        });
+
+        // Si es el portal de odontólogo y entra por primera vez, abrir automáticamente
+        try {
+            if (document.body.classList.contains("odontologo-portal") && !localStorage.getItem("doc_tutorial_derivante_visto")) {
+                modal.showModal();
+            }
+        } catch (e) {}
+    }
+});
+</script>
