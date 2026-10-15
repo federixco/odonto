@@ -1,59 +1,164 @@
-<!-- Modal de Guía / Tutorial del Consultorio Virtual -->
-<dialog id="modal-tutorial-derivante" class="tutorial-dialog" aria-labelledby="tutorial-title">
-    <div class="tutorial-modal-header">
-        <div>
-            <h2 id="tutorial-title">Guía del Consultorio Virtual</h2>
-            <p id="tutorial-desc">Herramientas y funciones disponibles para odontólogos derivantes en D.O.C.</p>
+<!-- Tour Guiado Paso a Paso para Odontólogos Derivantes -->
+<dialog id="modal-tutorial-derivante" class="tutorial-tour-dialog" aria-labelledby="tutorial-step-title">
+    <div class="tour-dialog-wrapper">
+        <!-- Barra Superior: Progreso y Saltar -->
+        <div class="tour-top-bar">
+            <div class="tour-progress-info">
+                <span class="tour-guide-badge" style="font-size: 0.75rem; font-weight: 700; color: #102c57; text-transform: uppercase; letter-spacing: 0.04em;">Guía del Consultorio Virtual</span>
+                <span class="tour-step-badge" id="tour-badge-step">Paso 1 de 4</span>
+                <div class="tour-progress-bar" aria-hidden="true">
+                    <div class="tour-progress-fill" id="tour-progress-fill" style="width: 25%;"></div>
+                </div>
+            </div>
+            <button type="button" class="tour-skip-link" id="btn-saltar-tutorial" title="Cerrar y omitir el tutorial">
+                Saltar &times;
+            </button>
         </div>
-        <button type="button" class="tutorial-close-btn" id="btn-cerrar-tutorial-x" aria-label="Cerrar guía">
-            {% include 'core/includes/icon.html' with name='close' %}
-        </button>
-    </div>
-    <div class="tutorial-modal-body">
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='search' %}
-            </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">1</span> Búsqueda y Filtros de Pacientes</h3>
-                <p>Localizá rápidamente a tus pacientes derivados buscando por nombre, apellido o DNI. Podés filtrar por tipo de estudio (Tomografía Cone Beam 3D, Panorámica, Telerradiografía o Modelos Digitales) y acotar por fecha.</p>
-            </div>
-        </article>
 
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='eye' %}
+        <!-- Contenedor de Pasos (1 paso a la vez) -->
+        <div class="tour-steps-container">
+            <!-- Paso 1: Búsqueda y Filtros -->
+            <div class="tour-step is-active" data-step="1">
+                <div class="tour-step-hero">
+                    <div class="tour-hero-icon icon-search">
+                        {% include 'core/includes/icon.html' with name='search' %}
+                    </div>
+                    <span class="tour-hero-tag">Búsqueda veloz</span>
+                </div>
+                <div class="tour-step-body">
+                    <h2 class="tour-title" id="tutorial-step-title">1. Búsqueda y Filtros de Pacientes</h2>
+                    <p class="tour-desc">
+                        Localizá rápidamente a tus pacientes derivados sin perder tiempo navegando listados largos.
+                    </p>
+                    <div class="tour-visual-card">
+                        <div class="tour-visual-row">
+                            <span class="tour-pill">🔍 Nombre, Apellido o DNI</span>
+                            <span class="tour-pill">📋 Tomografía 3D / Panorámica</span>
+                            <span class="tour-pill">📅 Rango de fechas</span>
+                        </div>
+                        <p class="tour-tip">
+                            💡 <strong>Tip útil:</strong> Escribí únicamente el número de DNI para acceder al historial completo del paciente de forma instantánea.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">2</span> Visor Diagnóstico Web 2D y 3D</h3>
-                <p>Al hacer clic en <strong>«Ver estudio»</strong>, accedés al visor interactivo en tiempo real sin requerir programas externos. Explorá cortes tomográficos (axial, sagital, coronal), radiografías de alta resolución o rotá modelos 3D de arcadas dentarias con zoom e inspección espacial.</p>
-            </div>
-        </article>
 
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='download' %}
+            <!-- Paso 2: Visor 3D y Cortes -->
+            <div class="tour-step" data-step="2">
+                <div class="tour-step-hero">
+                    <div class="tour-hero-icon icon-visor">
+                        {% include 'core/includes/icon.html' with name='cube' %}
+                    </div>
+                    <span class="tour-hero-tag">En tu navegador</span>
+                </div>
+                <div class="tour-step-body">
+                    <h2 class="tour-title">2. Visor Diagnóstico Web 2D y 3D</h2>
+                    <p class="tour-desc">
+                        Hacé clic en <strong>«Visor 3D y Cortes»</strong> en cualquier tarjeta para abrir el visor interactivo de grado médico al instante, sin instalar ningún programa adicional en tu PC.
+                    </p>
+                    <div class="tour-visual-card">
+                        <div class="tour-feature-list">
+                            <div class="tour-feature-item">
+                                <span class="feature-dot"></span>
+                                <span><strong>Cortes Tomográficos:</strong> Axial, sagital y coronal con contraste regulable (W/L) y zoom milimétrico.</span>
+                            </div>
+                            <div class="tour-feature-item">
+                                <span class="feature-dot"></span>
+                                <span><strong>Reconstrucción 3D:</strong> Rotación espacial de arcadas a 60 FPS e inspección de modelos STL/PLY.</span>
+                            </div>
+                        </div>
+                        <p class="tour-tip">
+                            💡 <strong>Directo y liviano:</strong> Funciona en Chrome, Edge, Safari y Firefox cargando los volúmenes en tiempo real por streaming seguro.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">3</span> Descarga de Carpeta Completa (.ZIP)</h3>
-                <p>Con el botón <strong>«Descargar carpeta»</strong>, obtenés un paquete comprimido que respeta la estructura jerárquica original del estudio y todas sus series de archivos DICOM / STL. Ideal para importar en tus softwares de planificación quirúrgica o diseño (Galileos, Blue Sky Plan, Nemotec, etc.).</p>
-            </div>
-        </article>
 
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='lock' %}
+            <!-- Paso 3: Descarga ZIP -->
+            <div class="tour-step" data-step="3">
+                <div class="tour-step-hero">
+                    <div class="tour-hero-icon icon-download">
+                        {% include 'core/includes/icon.html' with name='download' %}
+                    </div>
+                    <span class="tour-hero-tag">Máxima compatibilidad</span>
+                </div>
+                <div class="tour-step-body">
+                    <h2 class="tour-title">3. Descarga de Carpeta Completa (.ZIP)</h2>
+                    <p class="tour-desc">
+                        Si preferís trabajar en tus propios softwares de planificación quirúrgica o diseño, hacé clic en <strong>«Descargar ZIP»</strong>.
+                    </p>
+                    <div class="tour-visual-card">
+                        <div class="tour-feature-list">
+                            <div class="tour-feature-item">
+                                <span class="feature-dot"></span>
+                                <span><strong>Estructura intacta:</strong> Paquete comprimido con las series DICOM respetando la jerarquía original.</span>
+                            </div>
+                            <div class="tour-feature-item">
+                                <span class="feature-dot"></span>
+                                <span><strong>Compatible con:</strong> Galileos, Blue Sky Plan, Nemotec, 3Shape, RealGUIDE y Blender for Dental.</span>
+                            </div>
+                        </div>
+                        <p class="tour-tip">
+                            💡 <strong>Visor externo:</strong> Si el estudio incluye un visor auto-ejecutable (.exe), vendrá incluido dentro de la carpeta descargada.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">4</span> Privacidad y Permisos de Derivación</h3>
-                <p>Tu consultorio cuenta con estricta confidencialidad médica: únicamente tenés visibilidad de los estudios en los que figurás como odontólogo derivante asignado y que fueron formalmente aprobados y publicados por el centro D.O.C.</p>
+
+            <!-- Paso 4: Privacidad y Seguridad -->
+            <div class="tour-step" data-step="4">
+                <div class="tour-step-hero">
+                    <div class="tour-hero-icon icon-security">
+                        {% include 'core/includes/icon.html' with name='lock' %}
+                    </div>
+                    <span class="tour-hero-tag">Privacidad médica</span>
+                </div>
+                <div class="tour-step-body">
+                    <h2 class="tour-title">4. Privacidad y Permisos de Derivación</h2>
+                    <p class="tour-desc">
+                        Tu consultorio cuenta con estricta seguridad médica: únicamente tenés visibilidad de los estudios en los que figurás como odontólogo derivante asignado.
+                    </p>
+                    <div class="tour-visual-card">
+                        <div class="tour-feature-list">
+                            <div class="tour-feature-item">
+                                <span class="feature-dot"></span>
+                                <span><strong>Matrícula profesional vinculada:</strong> Validación oficial de habilitación profesional ante el centro D.O.C.</span>
+                            </div>
+                            <div class="tour-feature-item">
+                                <span class="feature-dot"></span>
+                                <span><strong>Transferencia cifrada:</strong> Los archivos viajan encriptados desde el almacenamiento S3 hacia tu pantalla.</span>
+                            </div>
+                        </div>
+                        <p class="tour-tip success">
+                            ✨ <strong>¡Todo listo!</strong> Podés volver a abrir esta guía cuando quieras desde el botón <em>«Guía del Consultorio»</em>.
+                        </p>
+                    </div>
+                </div>
             </div>
-        </article>
-    </div>
-    <div class="tutorial-modal-footer">
-        <button type="button" class="button" id="btn-cerrar-tutorial">
-            Entendido, cerrar guía
-        </button>
+        </div>
+
+        <!-- Barra Inferior: Anterior, Puntos y Siguiente -->
+        <div class="tour-dialog-footer">
+            <div class="tour-nav-left">
+                <button type="button" class="button button-secondary button-small" id="btn-tour-prev" style="display: none;">
+                    &larr; Anterior
+                </button>
+            </div>
+
+            <!-- Indicadores de paso (Dots clicables) -->
+            <div class="tour-dots" id="tour-dots" aria-label="Selector de paso del tutorial">
+                <button type="button" class="tour-dot is-active" data-goto="1" aria-label="Ir al paso 1" title="Paso 1"></button>
+                <button type="button" class="tour-dot" data-goto="2" aria-label="Ir al paso 2" title="Paso 2"></button>
+                <button type="button" class="tour-dot" data-goto="3" aria-label="Ir al paso 3" title="Paso 3"></button>
+                <button type="button" class="tour-dot" data-goto="4" aria-label="Ir al paso 4" title="Paso 4"></button>
+            </div>
+
+            <div class="tour-nav-right">
+                <button type="button" class="button button-small" id="btn-tour-next" style="background: #007788; color: white; font-weight: 600; padding: 0.5rem 1.25rem;">
+                    Siguiente &rarr;
+                </button>
+            </div>
+        </div>
     </div>
 </dialog>
 
@@ -61,33 +166,136 @@
 document.addEventListener("DOMContentLoaded", function () {
     const modal = document.getElementById("modal-tutorial-derivante");
     const btnAbrir = document.getElementById("btn-abrir-tutorial");
-    const btnCerrar = document.getElementById("btn-cerrar-tutorial");
-    const btnCerrarX = document.getElementById("btn-cerrar-tutorial-x");
+    const btnSaltar = document.getElementById("btn-saltar-tutorial");
+    const btnPrev = document.getElementById("btn-tour-prev");
+    const btnNext = document.getElementById("btn-tour-next");
+    const badgeStep = document.getElementById("tour-badge-step");
+    const progressFill = document.getElementById("tour-progress-fill");
+    const steps = document.querySelectorAll(".tour-step");
+    const dots = document.querySelectorAll(".tour-dot");
+    const totalSteps = steps.length || 4;
 
-    if (modal && btnAbrir) {
-        btnAbrir.addEventListener("click", function () {
-            modal.showModal();
+    let currentStep = 1;
+
+    function renderStep(step) {
+        currentStep = Math.max(1, Math.min(step, totalSteps));
+
+        // Actualizar visibilidad de pasos
+        steps.forEach(function (el) {
+            const s = parseInt(el.getAttribute("data-step"), 10);
+            el.classList.toggle("is-active", s === currentStep);
         });
 
-        const cerrarModal = function () {
+        // Actualizar dots
+        dots.forEach(function (dot) {
+            const d = parseInt(dot.getAttribute("data-goto"), 10);
+            dot.classList.toggle("is-active", d === currentStep);
+        });
+
+        // Actualizar barra y badge
+        if (badgeStep) {
+            badgeStep.textContent = "Paso " + currentStep + " de " + totalSteps;
+        }
+        if (progressFill) {
+            progressFill.style.width = ((currentStep / totalSteps) * 100) + "%";
+        }
+
+        // Botón Anterior
+        if (btnPrev) {
+            btnPrev.style.display = (currentStep > 1) ? "inline-flex" : "none";
+        }
+
+        // Botón Siguiente / Finalizar
+        if (btnNext) {
+            if (currentStep === totalSteps) {
+                btnNext.innerHTML = "¡Empezar a explorar! &check;";
+                btnNext.style.background = "#059669"; // Verde esmeralda para el paso final
+            } else {
+                btnNext.innerHTML = "Siguiente &rarr;";
+                btnNext.style.background = "#007788"; // Teal clásico
+            }
+        }
+    }
+
+    function cerrarTour() {
+        if (modal) {
             modal.close();
             try {
                 localStorage.setItem("doc_tutorial_derivante_visto", "true");
             } catch (e) {}
-        };
+        }
+    }
 
-        if (btnCerrar) btnCerrar.addEventListener("click", cerrarModal);
-        if (btnCerrarX) btnCerrarX.addEventListener("click", cerrarModal);
+    if (modal) {
+        // Evento botón Siguiente
+        if (btnNext) {
+            btnNext.addEventListener("click", function () {
+                if (currentStep < totalSteps) {
+                    renderStep(currentStep + 1);
+                } else {
+                    cerrarTour();
+                }
+            });
+        }
 
+        // Evento botón Anterior
+        if (btnPrev) {
+            btnPrev.addEventListener("click", function () {
+                if (currentStep > 1) {
+                    renderStep(currentStep - 1);
+                }
+            });
+        }
+
+        // Evento botón Saltar
+        if (btnSaltar) {
+            btnSaltar.addEventListener("click", cerrarTour);
+        }
+
+        // Navegación por dots
+        dots.forEach(function (dot) {
+            dot.addEventListener("click", function () {
+                const targetStep = parseInt(this.getAttribute("data-goto"), 10);
+                if (targetStep) renderStep(targetStep);
+            });
+        });
+
+        // Botón Guía del Consultorio (reabrir siempre en paso 1)
+        if (btnAbrir) {
+            btnAbrir.addEventListener("click", function () {
+                renderStep(1);
+                modal.showModal();
+            });
+        }
+
+        // Cerrar al cliquear el fondo (backdrop)
         modal.addEventListener("click", function (e) {
             if (e.target === modal) {
-                cerrarModal();
+                cerrarTour();
             }
         });
 
-        // Si es el portal de odontólogo y entra por primera vez, abrir automáticamente
+        // Atajos de teclado mientras el modal está abierto
+        modal.addEventListener("keydown", function (e) {
+            if (e.key === "ArrowRight") {
+                if (currentStep < totalSteps) {
+                    renderStep(currentStep + 1);
+                } else {
+                    cerrarTour();
+                }
+            } else if (e.key === "ArrowLeft") {
+                if (currentStep > 1) {
+                    renderStep(currentStep - 1);
+                }
+            } else if (e.key === "Escape") {
+                cerrarTour();
+            }
+        });
+
+        // Apertura automática si entra por primera vez a Mi Consultorio
         try {
             if (document.body.classList.contains("odontologo-portal") && !localStorage.getItem("doc_tutorial_derivante_visto")) {
+                renderStep(1);
                 modal.showModal();
             }
         } catch (e) {}
