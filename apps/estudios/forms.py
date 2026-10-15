@@ -68,6 +68,7 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["dni"].required = False
         self.fields["apellido"].required = False
+        self.fields["nombre"].required = False
         if importacion and not self.is_bound:
             datos = importacion.datos_detectados or {}
             partes = datos.get("nombre_paciente", "").strip().split()
@@ -88,6 +89,10 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
             self.fields["dni"].help_text = "Dato sugerido por el archivo. Verificá que sea el DNI real antes de guardar."
         else:
             self.fields["dni"].help_text = "Opcional. Si lo dejás en blanco, se generará un identificador provisional automático (TEMP-)."
+
+    def clean_nombre(self):
+        nombre = (self.cleaned_data.get("nombre") or "").strip()
+        return nombre or "Paciente"
 
     def clean_dni(self):
         dni = (self.cleaned_data.get("dni") or "").strip()

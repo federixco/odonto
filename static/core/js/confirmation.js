@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
         for (const [root, update] of [[dentist, updateAccess], [patient, updatePatient]]) {
-            root?.querySelector("[data-selector-value]").addEventListener("change", update);
+            root?.querySelector("[data-selector-value]")?.addEventListener("change", update);
             const selection = root?.querySelector("[data-selector-selection]");
             if (selection) new MutationObserver(update).observe(selection, {childList: true, characterData: true, subtree: true});
         }
