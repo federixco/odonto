@@ -247,17 +247,49 @@ class GestionOdontologosTestCase(TestCase):
         self.assertContains(response, reverse("odontologo_lista"))
 
     def test_admin_incluye_tutorial_interactivo_admin(self):
-        """El administrador cuenta con el tutorial propio de administración y no el de derivantes."""
+        """El administrador cuenta con el tutorial interactivo multisección, sin pasos 5 ni 6, y sin botón duplicado."""
         self.client.login(username="admin_test", password=self.password)
         response = self.client.get(reverse("odontologo_lista"))
         self.assertEqual(response.status_code, 200)
+        # Botón único en cabecera, sin botón duplicado en el cuerpo
         self.assertContains(response, 'id="btn-abrir-tutorial-admin"')
+        self.assertNotContains(response, 'id="btn-abrir-tutorial"')
+        # Modal multisección presente
         self.assertContains(response, 'id="modal-tutorial-admin"')
-        self.assertContains(response, "Guía de administración")
+        self.assertContains(response, "Guía: Odontólogos")
+        # 4 módulos generales (sin visor ni auditoría como pasos 5 y 6)
         self.assertContains(response, "Carga de Estudios e Importación")
         self.assertContains(response, "Odontólogos Derivantes y Solicitudes")
         self.assertContains(response, "Explorador Central de Estudios")
         self.assertContains(response, "Directorio Central de Pacientes")
+        self.assertNotContains(response, "Visor Diagnóstico 2D y 3D en la Web")
+        self.assertNotContains(response, "Auditoría, Trazabilidad y Control de Acceso")
+        # Guía específica de la sección Odontólogos
+        self.assertContains(response, "Carga Exprés por Arrastre (Drag & Drop)")
+        # No incluye tutorial de derivantes
         self.assertNotContains(response, 'id="modal-tutorial-derivante"')
         self.assertNotContains(response, "Guía para derivantes")
+
+    def test_admin_tutorial_en_otras_secciones(self):
+        """Verifica que cada sección administrativa incluya el tutorial y adapte el botón."""
+        self.client.login(username="admin_test", password=self.password)
+        
+        # Carga de estudios
+        resp_carga = self.client.get(reverse("importacion_crear"))
+        self.assertEqual(resp_carga.status_code, 200)
+        self.assertContains(resp_carga, "Guía: Carga de estudios")
+        self.assertContains(resp_carga, 'id="modal-tutorial-admin"')
+
+        # Historial de estudios
+        resp_estudios = self.client.get(reverse("estudio_lista"))
+        self.assertEqual(resp_estudios.status_code, 200)
+        self.assertContains(resp_estudios, "Guía: Historial")
+        self.assertContains(resp_estudios, 'id="modal-tutorial-admin"')
+
+        # Directorio de pacientes
+        resp_pacientes = self.client.get(reverse("paciente_lista"))
+        self.assertEqual(resp_pacientes.status_code, 200)
+        self.assertContains(resp_pacientes, "Guía: Pacientes")
+        self.assertContains(resp_pacientes, 'id="modal-tutorial-admin"')
+
 

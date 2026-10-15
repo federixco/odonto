@@ -11,10 +11,7 @@
         <h1>Odontólogos derivantes</h1>
         <p>Administrá las cuentas profesionales y cargá estudios para un derivante.</p>
     </div>
-    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-        <button type="button" class="button button-secondary btn-abrir-tutorial-admin" id="btn-abrir-tutorial" style="display: flex; align-items: center; gap: 0.5rem;">
-            {% include 'core/includes/icon.html' with name='info' %} Guía de administración
-        </button>
+    <div>
         <a class="button" href="{% url 'odontologo_crear' %}">
             {% include 'core/includes/icon.html' with name='plus' %} Registrar odontólogo
         </a>

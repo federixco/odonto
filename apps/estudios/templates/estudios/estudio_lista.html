@@ -52,7 +52,7 @@
     </div>
 
     <!-- Pestañas de Agrupación -->
-    <div style="display: flex; gap: 1.5rem; padding: 15px 28px 0; border-bottom: 1px solid #dcdfe4; margin-bottom: 5px;">
+    <div id="tour-estudios-tabs" class="directory-grouping-tabs" style="display: flex; gap: 1.5rem; padding: 15px 28px 0; border-bottom: 1px solid #dcdfe4; margin-bottom: 5px;">
         <a href="?agrupar={% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}" style="text-decoration: none; padding-bottom: 10px; color: {% if not agrupar %}#005a9e{% else %}#5a6b7c{% endif %}; font-weight: {% if not agrupar %}600{% else %}400{% endif %}; border-bottom: 3px solid {% if not agrupar %}#005a9e{% else %}transparent{% endif %}; font-size: 0.9rem;">
             Todos los estudios
         </a>

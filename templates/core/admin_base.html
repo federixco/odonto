@@ -22,8 +22,9 @@
                 <span class="admin-header-caption">Plataforma de estudios<br><strong>Administración del centro</strong></span>
             </div>
             <div class="admin-account" id="tour-admin-account">
-                <button type="button" class="button button-secondary button-small btn-abrir-tutorial-admin" id="btn-abrir-tutorial-admin" style="display: flex; align-items: center; gap: 0.4rem;" title="Abrir guía interactiva de administración">
-                    {% include 'core/includes/icon.html' with name='info' %} <span>Guía de administración</span>
+                <button type="button" class="button button-secondary button-small btn-abrir-tutorial-admin" id="btn-abrir-tutorial-admin" style="display: flex; align-items: center; gap: 0.4rem;" title="Abrir guía interactiva">
+                    {% include 'core/includes/icon.html' with name='info' %}
+                    <span>{% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}Guía: Odontólogos{% elif request.resolver_match.url_name|slice:':11' == 'importacion' %}Guía: Carga de estudios{% elif request.resolver_match.url_name|slice:':7' == 'estudio' %}Guía: Historial{% elif request.resolver_match.url_name|slice:':8' == 'paciente' %}Guía: Pacientes{% else %}Guía de administración{% endif %}</span>
                 </button>
                 {% if odontologos_pendientes_count > 0 %}
                 <a href="{% url 'odontologo_lista' %}" class="admin-notification-badge" title="{{ odontologos_pendientes_count }} solicitud{{ odontologos_pendientes_count|pluralize }} pendiente{{ odontologos_pendientes_count|pluralize }} de habilitación">
