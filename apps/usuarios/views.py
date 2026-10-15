@@ -116,13 +116,35 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
             Prefetch("archivos", queryset=Archivo.objects.filter(estado=EstadoArchivo.COMPLETO)
                      .only("estudio_id", "formato").order_by("pk")[:4], to_attr="archivos_resumen"),
         )
-        pagina = Paginator(estudios, 25).get_page(self.request.GET.get("page"))
+
+        # Agrupar estudios por paciente: 1 tarjeta por paciente con historial cronológico
+        pacientes_dict = {}
+        for estudio in estudios:
+            pid = estudio.paciente_id
+            if pid not in pacientes_dict:
+                pacientes_dict[pid] = {
+                    "paciente": estudio.paciente,
+                    "estudios": [],
+                    "total_estudios": 0,
+                    "ultimo_estudio": estudio,
+                    "estudios_anteriores": [],
+                }
+            pacientes_dict[pid]["estudios"].append(estudio)
+            pacientes_dict[pid]["total_estudios"] += 1
+            if len(pacientes_dict[pid]["estudios"]) > 1:
+                pacientes_dict[pid]["estudios_anteriores"].append(estudio)
+
+        pacientes_agrupados = list(pacientes_dict.values())
+        paginador = Paginator(pacientes_agrupados, 12)
+        pagina = paginador.get_page(self.request.GET.get("page"))
 
         context.update({
-            "estudios": pagina.object_list,
+            "pacientes": pagina.object_list,
+            "estudios": estudios,  # Mantener queryset por compatibilidad de tests
             "page_obj": pagina,
             "total_estudios": total_estudios,
             "total_pacientes": total_pacientes,
+            "total_pacientes_visibles": len(pacientes_agrupados),
             "estudios_recientes": estudios_recientes,
             "tipos_disponibles": tipos_disponibles,
             "filtro_q": q,
