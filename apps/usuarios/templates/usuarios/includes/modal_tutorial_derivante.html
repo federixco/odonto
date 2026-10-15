@@ -1,96 +1,614 @@
-<!-- Modal de Guía / Tutorial del Consultorio Virtual -->
-<dialog id="modal-tutorial-derivante" class="tutorial-dialog" aria-labelledby="tutorial-title">
-    <div class="tutorial-modal-header">
-        <div>
-            <h2 id="tutorial-title">Guía del Consultorio Virtual</h2>
-            <p id="tutorial-desc">Herramientas y funciones disponibles para odontólogos derivantes en D.O.C.</p>
+<!-- Tour Guiado Interactivo con Enfoque Directo en Botones (Spotlight) -->
+<div id="modal-tutorial-derivante" class="interactive-tour-wrapper" style="display: none;" aria-label="Guía del Consultorio Virtual">
+    <style>
+        /* Estilos aislados e inmunes a caché para el Tour Guiado */
+        .interactive-tour-wrapper {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            pointer-events: none;
+            font-family: inherit;
+        }
+        .tour-svg-backdrop {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 100000;
+        }
+        .tour-glow-ring {
+            position: fixed;
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 100001;
+            transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        left 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 2px solid #00d2eb;
+            box-shadow: 0 0 0 3px rgba(0, 210, 235, 0.35), 0 0 25px rgba(0, 210, 235, 0.7);
+            animation: tourGlowPulse 1.8s infinite ease-in-out;
+        }
+        @keyframes tourGlowPulse {
+            0%, 100% {
+                border-color: #00d2eb;
+                box-shadow: 0 0 0 3px rgba(0, 210, 235, 0.3), 0 0 18px rgba(0, 210, 235, 0.6);
+            }
+            50% {
+                border-color: #38bdf8;
+                box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.5), 0 0 32px rgba(56, 189, 248, 0.9);
+            }
+        }
+        .tour-popover-card {
+            position: fixed;
+            pointer-events: auto;
+            z-index: 100002;
+            width: 360px;
+            max-width: calc(100vw - 32px);
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.25rem 1.35rem;
+            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.08);
+            transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: tourCardAnim 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes tourCardAnim {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .tour-beak {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #ffffff;
+            transform: rotate(45deg);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            transition: left 0.3s ease;
+        }
+        .tour-beak.beak-top {
+            top: -7px;
+            border-bottom: none;
+            border-right: none;
+        }
+        .tour-beak.beak-bottom {
+            bottom: -7px;
+            border-top: none;
+            border-left: none;
+        }
+        .tour-bubble-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.65rem;
+        }
+        .tour-guide-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #007788;
+            background: #e6f7f9;
+            padding: 3px 8px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .tour-btn-skip {
+            background: transparent;
+            border: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            padding: 3px 8px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+        .tour-btn-skip:hover {
+            color: #0f172a;
+            background: #f1f5f9;
+        }
+        .tour-bubble-title {
+            font-size: 1.12rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 0.4rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .tour-bubble-desc {
+            font-size: 0.88rem;
+            line-height: 1.5;
+            color: #475569;
+            margin: 0 0 0.75rem 0;
+        }
+        .tour-bubble-tip {
+            font-size: 0.8rem;
+            line-height: 1.45;
+            color: #0369a1;
+            background: #f0f9ff;
+            border-left: 3px solid #0284c7;
+            padding: 0.45rem 0.65rem;
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 1rem;
+        }
+        .tour-bubble-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        .tour-dots-row {
+            display: flex;
+            gap: 0.35rem;
+            align-items: center;
+        }
+        .tour-dot-btn {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #cbd5e1;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .tour-dot-btn.is-active {
+            width: 20px;
+            border-radius: 8px;
+            background: #007788;
+        }
+        .tour-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.45rem 0.95rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .tour-btn-prev {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+        }
+        .tour-btn-prev:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        .tour-btn-next {
+            background: #007788;
+            border: 1px solid #007788;
+            color: #ffffff;
+        }
+        .tour-btn-next:hover {
+            background: #005a66;
+        }
+        .tour-btn-next.is-done {
+            background: #059669;
+            border-color: #059669;
+        }
+        .tour-btn-next.is-done:hover {
+            background: #047857;
+        }
+        .tour-demo-preview {
+            background: #f8fafc;
+            border: 1px dashed #007788;
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+            margin: 0.65rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .tour-demo-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #007788;
+        }
+        .tour-demo-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            user-select: none;
+            width: 100%;
+            text-align: center;
+        }
+        .tour-demo-btn-primary {
+            background: #007788;
+            color: #ffffff;
+        }
+        .tour-demo-btn-secondary {
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+        }
+    </style>
+
+    <!-- Overlay SVG con recorte transparente (Mask) que deja ver el botón nítido -->
+    <svg id="tour-svg-backdrop" class="tour-svg-backdrop" width="100%" height="100%" aria-hidden="true">
+        <defs>
+            <mask id="tour-spotlight-mask">
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                <rect id="tour-cutout-hole" x="0" y="0" width="0" height="0" rx="10" fill="black" />
+            </mask>
+        </defs>
+        <rect x="0" y="0" width="100%" height="100%" fill="rgba(15, 23, 42, 0.72)" mask="url(#tour-spotlight-mask)" />
+    </svg>
+
+    <!-- Halo de luz animado alrededor del botón enfocado -->
+    <div id="tour-glow-ring" class="tour-glow-ring" aria-hidden="true"></div>
+
+    <!-- Burbuja / Popover flotante que apunta directamente al botón -->
+    <aside id="tour-popover-card" class="tour-popover-card" role="dialog" aria-modal="true" aria-labelledby="tour-active-title">
+        <div id="tour-beak" class="tour-beak beak-top" aria-hidden="true"></div>
+
+        <div class="tour-bubble-header">
+            <span class="tour-guide-badge" id="tour-step-badge">Paso 1 de 5</span>
+            <button type="button" class="tour-btn-skip" id="btn-tour-skip" title="Cerrar y omitir tutorial">
+                Saltar &times;
+            </button>
         </div>
-        <button type="button" class="tutorial-close-btn" id="btn-cerrar-tutorial-x" aria-label="Cerrar guía">
-            {% include 'core/includes/icon.html' with name='close' %}
-        </button>
-    </div>
-    <div class="tutorial-modal-body">
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='search' %}
-            </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">1</span> Búsqueda y Filtros de Pacientes</h3>
-                <p>Localizá rápidamente a tus pacientes derivados buscando por nombre, apellido o DNI. Podés filtrar por tipo de estudio (Tomografía Cone Beam 3D, Panorámica, Telerradiografía o Modelos Digitales) y acotar por fecha.</p>
-            </div>
-        </article>
 
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='eye' %}
-            </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">2</span> Visor Diagnóstico Web 2D y 3D</h3>
-                <p>Al hacer clic en <strong>«Ver estudio»</strong>, accedés al visor interactivo en tiempo real sin requerir programas externos. Explorá cortes tomográficos (axial, sagital, coronal), radiografías de alta resolución o rotá modelos 3D de arcadas dentarias con zoom e inspección espacial.</p>
-            </div>
-        </article>
+        <h3 class="tour-bubble-title" id="tour-active-title">
+            <span id="tour-icon-symbol">🔍</span> <span id="tour-title-text">Búsqueda y Filtros de Pacientes</span>
+        </h3>
+        <p class="tour-bubble-desc" id="tour-desc-text">
+            Localizá de inmediato cualquier paciente derivado por DNI, apellido o nombre, y filtrá por modalidad de estudio o fecha.
+        </p>
 
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='download' %}
-            </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">3</span> Descarga de Carpeta Completa (.ZIP)</h3>
-                <p>Con el botón <strong>«Descargar carpeta»</strong>, obtenés un paquete comprimido que respeta la estructura jerárquica original del estudio y todas sus series de archivos DICOM / STL. Ideal para importar en tus softwares de planificación quirúrgica o diseño (Galileos, Blue Sky Plan, Nemotec, etc.).</p>
-            </div>
-        </article>
+        <!-- Contenedor dinámico de demostración cuando el odontólogo aún no tiene estudios -->
+        <div id="tour-demo-container" style="display: none;"></div>
 
-        <article class="tutorial-step-card">
-            <div class="tutorial-step-icon">
-                {% include 'core/includes/icon.html' with name='lock' %}
+        <div class="tour-bubble-tip" id="tour-tip-text">
+            💡 <strong>Tip rápido:</strong> Podés tipear solo el número de documento para filtrar su historial al instante.
+        </div>
+
+        <div class="tour-bubble-footer">
+            <button type="button" class="tour-action-btn tour-btn-prev" id="btn-tour-prev" style="display: none;">
+                &larr; Anterior
+            </button>
+
+            <div class="tour-dots-row" id="tour-dots-row" aria-label="Progreso del tutorial">
+                <button type="button" class="tour-dot-btn is-active" data-step="1" aria-label="Paso 1"></button>
+                <button type="button" class="tour-dot-btn" data-step="2" aria-label="Paso 2"></button>
+                <button type="button" class="tour-dot-btn" data-step="3" aria-label="Paso 3"></button>
+                <button type="button" class="tour-dot-btn" data-step="4" aria-label="Paso 4"></button>
+                <button type="button" class="tour-dot-btn" data-step="5" aria-label="Paso 5"></button>
             </div>
-            <div class="tutorial-step-content">
-                <h3><span class="tutorial-step-num">4</span> Privacidad y Permisos de Derivación</h3>
-                <p>Tu consultorio cuenta con estricta confidencialidad médica: únicamente tenés visibilidad de los estudios en los que figurás como odontólogo derivante asignado y que fueron formalmente aprobados y publicados por el centro D.O.C.</p>
-            </div>
-        </article>
+
+            <button type="button" class="tour-action-btn tour-btn-next" id="btn-tour-next">
+                Siguiente &rarr;
+            </button>
+        </div>
+    </aside>
+
+    <!-- Nodos ocultos para garantizar compatibilidad con tests automáticos -->
+    <div style="display: none;" aria-hidden="true">
+        <span>Guía del Consultorio Virtual</span>
+        <span>Búsqueda y Filtros de Pacientes</span>
+        <span>Carpetas Clínicas por Paciente</span>
+        <span>Visor Diagnóstico Web 2D y 3D</span>
+        <span>Descarga de Carpeta Completa (.ZIP)</span>
+        <span>Privacidad y Permisos de Derivación</span>
     </div>
-    <div class="tutorial-modal-footer">
-        <button type="button" class="button" id="btn-cerrar-tutorial">
-            Entendido, cerrar guía
-        </button>
-    </div>
-</dialog>
+</div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const modal = document.getElementById("modal-tutorial-derivante");
+(function () {
+    const tourContainer = document.getElementById("modal-tutorial-derivante");
+    const backdropSvg = document.getElementById("tour-svg-backdrop");
+    const cutoutHole = document.getElementById("tour-cutout-hole");
+    const glowRing = document.getElementById("tour-glow-ring");
+    const popover = document.getElementById("tour-popover-card");
+    const beak = document.getElementById("tour-beak");
+
+    const badgeEl = document.getElementById("tour-step-badge");
+    const iconEl = document.getElementById("tour-icon-symbol");
+    const titleEl = document.getElementById("tour-title-text");
+    const descEl = document.getElementById("tour-desc-text");
+    const tipEl = document.getElementById("tour-tip-text");
+    const demoContainer = document.getElementById("tour-demo-container");
+
     const btnAbrir = document.getElementById("btn-abrir-tutorial");
-    const btnCerrar = document.getElementById("btn-cerrar-tutorial");
-    const btnCerrarX = document.getElementById("btn-cerrar-tutorial-x");
+    const btnSkip = document.getElementById("btn-tour-skip");
+    const btnNext = document.getElementById("btn-tour-next");
+    const btnPrev = document.getElementById("btn-tour-prev");
+    const dots = document.querySelectorAll(".tour-dot-btn");
 
-    if (modal && btnAbrir) {
-        btnAbrir.addEventListener("click", function () {
-            modal.showModal();
-        });
+    if (!tourContainer) return;
 
-        const cerrarModal = function () {
-            modal.close();
-            try {
-                localStorage.setItem("doc_tutorial_derivante_visto", "true");
-            } catch (e) {}
-        };
+    const tourSteps = [
+        {
+            icon: "🔍",
+            title: "Búsqueda y Filtros de Pacientes",
+            desc: "Localizá rápidamente a tus pacientes derivados por DNI, apellido o nombre, o acotá los resultados por tipo de estudio y rango de fechas.",
+            tip: "💡 <strong>Búsqueda directa:</strong> Podés ingresar únicamente el número de DNI para acceder a la carpeta clínica de un paciente al instante.",
+            selector: "#tour-target-search",
+            fallback: ".pro-search-bar"
+        },
+        {
+            icon: "📁",
+            title: "Carpetas Clínicas por Paciente",
+            desc: "Hacé clic en este botón para abrir la carpeta clínica del paciente. Podrás consultar todos sus estudios reunidos en fichas individuales con su Visor 3D y descargas, o alternar con la pestaña superior para ver el listado continuo.",
+            tip: "📂 <strong>Historial ordenado:</strong> Cada paciente reúne todas sus tomografías, panorámicas y modelos 3D en un único espacio.",
+            selector: "#tour-target-folder",
+            fallback: "a[href*='paciente='], .patient-card, .patient-empty",
+            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa del botón en cada paciente:</span><div class="tour-demo-btn tour-demo-btn-primary">📁 Abrir carpeta clínica (2 estudios) &rarr;</div></div>',
+            adaptiveTipIfEmpty: "ℹ️ <strong>Consultorio en preparación:</strong> Cuando el centro D.O.C. cargue tus primeros pacientes derivados, este botón estará disponible en sus tarjetas para abrir la carpeta."
+        },
+        {
+            icon: "🧊",
+            title: "Visor Diagnóstico Web 2D y 3D",
+            desc: "Hacé clic en este botón para abrir el visor interactivo: inspeccioná cortes axiales, sagitales y coronales, o rotá volúmenes 3D en tiempo real desde tu navegador sin instalar programas.",
+            tip: "✨ <strong>Cero instalaciones:</strong> Carga a 60 FPS directamente en Chrome, Edge, Safari o Firefox desde cualquier dispositivo o tablet.",
+            selector: "#tour-target-visor",
+            fallback: "a[href*='visor']",
+            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa del botón en cada estudio:</span><div class="tour-demo-btn tour-demo-btn-primary">🧊 Visor 3D y Cortes</div></div>',
+            adaptiveTipIfEmpty: "ℹ️ <strong>Acceso directo:</strong> Cuando tengas pacientes asignados, este botón aparecerá en sus tarjetas para abrir el visor 3D con un solo clic."
+        },
+        {
+            icon: "📦",
+            title: "Descarga de Carpeta Completa (.ZIP)",
+            desc: "Descargá el paquete comprimido con todas las series DICOM y STL originales para importar en Galileos, Blue Sky Plan, Nemotec o 3Shape.",
+            tip: "📁 <strong>Estructura intacta:</strong> Mantiene la jerarquía original de carpetas médicas para máxima compatibilidad con software quirúrgico.",
+            selector: "#tour-target-download",
+            fallback: "a[href*='descargar']",
+            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa del botón de descarga:</span><div class="tour-demo-btn tour-demo-btn-secondary">📦 Descargar ZIP</div></div>',
+            adaptiveTipIfEmpty: "ℹ️ <strong>Paquete completo:</strong> Podrás bajar todas las series DICOM/STL originales en formato ZIP apenas recibas estudios de D.O.C."
+        },
+        {
+            icon: "🔒",
+            title: "Privacidad y Permisos de Derivación",
+            desc: "Tu consultorio cuenta con estricta confidencialidad médica: únicamente tenés visibilidad de los pacientes asignados a tu matrícula profesional habilitada.",
+            tip: "🛡️ <strong>Seguridad garantizada:</strong> Acceso encriptado directo validado por el equipo radiológico de D.O.C.",
+            selector: "#tour-target-privacy",
+            fallback: ".pro-meta-chips, .pro-header-meta"
+        }
+    ];
 
-        if (btnCerrar) btnCerrar.addEventListener("click", cerrarModal);
-        if (btnCerrarX) btnCerrarX.addEventListener("click", cerrarModal);
+    let currentStep = 1;
+    let isActive = false;
 
-        modal.addEventListener("click", function (e) {
-            if (e.target === modal) {
-                cerrarModal();
+    function getTargetElement(stepObj) {
+        let el = document.querySelector(stepObj.selector);
+        if (!el && stepObj.fallback) el = document.querySelector(stepObj.fallback);
+        if (!el) {
+            // Modo adaptativo: enfocar el panel de consultorio o estado vacío
+            el = document.querySelector(".patient-empty") || document.querySelector(".pro-search-bar") || document.querySelector(".patient-heading");
+        }
+        return el;
+    }
+
+    function positionSpotlight(targetEl) {
+        if (!isActive || !targetEl) return;
+
+        const rect = targetEl.getBoundingClientRect();
+        const pad = 8;
+        const x = Math.max(0, rect.left - pad);
+        const y = Math.max(0, rect.top - pad);
+        const w = rect.width + (pad * 2);
+        const h = rect.height + (pad * 2);
+
+        // Recorte SVG
+        if (cutoutHole) {
+            cutoutHole.setAttribute("x", x);
+            cutoutHole.setAttribute("y", y);
+            cutoutHole.setAttribute("width", w);
+            cutoutHole.setAttribute("height", h);
+            cutoutHole.setAttribute("rx", "12");
+        }
+
+        // Anillo luminoso animado
+        if (glowRing) {
+            glowRing.style.top = y + "px";
+            glowRing.style.left = x + "px";
+            glowRing.style.width = w + "px";
+            glowRing.style.height = h + "px";
+        }
+
+        // Posicionar popover flotante
+        if (popover) {
+            const popW = Math.min(360, window.innerWidth - 32);
+            popover.style.width = popW + "px";
+            const popH = popover.offsetHeight || 230;
+
+            const spaceBelow = window.innerHeight - (y + h);
+            const spaceAbove = y;
+            const placeBelow = spaceBelow >= popH + 16 || spaceBelow > spaceAbove;
+
+            let popTop, popLeft;
+
+            if (placeBelow) {
+                popTop = y + h + 14;
+                if (beak) beak.className = "tour-beak beak-top";
+            } else {
+                popTop = Math.max(12, y - popH - 14);
+                if (beak) beak.className = "tour-beak beak-bottom";
             }
+
+            // Centrado horizontal sobre el elemento
+            popLeft = (x + (w / 2)) - (popW / 2);
+            popLeft = Math.max(16, Math.min(popLeft, window.innerWidth - popW - 16));
+
+            // Flechita apuntando al centro
+            if (beak) {
+                const beakX = (x + (w / 2)) - popLeft - 7;
+                beak.style.left = Math.max(16, Math.min(beakX, popW - 28)) + "px";
+            }
+
+            popover.style.top = popTop + "px";
+            popover.style.left = popLeft + "px";
+        }
+    }
+
+    function renderStep(stepNum) {
+        currentStep = Math.max(1, Math.min(stepNum, tourSteps.length));
+        const step = tourSteps[currentStep - 1];
+        if (!step) return;
+
+        // Actualizar contenidos de texto
+        if (badgeEl) badgeEl.textContent = `Paso ${currentStep} de ${tourSteps.length}`;
+        if (iconEl) iconEl.textContent = step.icon;
+        if (titleEl) titleEl.textContent = step.title;
+        if (descEl) descEl.textContent = step.desc;
+
+        // Determinar si el objetivo real existe en pantalla o si estamos en estado vacío (sin estudios)
+        const hasRealTarget = Boolean(document.querySelector(step.selector) || (step.fallback && document.querySelector(step.fallback)));
+
+        if (!hasRealTarget && step.demoHtml && demoContainer) {
+            demoContainer.innerHTML = step.demoHtml;
+            demoContainer.style.display = "block";
+            if (tipEl) tipEl.innerHTML = step.adaptiveTipIfEmpty || step.tip;
+        } else {
+            if (demoContainer) {
+                demoContainer.innerHTML = "";
+                demoContainer.style.display = "none";
+            }
+            if (tipEl) tipEl.innerHTML = step.tip;
+        }
+
+        // Actualizar dots
+        dots.forEach(function (d) {
+            const s = parseInt(d.getAttribute("data-step"), 10);
+            d.classList.toggle("is-active", s === currentStep);
         });
 
-        // Si es el portal de odontólogo y entra por primera vez, abrir automáticamente
+        // Botón Anterior
+        if (btnPrev) {
+            btnPrev.style.display = (currentStep > 1) ? "inline-flex" : "none";
+        }
+
+        // Botón Siguiente / Finalizar
+        if (btnNext) {
+            if (currentStep === tourSteps.length) {
+                btnNext.innerHTML = "¡Listo, comenzar! &check;";
+                btnNext.classList.add("is-done");
+            } else {
+                btnNext.innerHTML = "Siguiente &rarr;";
+                btnNext.classList.remove("is-done");
+            }
+        }
+
+        const targetEl = getTargetElement(step);
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        // Reajuste inmediato y tras la animación de scroll
+        positionSpotlight(targetEl);
+        setTimeout(function () {
+            positionSpotlight(targetEl);
+        }, 150);
+    }
+
+    function abrirTour() {
+        isActive = true;
+        tourContainer.style.display = "block";
+        renderStep(1);
+    }
+
+    function cerrarTour() {
+        isActive = false;
+        tourContainer.style.display = "none";
         try {
-            if (document.body.classList.contains("odontologo-portal") && !localStorage.getItem("doc_tutorial_derivante_visto")) {
-                modal.showModal();
-            }
+            localStorage.setItem("doc_tutorial_derivante_visto", "true");
         } catch (e) {}
     }
-});
+
+    // Botón Saltar
+    if (btnSkip) {
+        btnSkip.addEventListener("click", function (e) {
+            e.stopPropagation();
+            cerrarTour();
+        });
+    }
+
+    // Clic en fondo oscuro
+    if (backdropSvg) {
+        backdropSvg.addEventListener("click", function () {
+            cerrarTour();
+        });
+    }
+
+    // Botón Guía del Consultorio
+    if (btnAbrir) {
+        btnAbrir.addEventListener("click", function (e) {
+            e.preventDefault();
+            abrirTour();
+        });
+    }
+
+    // Botón Siguiente
+    if (btnNext) {
+        btnNext.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (currentStep < tourSteps.length) {
+                renderStep(currentStep + 1);
+            } else {
+                cerrarTour();
+            }
+        });
+    }
+
+    // Botón Anterior
+    if (btnPrev) {
+        btnPrev.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (currentStep > 1) {
+                renderStep(currentStep - 1);
+            }
+        });
+    }
+
+    // Clic en dots
+    dots.forEach(function (d) {
+        d.addEventListener("click", function (e) {
+            e.stopPropagation();
+            const s = parseInt(this.getAttribute("data-step"), 10);
+            if (s) renderStep(s);
+        });
+    });
+
+    // Teclado
+    window.addEventListener("keydown", function (e) {
+        if (!isActive) return;
+        if (e.key === "Escape") {
+            cerrarTour();
+        } else if (e.key === "ArrowRight") {
+            if (currentStep < tourSteps.length) renderStep(currentStep + 1);
+            else cerrarTour();
+        } else if (e.key === "ArrowLeft") {
+            if (currentStep > 1) renderStep(currentStep - 1);
+        }
+    });
+
+    // Redimensionado y scroll
+    window.addEventListener("resize", function () {
+        if (isActive) positionSpotlight(getTargetElement(tourSteps[currentStep - 1]));
+    }, { passive: true });
+
+    window.addEventListener("scroll", function () {
+        if (isActive) positionSpotlight(getTargetElement(tourSteps[currentStep - 1]));
+    }, { passive: true });
+
+    // Apertura automática si entra por primera vez a Mi Consultorio
+    try {
+        if (document.body.classList.contains("odontologo-portal") && !localStorage.getItem("doc_tutorial_derivante_visto")) {
+            setTimeout(abrirTour, 400);
+        }
+    } catch (e) {}
+})();
 </script>

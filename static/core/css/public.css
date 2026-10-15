@@ -466,122 +466,235 @@ details > summary::-webkit-details-marker { display: none; }
     }
 }
 
-/* Modal de Guía / Tutorial para Odontólogos Derivantes */
-.tutorial-dialog {
-    border: none;
-    border-radius: 16px;
-    padding: 0;
-    max-width: 720px;
-    width: 92%;
+/* ========================================================
+   Tour Guiado Interactivo con Enfoque en Botones (Spotlight)
+   ======================================================== */
+.interactive-tour-wrapper {
+    display: none;
+}
+.interactive-tour-wrapper.is-active {
+    display: block;
+}
+
+/* Fondo oscurecido */
+#tour-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 9998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: auto;
+}
+.interactive-tour-wrapper.is-active #tour-overlay {
+    opacity: 1;
+}
+
+/* Caja de enfoque (Spotlight) con halo de luz y animación en el botón */
+#tour-spotlight {
+    position: fixed;
+    border-radius: 12px;
+    z-index: 9999;
+    pointer-events: none;
+    transition: top 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.68),
+                0 0 0 3px #00b4cc,
+                0 0 25px rgba(0, 180, 204, 0.85);
+    animation: tourSpotlightPulse 2s infinite ease-in-out;
+}
+
+@keyframes tourSpotlightPulse {
+    0% {
+        box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.68),
+                    0 0 0 3px #00b4cc,
+                    0 0 16px rgba(0, 180, 204, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.68),
+                    0 0 0 5px #00e5ff,
+                    0 0 32px rgba(0, 229, 255, 0.95);
+    }
+    100% {
+        box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.68),
+                    0 0 0 3px #00b4cc,
+                    0 0 16px rgba(0, 180, 204, 0.6);
+    }
+}
+
+/* Tarjeta / Popover Flotante anclada al botón */
+#tour-popover {
+    position: fixed;
+    z-index: 10000;
+    width: 350px;
+    max-width: calc(100vw - 32px);
     background: #ffffff;
-    box-shadow: 0 20px 45px rgba(16, 44, 87, 0.22);
-    overflow: hidden;
+    border-radius: 16px;
+    padding: 1.25rem 1.35rem;
+    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    transition: top 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                opacity 0.25s ease;
+    animation: tourCardPop 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-.tutorial-dialog::backdrop {
-    background: rgba(16, 44, 87, 0.45);
-    backdrop-filter: blur(4px);
+
+@keyframes tourCardPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
-.tutorial-modal-header {
-    background: linear-gradient(135deg, #102c57 0%, #007788 100%);
-    color: #ffffff;
-    padding: 1.5rem 1.75rem;
+
+/* Flechita del popover */
+.tour-arrow {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #ffffff;
+    transform: rotate(45deg);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.tour-arrow.tour-arrow-top {
+    top: -7px;
+    border-bottom: none;
+    border-right: none;
+}
+.tour-arrow.tour-arrow-bottom {
+    bottom: -7px;
+    border-top: none;
+    border-left: none;
+}
+
+/* Encabezado del Popover */
+.tour-popover-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    margin-bottom: 0.65rem;
 }
-.tutorial-modal-header h2 {
-    font-size: 1.35rem;
-    color: #ffffff;
-    margin: 0 0 0.35rem 0;
+.tour-step-badge {
+    font-size: 0.75rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #007788;
+    background: #e6f7f9;
+    padding: 3px 9px;
+    border-radius: 10px;
 }
-.tutorial-modal-header p {
-    font-size: 0.88rem;
-    color: #e0f2fe;
-    margin: 0;
-    line-height: 1.4;
-}
-.tutorial-close-btn {
-    background: rgba(255, 255, 255, 0.15);
+.tour-skip-btn {
+    background: transparent;
     border: none;
-    color: #ffffff;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
+    padding: 3px 8px;
+    border-radius: 6px;
+    transition: all 0.15s;
 }
-.tutorial-close-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-.tutorial-modal-body {
-    padding: 1.5rem 1.75rem;
-    max-height: 65vh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1.15rem;
-}
-.tutorial-step-card {
-    display: flex;
-    gap: 1.25rem;
-    padding: 1.15rem;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-.tutorial-step-card:hover {
-    background: #ffffff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-.tutorial-step-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-.tutorial-step-card:nth-child(1) .tutorial-step-icon { background: #e0f2fe; color: #0284c7; }
-.tutorial-step-card:nth-child(2) .tutorial-step-icon { background: #ede9fe; color: #7c3aed; }
-.tutorial-step-card:nth-child(3) .tutorial-step-icon { background: #e0f2f1; color: #007788; }
-.tutorial-step-card:nth-child(4) .tutorial-step-icon { background: #fef3c7; color: #d97706; }
-
-.tutorial-step-content h3 {
-    font-size: 1.02rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0 0 0.35rem 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.tutorial-step-num {
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 10px;
-    background: #e2e8f0;
-    color: #475569;
-}
-.tutorial-step-content p {
-    font-size: 0.88rem;
-    line-height: 1.55;
-    color: #475569;
-    margin: 0;
-}
-.tutorial-modal-footer {
-    padding: 1.15rem 1.75rem;
+.tour-skip-btn:hover {
+    color: #0f172a;
     background: #f1f5f9;
-    border-top: 1px solid #e2e8f0;
+}
+
+/* Contenido del paso */
+.tour-popover-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.4rem 0;
+    line-height: 1.3;
+}
+.tour-popover-desc {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: #475569;
+    margin: 0 0 1rem 0;
+}
+.tour-popover-tip {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #0369a1;
+    background: #f0f9ff;
+    border-left: 3px solid #0284c7;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 1rem;
+}
+
+/* Pie del Popover */
+.tour-popover-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
-    gap: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f1f5f9;
+}
+.tour-dots {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+.tour-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+.tour-dot:hover {
+    background: #94a3b8;
+}
+.tour-dot.is-active {
+    width: 20px;
+    border-radius: 8px;
+    background: #007788;
+}
+.tour-btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.45rem 0.95rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.tour-btn-prev {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+}
+.tour-btn-prev:hover {
+    background: #f8fafc;
+    color: #0f172a;
+}
+.tour-btn-next {
+    background: #007788;
+    border: 1px solid #007788;
+    color: #ffffff;
+}
+.tour-btn-next:hover {
+    background: #005a66;
+}
+.tour-btn-next.is-final {
+    background: #059669;
+    border-color: #059669;
+}
+.tour-btn-next.is-final:hover {
+    background: #047857;
 }
 

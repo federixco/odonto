@@ -6,6 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const input = document.getElementById("folder-input");
     const button = document.getElementById("folder-select-button");
+    const fileInput = document.getElementById("file-input");
+    const fileButton = document.getElementById("file-select-button");
     const dropZone = document.getElementById("drop-zone");
     const progress = document.getElementById("upload-progress-container");
     const progressBar = document.getElementById("progress-bar");
@@ -39,6 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
             progressText.textContent = "Importación cancelada. El worker limpiará sus archivos de MinIO.";
             cancelar.hidden = reintentar.hidden = true;
             button.disabled = input.disabled = false; input.value = "";
+            if (fileButton) fileButton.disabled = false;
+            if (fileInput) { fileInput.disabled = false; fileInput.value = ""; }
         } catch (error) {
             mostrarError("No se confirmó la cancelación. Volvé a pulsar Cancelar: " + error.message);
             cancelar.disabled = false;
@@ -207,13 +211,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function archivosDesdeCarpetaSoltada(transferencia) {
-        const entradas = Array.from(transferencia.items || [])
-            .map(item => item.webkitGetAsEntry?.())
-            .filter(Boolean);
-        if (entradas.length !== 1 || !entradas[0].isDirectory) {
-            throw new Error("Arrastrá una sola carpeta completa, no archivos sueltos.");
+        let entradas = [];
+        if (transferencia.items && transferencia.items.length) {
+            entradas = Array.from(transferencia.items)
+                .map(item => typeof item.webkitGetAsEntry === "function" ? item.webkitGetAsEntry() : null)
+                .filter(Boolean);
         }
-        return recorrerEntrada(entradas[0]);
+        if (entradas.length > 0) {
+            const resultados = [];
+            let cantidad = 0;
+            for (const entrada of entradas) {
+                const archivos = await recorrerEntrada(entrada);
+                cantidad += archivos.length;
+                if (cantidad > 5000) throw new Error("La carga supera los 5000 archivos.");
+                resultados.push(archivos);
+            }
+            return resultados.flat();
+        }
+        if (transferencia.files && transferencia.files.length) {
+            const files = Array.from(transferencia.files);
+            files.forEach(f => {
+                if (!f._docRelativePath) {
+                    Object.defineProperty(f, "_docRelativePath", {
+                        value: f.webkitRelativePath || f.name,
+                        configurable: true,
+                    });
+                }
+            });
+            return files;
+        }
+        throw new Error("No se detectaron archivos ni carpetas.");
     }
 
     async function procesar(filesEntrada) {
@@ -221,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (pendiente && filesEntrada !== pendiente.files) {mostrarError("Reintentá o cancelá la carpeta anterior antes de elegir otra."); return;}
         const files = Array.from(filesEntrada).filter(file => file.size > 0);
         if (!files.length || files.length > 5000) {
-            mostrarError("Seleccioná una carpeta con entre 1 y 5000 archivos no vacíos.");
+            mostrarError("Seleccioná una carpeta o archivo con entre 1 y 5000 archivos no vacíos.");
             return;
         }
 
@@ -230,12 +257,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const estaCarga = controller;
         cancelar.hidden = false; cancelar.disabled = false; reintentar.hidden = true; reintentar.disabled = false;
         button.disabled = input.disabled = true;
+        if (fileButton) fileButton.disabled = true;
+        if (fileInput) fileInput.disabled = true;
         errorBox.hidden = true;
         progress.hidden = false;
         activarEtapa("upload");
         const total = files.reduce((suma, archivo) => suma + archivo.size, 0);
-        const primeraRuta = files[0]._docRelativePath || files[0].webkitRelativePath || "Estudio";
-        const carpeta = primeraRuta.split("/")[0] || "Estudio";
+        const primeraRuta = files[0]._docRelativePath || files[0].webkitRelativePath || files[0].name || "Estudio";
+        let carpeta = "Estudio";
+        if (primeraRuta.includes("/")) {
+            carpeta = primeraRuta.split("/")[0] || "Estudio";
+        } else if (files.length === 1) {
+            carpeta = files[0].name;
+        } else {
+            carpeta = `Archivos_${files.length}`;
+        }
 
         try {
             pendiente = pendiente || {files, completados:new Set(), archivos:new Map(), datos:{
@@ -267,8 +303,28 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             activarEtapa("analyze");
+            if (window.DOC_UPLOAD_EXPRESS_ODONTOLOGO) {
+                const nombreDestino = window.DOC_UPLOAD_EXPRESS_NOMBRE || "el odontólogo";
+                progressTitle.textContent = "Asignando documento";
+                progressText.textContent = `Guardando directamente en el consultorio de ${nombreDestino}…`;
+                const expressRes = await jsonPost(`/estudios/importaciones/${lote.importacion_id}/confirmar_express/`, {
+                    odontologo_id: window.DOC_UPLOAD_EXPRESS_ODONTOLOGO
+                });
+                progressBar.style.width = "100%";
+                progressTrack.setAttribute("aria-valuenow", "100");
+                activarEtapa("review");
+                progressTitle.textContent = "¡Carga completada!";
+                progressText.textContent = expressRes.mensaje || `El archivo ya está disponible en el consultorio de ${nombreDestino}.`;
+                window.DOC_UPLOAD_EXPRESS_ODONTOLOGO = null;
+                window.DOC_UPLOAD_EXPRESS_NOMBRE = null;
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1600);
+                return;
+            }
+
             progressTitle.textContent = "Detectando datos del paciente";
-            progressText.textContent = "Leyendo la información de la carpeta…";
+            progressText.textContent = "Leyendo la información de los archivos…";
             const analisis = await jsonPost(`/estudios/importaciones/${lote.importacion_id}/analizar/`, {});
             progressBar.style.width = "100%";
             progressTrack.setAttribute("aria-valuenow", "100");
@@ -278,7 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.assign(analisis.detalle_url + (window.DOC_UPLOAD_REDIRECT_APPEND || ""));
         } catch (error) {
             if (!cancelando && !estaCarga.signal.aborted) {
-                mostrarError(error.message || "No se pudo importar la carpeta.");
+                mostrarError(error.message || "No se pudo importar la carga.");
                 progressText.textContent = "Podés reintentar sin duplicar los archivos ya completados.";
                 reintentar.hidden = false;
             }
@@ -288,6 +344,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     button.addEventListener("click", () => input.click());
     input.addEventListener("change", evento => procesar(evento.target.files));
+
+    if (fileButton && fileInput) {
+        fileButton.addEventListener("click", () => fileInput.click());
+        fileInput.addEventListener("change", evento => {
+            const files = Array.from(evento.target.files || []);
+            files.forEach(f => {
+                if (!f._docRelativePath) {
+                    Object.defineProperty(f, "_docRelativePath", {
+                        value: f.name,
+                        configurable: true,
+                    });
+                }
+            });
+            procesar(files);
+        });
+    }
 
     ["dragenter", "dragover"].forEach(nombre => {
         dropZone.addEventListener(nombre, evento => {
@@ -307,7 +379,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const files = await archivosDesdeCarpetaSoltada(evento.dataTransfer);
             await procesar(files);
         } catch (error) {
-            mostrarError(error.message || "No pudimos leer la carpeta.");
+            mostrarError(error.message || "No pudimos leer los archivos.");
         } finally {leyendo = false;}
     });
 
@@ -328,7 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (root.dataset.busy === "true") return;
 
-        // Extraer entradas de forma síncrona antes del window.confirm
+        // Extraer entradas y archivos de forma síncrona antes del window.confirm
         // porque Chrome vacía el dataTransfer mientras el hilo está bloqueado.
         let entradas = [];
         if (e.dataTransfer && e.dataTransfer.items) {
@@ -336,16 +408,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 .map(item => typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null)
                 .filter(Boolean);
         }
+        const archivosFallback = Array.from(e.dataTransfer?.files || []);
 
-        if (entradas.length !== 1 || !entradas[0].isDirectory) {
-            alert("Por favor, arrastrá una sola carpeta completa, no archivos sueltos.");
+        if (!entradas.length && !archivosFallback.length) {
+            alert("Por favor, arrastrá una carpeta o archivo válido.");
             return;
+        }
+
+        let itemLabel = "este estudio";
+        if (entradas.length === 1) {
+            itemLabel = entradas[0].isDirectory ? `la carpeta "${entradas[0].name}"` : `el archivo "${entradas[0].name}"`;
+        } else if (entradas.length > 1) {
+            itemLabel = `${entradas.length} elementos`;
+        } else if (archivosFallback.length === 1) {
+            itemLabel = `el archivo "${archivosFallback[0].name}"`;
+        } else if (archivosFallback.length > 1) {
+            itemLabel = `${archivosFallback.length} archivos`;
         }
         
-        if (!window.confirm("¿Estás seguro que deseas cargar y asignar este estudio para " + nombreOdontologo + "?")) {
+        if (!window.confirm("¿Cargar y enviar directamente " + itemLabel + " a " + nombreOdontologo + "? Se asignará de inmediato a su consultorio.")) {
             return;
         }
 
+        window.DOC_UPLOAD_EXPRESS_ODONTOLOGO = idOdontologo;
+        window.DOC_UPLOAD_EXPRESS_NOMBRE = nombreOdontologo;
         window.DOC_UPLOAD_REDIRECT_APPEND = "?derivante=" + idOdontologo;
         
         if (root.tagName === "DIALOG") {
@@ -355,7 +441,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         
         try {
-            const files = await recorrerEntrada(entradas[0]);
+            let files = [];
+            if (entradas.length > 0) {
+                for (const ent of entradas) {
+                    const res = await recorrerEntrada(ent);
+                    files.push(...res);
+                }
+            } else if (archivosFallback.length > 0) {
+                files = archivosFallback;
+                files.forEach(f => {
+                    if (!f._docRelativePath) {
+                        Object.defineProperty(f, "_docRelativePath", {
+                            value: f.name,
+                            configurable: true
+                        });
+                    }
+                });
+            }
+            if (!files.length) {
+                throw new Error("No se encontraron archivos para cargar.");
+            }
             await procesar(files);
         } catch (err) {
             mostrarError(err.message);

@@ -75,9 +75,9 @@
 </div>
 {% endblock %}
 {% block extra_scripts %}
-<script src="{% static 'core/js/odontologo_confirmacion.js' %}?v=claridad-clinica-1" data-admin-id="{{ user.pk }}" data-style-url="{% static 'core/css/odontologos.css' %}?v=claridad-clinica-1" data-directory-url="{% url 'odontologo_lista' %}" data-selector-url="{% url 'selector_odontologos' %}" defer></script>
-<script src="{% static 'core/js/selectores_remotos.js' %}?v=20261003" defer></script>
-<script src="{% static 'core/js/paciente_selector.js' %}?v=20261003" defer></script>
-<script src="{% static 'core/js/analisis_estado.js' %}?v=20261003" defer></script>
-<script src="{% static 'core/js/confirmation.js' %}?v=claridad-clinica-1" defer></script>
+<script src="{% static 'core/js/odontologo_confirmacion.js' %}?v=20261015-submit-fix" data-admin-id="{{ user.pk }}" data-style-url="{% static 'core/css/odontologos.css' %}?v=20261015-submit-fix" data-directory-url="{% url 'odontologo_lista' %}" data-selector-url="{% url 'selector_odontologos' %}" defer></script>
+<script src="{% static 'core/js/selectores_remotos.js' %}?v=20261015-submit-fix" defer></script>
+<script src="{% static 'core/js/paciente_selector.js' %}?v=20261015-submit-fix" defer></script>
+<script src="{% static 'core/js/analisis_estado.js' %}?v=20261015-submit-fix" defer></script>
+<script src="{% static 'core/js/confirmation.js' %}?v=20261015-submit-fix" defer></script>
 {% endblock %}

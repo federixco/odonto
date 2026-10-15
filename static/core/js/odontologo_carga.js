@@ -109,10 +109,15 @@ document.addEventListener("DOMContentLoaded", () => {
         version += 1; reading = false; files = []; root.hidden = true;
         rows.forEach(row => row.classList.remove("is-recipient"));
         rows.find(row => row.dataset.dentistId === recipient?.id && row.getClientRects().length)?.querySelector("[data-select-dentist]")?.focus();
-        recipient = null; controls();
+        recipient = null;
+        window.DOC_UPLOAD_EXPRESS_ODONTOLOGO = null;
+        window.DOC_UPLOAD_EXPRESS_NOMBRE = null;
+        controls();
     });
     start.addEventListener("click", async () => {
         if (!recipient || !files.length || occupied()) return;
+        window.DOC_UPLOAD_EXPRESS_ODONTOLOGO = recipient.id;
+        window.DOC_UPLOAD_EXPRESS_NOMBRE = recipient.name;
         window.DOC_UPLOAD_REDIRECT_APPEND = `?derivante=${encodeURIComponent(recipient.id)}&origen=odontologos`;
         await root.docImportacion.cargar(files);
         controls();

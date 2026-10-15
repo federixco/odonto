@@ -13,7 +13,10 @@ from django.views.generic import DetailView, ListView, TemplateView
 from datetime import timedelta
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
-from apps.core.enums import EstadoAcceso, EstadoArchivo, EstadoCuenta, EstadoEstudio, RolUsuario
+from django.urls import reverse
+from django.db import transaction
+from apps.auditoria.models import LogActividad
+from apps.core.enums import EstadoAcceso, EstadoArchivo, EstadoCuenta, EstadoEstudio, RolUsuario, TipoEvento
 from apps.archivos.models import Archivo
 from apps.core.mixins import AdminRequeridoMixin, OdontologoRequeridoMixin, PacienteRequeridoMixin
 from apps.estudios.models import Estudio
@@ -70,19 +73,41 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
         else:
             base_qs = Estudio.objects.none()
 
+        # Documentos sin clasificar (subidos express directo al odontólogo con paciente provisional)
+        estudios_sin_clasificar_qs = base_qs.filter(
+            Q(paciente__dni__startswith="TEMP-") | Q(paciente__apellido="Sin clasificar")
+        ).annotate(
+            cantidad_archivos=Count("archivos", filter=Q(archivos__estado=EstadoArchivo.COMPLETO)),
+        ).order_by("-fecha_estudio", "-created_at", "-pk").prefetch_related(
+            Prefetch("archivos", queryset=Archivo.objects.filter(estado=EstadoArchivo.COMPLETO).order_by("pk"), to_attr="archivos_completos"),
+        )
+        estudios_sin_clasificar = list(estudios_sin_clasificar_qs)
+
+        # Pacientes reales del odontólogo para el selector modal de carpetas
+        todos_mis_pacientes = list(Paciente.objects.filter(
+            estudios__in=base_qs
+        ).exclude(
+            Q(dni__startswith="TEMP-") | Q(apellido="Sin clasificar")
+        ).distinct().order_by("apellido", "nombre"))
+
+        # Base de estudios clasificados (excluye provisionales de las carpetas)
+        base_qs_clasificados = base_qs.exclude(
+            Q(paciente__dni__startswith="TEMP-") | Q(paciente__apellido="Sin clasificar")
+        )
+
         # Estadísticas / Métricas para el consultorio
         total_estudios = base_qs.count()
-        total_pacientes = base_qs.values("paciente_id").distinct().count()
+        total_pacientes = base_qs_clasificados.values("paciente_id").distinct().count()
         hace_30_dias = timezone.now().date() - timedelta(days=30)
         estudios_recientes = base_qs.filter(fecha_estudio__gte=hace_30_dias).count()
 
         # Tipos de estudio disponibles para filtro
         tipos_disponibles = (
-            base_qs.values_list("tipo", flat=True).distinct().order_by("tipo")
+            base_qs_clasificados.values_list("tipo", flat=True).distinct().order_by("tipo")
         )
 
         # Filtros por GET
-        estudios = base_qs
+        estudios = base_qs_clasificados
         q = self.request.GET.get("q", "").strip()
         tipo = self.request.GET.get("tipo", "").strip()
         fecha_desde = self.request.GET.get("fecha_desde", "").strip()
@@ -116,13 +141,71 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
             Prefetch("archivos", queryset=Archivo.objects.filter(estado=EstadoArchivo.COMPLETO)
                      .only("estudio_id", "formato").order_by("pk")[:4], to_attr="archivos_resumen"),
         )
-        pagina = Paginator(estudios, 25).get_page(self.request.GET.get("page"))
+
+        # Navegación por carpetas de pacientes o vista general (estilo explorador)
+        vista = self.request.GET.get("vista", "pacientes").strip()
+        paciente_id = self.request.GET.get("paciente", "").strip()
+
+        paciente_seleccionado = None
+        estudios_paciente = []
+        if paciente_id:
+            try:
+                paciente_seleccionado = Paciente.objects.filter(pk=paciente_id).first()
+                if paciente_seleccionado:
+                    # Incluye tanto estudios regulares como documentos privados asignados a este paciente
+                    estudios_paciente = list(
+                        base_qs.filter(paciente=paciente_seleccionado)
+                        .annotate(
+                            cantidad_archivos=Count("archivos", filter=Q(archivos__estado=EstadoArchivo.COMPLETO)),
+                        )
+                        .order_by("-fecha_estudio", "-created_at", "-pk")
+                        .prefetch_related(
+                            Prefetch("archivos", queryset=Archivo.objects.filter(estado=EstadoArchivo.COMPLETO)
+                                     .only("estudio_id", "formato").order_by("pk")[:4], to_attr="archivos_resumen"),
+                        )
+                    )
+            except (ValueError, TypeError):
+                paciente_seleccionado = None
+
+        # Agrupar estudios por paciente: 1 tarjeta por paciente
+        pacientes_dict = {}
+        for estudio in estudios:
+            pid = estudio.paciente_id
+            if pid not in pacientes_dict:
+                pacientes_dict[pid] = {
+                    "paciente": estudio.paciente,
+                    "estudios": [],
+                    "total_estudios": 0,
+                    "ultimo_estudio": estudio,
+                }
+            pacientes_dict[pid]["estudios"].append(estudio)
+            pacientes_dict[pid]["total_estudios"] += 1
+
+        pacientes_agrupados = list(pacientes_dict.values())
+
+        if paciente_seleccionado:
+            paginador = Paginator(estudios_paciente, 12)
+            pagina = paginador.get_page(self.request.GET.get("page"))
+        elif vista == "todos":
+            paginador = Paginator(estudios, 24)
+            pagina = paginador.get_page(self.request.GET.get("page"))
+        else:
+            paginador = Paginator(pacientes_agrupados, 12)
+            pagina = paginador.get_page(self.request.GET.get("page"))
 
         context.update({
-            "estudios": pagina.object_list,
+            "pacientes": pagina.object_list if (not paciente_seleccionado and vista != "todos") else pacientes_agrupados,
+            "estudios_paciente": pagina.object_list if paciente_seleccionado else [],
+            "estudios_lista": pagina.object_list if vista == "todos" else [],
+            "estudios_sin_clasificar": estudios_sin_clasificar,
+            "todos_mis_pacientes": todos_mis_pacientes,
+            "paciente_seleccionado": paciente_seleccionado,
+            "vista": "carpeta" if paciente_seleccionado else vista,
+            "estudios": estudios,  # Mantener queryset por compatibilidad de tests
             "page_obj": pagina,
             "total_estudios": total_estudios,
             "total_pacientes": total_pacientes,
+            "total_pacientes_visibles": len(pacientes_agrupados),
             "estudios_recientes": estudios_recientes,
             "tipos_disponibles": tipos_disponibles,
             "filtro_q": q,
@@ -132,6 +215,76 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
             "hay_filtros": bool(q or tipo or fecha_desde or fecha_hasta),
         })
         return context
+
+
+class MoverEstudioPacienteView(OdontologoRequeridoMixin, View):
+    """Permite al odontólogo mover un estudio/documento a la carpeta de un paciente."""
+
+    def post(self, request, estudio_id):
+        odontologo = getattr(request.user, "odontologo", None)
+        if not odontologo:
+            raise PermissionDenied("Debe ser un odontólogo habilitado.")
+
+        estudio = get_object_or_404(
+            Estudio,
+            pk=estudio_id,
+            autorizaciones__odontologo=odontologo,
+            autorizaciones__estado_acceso=EstadoAcceso.VIGENTE,
+        )
+
+        accion_paciente = request.POST.get("accion_paciente", "existente").strip()
+        target_paciente_id = request.POST.get("paciente_id", "").strip()
+
+        with transaction.atomic():
+            old_paciente = estudio.paciente
+            target_paciente = None
+
+            if accion_paciente == "nuevo":
+                nombre = request.POST.get("nuevo_nombre", "").strip()
+                apellido = request.POST.get("nuevo_apellido", "").strip()
+                dni = request.POST.get("nuevo_dni", "").strip()
+
+                if not nombre or not apellido or not dni:
+                    messages.error(request, "Completá nombre, apellido y DNI para crear la nueva carpeta de paciente.")
+                    return redirect(request.META.get("HTTP_REFERER") or "dashboard_odontologo")
+
+                target_paciente = Paciente.objects.filter(dni=dni).first()
+                if not target_paciente:
+                    target_paciente = Paciente.objects.create(
+                        nombre=nombre,
+                        apellido=apellido,
+                        dni=dni,
+                    )
+            else:
+                if not target_paciente_id:
+                    messages.error(request, "Seleccioná un paciente de destino.")
+                    return redirect(request.META.get("HTTP_REFERER") or "dashboard_odontologo")
+
+                target_paciente = get_object_or_404(Paciente, pk=target_paciente_id)
+
+            # Reasignar paciente al estudio
+            estudio.paciente = target_paciente
+            estudio.save(update_fields=["paciente"])
+
+            # Eliminar paciente temporal si quedó huérfano
+            if old_paciente and old_paciente.pk != target_paciente.pk:
+                if (old_paciente.dni.startswith("TEMP-") or old_paciente.apellido == "Sin clasificar") and not old_paciente.estudios.exists():
+                    old_paciente.delete()
+
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.CORRECCION,
+                resultado="Estudio reasignado a carpeta de paciente",
+                detalles=f"Documento #{estudio.pk} movido a la carpeta de {target_paciente} por {odontologo}.",
+            )
+
+            messages.success(
+                request,
+                f"El documento fue movido exitosamente a la carpeta de {target_paciente.apellido}, {target_paciente.nombre}.",
+            )
+
+        return redirect(f"{reverse('dashboard_odontologo')}?vista=pacientes&paciente={target_paciente.pk}")
 
 
 class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
@@ -147,7 +300,7 @@ class DashboardPacienteView(PacienteRequeridoMixin, TemplateView):
         estudios = Estudio.objects.filter(
             paciente=paciente,
             estado=EstadoEstudio.PUBLICADO,
-        ).annotate(
+        ).exclude(tipo="DOCUMENTO_PRIVADO").exclude(observaciones__icontains="[PRIVADO]").annotate(
             cantidad_archivos=Count("archivos", filter=Q(archivos__estado=EstadoArchivo.COMPLETO)),
         ).order_by("-fecha_estudio", "-created_at", "-pk")
         pagina = Paginator(estudios, 25).get_page(self.request.GET.get("page"))

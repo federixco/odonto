@@ -404,6 +404,12 @@ def _inspeccionar_lote(importacion, control=None):
     elif extensiones and extensiones <= {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
         datos = {"formato": "RADIOGRAFIA", "software_origen": "Radiografía digital",
                  "advertencias": ["La radiografía no aporta datos clínicos estructurados; seleccioná el paciente manualmente."]}
+    elif extensiones and extensiones <= {".pdf"}:
+        datos = {"formato": "PDF", "software_origen": "Documento PDF",
+                 "advertencias": ["El documento PDF no aporta datos clínicos estructurados; confirmá los datos del paciente."]}
+    elif extensiones and extensiones <= {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".pdf"}:
+        datos = {"formato": "DOCUMENTO", "software_origen": "Documento / Imagen",
+                 "advertencias": ["Los archivos cargados no aportan datos clínicos estructurados; confirmá los datos del paciente."]}
     else:
         datos = {"formato": "DESCONOCIDO", "advertencias": ["No fue posible identificar el formato de la carpeta."]}
     validacion = identidades.resumen()
@@ -437,7 +443,7 @@ def analizar_importacion(importacion, control=None):
     datos = _inspeccionar_lote(importacion, control=control)
     # Solo códigos fijos: nunca el JSON de metadatos ni sus advertencias clínicas.
     formato_log = datos.get("formato")
-    if formato_log not in {"DICOM", "GALILEOS", "STL", "PLY", "RADIOGRAFIA"}:
+    if formato_log not in {"DICOM", "GALILEOS", "STL", "PLY", "RADIOGRAFIA", "PDF", "DOCUMENTO"}:
         formato_log = "DESCONOCIDO"
     registrar_carga(f"deteccion_{formato_log.lower()}", importacion_id=importacion.pk,
                     cantidad=len(datos.get("advertencias", [])))
@@ -445,6 +451,22 @@ def analizar_importacion(importacion, control=None):
     identificador = datos.get("identificador_paciente", "")
     if identificador:
         paciente = Paciente.objects.filter(dni=identificador).first()
+
+    if datos.get("validacion_pacientes", {}).get("estado") != "mezclado":
+        if not paciente and not identificador:
+            dni_match = re.search(r'(?<!\d)(\d{7,8})(?!\d)', importacion.nombre_carpeta)
+            if dni_match:
+                posible_dni = dni_match.group(1)
+                datos.setdefault("identificador_paciente", posible_dni)
+                paciente = Paciente.objects.filter(dni=posible_dni).first()
+                if paciente and not datos.get("nombre_paciente"):
+                    datos["nombre_paciente"] = f"{paciente.apellido} {paciente.nombre}"
+
+        if not datos.get("nombre_paciente") and importacion.nombre_carpeta:
+            stem = PurePosixPath(importacion.nombre_carpeta).stem
+            stem_sin_dni = re.sub(r'(?<!\d)\d{7,8}(?!\d)', '', stem).replace('_', ' ').replace('-', ' ').strip()
+            if stem_sin_dni and not stem_sin_dni.lower().startswith(("archivos", "estudio", "documento", "informe", "scan")):
+                datos.setdefault("nombre_paciente", _nombre_desde_carpeta(stem_sin_dni))
 
     with transaction.atomic():
         actual = type(importacion).objects.select_for_update().get(pk=importacion.pk)

@@ -9,7 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!match || dni.value.trim() !== consultado) return;
         root.seleccionarPaciente?.(match);
         if (dialog?.open) dialog.close();
-        root.closest("form")?.requestSubmit();
+        const reviewForm = root.closest("form");
+        if (reviewForm) {
+            HTMLFormElement.prototype.submit.call(reviewForm);
+        }
     }
     async function buscar() {
         controller?.abort(); controller = new AbortController();
@@ -38,9 +41,14 @@ document.addEventListener("DOMContentLoaded", () => {
         event.preventDefault();
         try {
             const valor = dni.value.trim();
-            if (!(await buscar()) && dni.value.trim() === valor) {
-                verificado = true; form.requestSubmit(); verificado = false;
+            if (valor) {
+                const existe = await buscar();
+                if (existe && match) return;
             }
-        } catch (error) {if (error.name !== "AbortError") window.alert(error.message);}
+            verificado = true;
+            HTMLFormElement.prototype.submit.call(form);
+        } catch (error) {
+            if (error.name !== "AbortError") window.alert(error.message);
+        }
     });
 });
