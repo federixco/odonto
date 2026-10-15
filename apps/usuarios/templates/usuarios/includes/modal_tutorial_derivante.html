@@ -196,6 +196,45 @@
         .tour-btn-next.is-done:hover {
             background: #047857;
         }
+        .tour-demo-preview {
+            background: #f8fafc;
+            border: 1px dashed #007788;
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+            margin: 0.65rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .tour-demo-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #007788;
+        }
+        .tour-demo-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            user-select: none;
+            width: 100%;
+            text-align: center;
+        }
+        .tour-demo-btn-primary {
+            background: #007788;
+            color: #ffffff;
+        }
+        .tour-demo-btn-secondary {
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+        }
     </style>
 
     <!-- Overlay SVG con recorte transparente (Mask) que deja ver el botón nítido -->
@@ -217,7 +256,7 @@
         <div id="tour-beak" class="tour-beak beak-top" aria-hidden="true"></div>
 
         <div class="tour-bubble-header">
-            <span class="tour-guide-badge" id="tour-step-badge">Paso 1 de 4</span>
+            <span class="tour-guide-badge" id="tour-step-badge">Paso 1 de 5</span>
             <button type="button" class="tour-btn-skip" id="btn-tour-skip" title="Cerrar y omitir tutorial">
                 Saltar &times;
             </button>
@@ -229,6 +268,10 @@
         <p class="tour-bubble-desc" id="tour-desc-text">
             Localizá de inmediato cualquier paciente derivado por DNI, apellido o nombre, y filtrá por modalidad de estudio o fecha.
         </p>
+
+        <!-- Contenedor dinámico de demostración cuando el odontólogo aún no tiene estudios -->
+        <div id="tour-demo-container" style="display: none;"></div>
+
         <div class="tour-bubble-tip" id="tour-tip-text">
             💡 <strong>Tip rápido:</strong> Podés tipear solo el número de documento para filtrar su historial al instante.
         </div>
@@ -243,6 +286,7 @@
                 <button type="button" class="tour-dot-btn" data-step="2" aria-label="Paso 2"></button>
                 <button type="button" class="tour-dot-btn" data-step="3" aria-label="Paso 3"></button>
                 <button type="button" class="tour-dot-btn" data-step="4" aria-label="Paso 4"></button>
+                <button type="button" class="tour-dot-btn" data-step="5" aria-label="Paso 5"></button>
             </div>
 
             <button type="button" class="tour-action-btn tour-btn-next" id="btn-tour-next">
@@ -255,6 +299,7 @@
     <div style="display: none;" aria-hidden="true">
         <span>Guía del Consultorio Virtual</span>
         <span>Búsqueda y Filtros de Pacientes</span>
+        <span>Carpetas Clínicas por Paciente</span>
         <span>Visor Diagnóstico Web 2D y 3D</span>
         <span>Descarga de Carpeta Completa (.ZIP)</span>
         <span>Privacidad y Permisos de Derivación</span>
@@ -275,6 +320,7 @@
     const titleEl = document.getElementById("tour-title-text");
     const descEl = document.getElementById("tour-desc-text");
     const tipEl = document.getElementById("tour-tip-text");
+    const demoContainer = document.getElementById("tour-demo-container");
 
     const btnAbrir = document.getElementById("btn-abrir-tutorial");
     const btnSkip = document.getElementById("btn-tour-skip");
@@ -288,34 +334,48 @@
         {
             icon: "🔍",
             title: "Búsqueda y Filtros de Pacientes",
-            desc: "Localizá rápidamente a tus pacientes derivados por DNI, apellido o nombre, o acotá los resultados por tipo de estudio y fechas.",
-            tip: "💡 <strong>Tip para el consultorio:</strong> Escribí únicamente el DNI para encontrar el historial de un paciente al instante.",
+            desc: "Localizá rápidamente a tus pacientes derivados por DNI, apellido o nombre, o acotá los resultados por tipo de estudio y rango de fechas.",
+            tip: "💡 <strong>Búsqueda directa:</strong> Podés ingresar únicamente el número de DNI para acceder a la carpeta clínica de un paciente al instante.",
             selector: "#tour-target-search",
             fallback: ".pro-search-bar"
         },
         {
+            icon: "📁",
+            title: "Carpetas Clínicas por Paciente",
+            desc: "Tus pacientes ahora se organizan en carpetas clínicas para que sus estudios no queden desparramados. Hacé clic en «Abrir carpeta clínica» para ver su historial completo con sus tarjetas, o alterná a «Todos los estudios» para ver el listado continuo.",
+            tip: "📂 <strong>Historial ordenado:</strong> Cada paciente reúne todas sus tomografías, panorámicas y modelos 3D en un único espacio.",
+            selector: ".patient-card, [href*='vista=pacientes']",
+            fallback: ".patient-empty",
+            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa de la carpeta clínica:</span><div class="tour-demo-btn tour-demo-btn-primary">📁 Abrir carpeta clínica (2 estudios) &rarr;</div></div>',
+            adaptiveTipIfEmpty: "ℹ️ <strong>Consultorio en preparación:</strong> Cuando el centro D.O.C. cargue tus primeros pacientes derivados, se agruparán automáticamente en sus carpetas clínicas."
+        },
+        {
             icon: "🧊",
             title: "Visor Diagnóstico Web 2D y 3D",
-            desc: "Hacé clic en este botón para abrir el visor interactivo: inspeccioná cortes axiales, sagitales y coronales, o rotá volúmenes 3D en tiempo real desde tu navegador.",
-            tip: "✨ <strong>Cero instalaciones:</strong> Carga a 60 FPS directamente en Chrome, Edge, Safari o Firefox.",
+            desc: "Hacé clic en este botón para abrir el visor interactivo: inspeccioná cortes axiales, sagitales y coronales, o rotá volúmenes 3D en tiempo real desde tu navegador sin instalar programas.",
+            tip: "✨ <strong>Cero instalaciones:</strong> Carga a 60 FPS directamente en Chrome, Edge, Safari o Firefox desde cualquier dispositivo o tablet.",
             selector: "#tour-target-visor",
-            fallback: "a[href*='visor']"
+            fallback: "a[href*='visor']",
+            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa del botón en cada estudio:</span><div class="tour-demo-btn tour-demo-btn-primary">🧊 Visor 3D y Cortes</div></div>',
+            adaptiveTipIfEmpty: "ℹ️ <strong>Acceso directo:</strong> Cuando tengas pacientes asignados, este botón aparecerá en sus tarjetas para abrir el visor 3D con un solo clic."
         },
         {
             icon: "📦",
             title: "Descarga de Carpeta Completa (.ZIP)",
             desc: "Descargá el paquete comprimido con todas las series DICOM y STL originales para importar en Galileos, Blue Sky Plan, Nemotec o 3Shape.",
-            tip: "📁 <strong>Estructura intacta:</strong> Mantiene la jerarquía original de carpetas médicas para máxima compatibilidad.",
+            tip: "📁 <strong>Estructura intacta:</strong> Mantiene la jerarquía original de carpetas médicas para máxima compatibilidad con software quirúrgico.",
             selector: "#tour-target-download",
-            fallback: "a[href*='descargar']"
+            fallback: "a[href*='descargar']",
+            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa del botón de descarga:</span><div class="tour-demo-btn tour-demo-btn-secondary">📦 Descargar ZIP</div></div>',
+            adaptiveTipIfEmpty: "ℹ️ <strong>Paquete completo:</strong> Podrás bajar todas las series DICOM/STL originales en formato ZIP apenas recibas estudios de D.O.C."
         },
         {
             icon: "🔒",
             title: "Privacidad y Permisos de Derivación",
-            desc: "Tu consultorio es estrictamente privado: únicamente tenés visibilidad de los pacientes y estudios asignados a tu matrícula profesional habilitada.",
+            desc: "Tu consultorio cuenta con estricta confidencialidad médica: únicamente tenés visibilidad de los pacientes asignados a tu matrícula profesional habilitada.",
             tip: "🛡️ <strong>Seguridad garantizada:</strong> Acceso encriptado directo validado por el equipo radiológico de D.O.C.",
             selector: "#tour-target-privacy",
-            fallback: ".pro-meta-chips"
+            fallback: ".pro-meta-chips, .pro-header-meta"
         }
     ];
 
@@ -325,7 +385,10 @@
     function getTargetElement(stepObj) {
         let el = document.querySelector(stepObj.selector);
         if (!el && stepObj.fallback) el = document.querySelector(stepObj.fallback);
-        if (!el) el = document.querySelector(".pro-search-bar") || document.querySelector(".patient-heading");
+        if (!el) {
+            // Modo adaptativo: enfocar el panel de consultorio o estado vacío
+            el = document.querySelector(".patient-empty") || document.querySelector(".pro-search-bar") || document.querySelector(".patient-heading");
+        }
         return el;
     }
 
@@ -401,7 +464,21 @@
         if (iconEl) iconEl.textContent = step.icon;
         if (titleEl) titleEl.textContent = step.title;
         if (descEl) descEl.textContent = step.desc;
-        if (tipEl) tipEl.innerHTML = step.tip;
+
+        // Determinar si el objetivo real existe en pantalla o si estamos en estado vacío (sin estudios)
+        const hasRealTarget = Boolean(document.querySelector(step.selector) || (step.fallback && document.querySelector(step.fallback)));
+
+        if (!hasRealTarget && step.demoHtml && demoContainer) {
+            demoContainer.innerHTML = step.demoHtml;
+            demoContainer.style.display = "block";
+            if (tipEl) tipEl.innerHTML = step.adaptiveTipIfEmpty || step.tip;
+        } else {
+            if (demoContainer) {
+                demoContainer.innerHTML = "";
+                demoContainer.style.display = "none";
+            }
+            if (tipEl) tipEl.innerHTML = step.tip;
+        }
 
         // Actualizar dots
         dots.forEach(function (d) {
