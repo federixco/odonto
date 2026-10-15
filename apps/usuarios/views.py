@@ -117,7 +117,21 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
                      .only("estudio_id", "formato").order_by("pk")[:4], to_attr="archivos_resumen"),
         )
 
-        # Agrupar estudios por paciente: 1 tarjeta por paciente con historial cronológico
+        # Navegación por carpetas de pacientes o vista general (estilo explorador)
+        vista = self.request.GET.get("vista", "pacientes").strip()
+        paciente_id = self.request.GET.get("paciente", "").strip()
+
+        paciente_seleccionado = None
+        estudios_paciente = []
+        if paciente_id:
+            try:
+                paciente_seleccionado = Paciente.objects.filter(pk=paciente_id).first()
+                if paciente_seleccionado:
+                    estudios_paciente = list(estudios.filter(paciente=paciente_seleccionado))
+            except (ValueError, TypeError):
+                paciente_seleccionado = None
+
+        # Agrupar estudios por paciente: 1 tarjeta por paciente
         pacientes_dict = {}
         for estudio in estudios:
             pid = estudio.paciente_id
@@ -127,19 +141,28 @@ class DashboardOdontologoView(OdontologoRequeridoMixin, TemplateView):
                     "estudios": [],
                     "total_estudios": 0,
                     "ultimo_estudio": estudio,
-                    "estudios_anteriores": [],
                 }
             pacientes_dict[pid]["estudios"].append(estudio)
             pacientes_dict[pid]["total_estudios"] += 1
-            if len(pacientes_dict[pid]["estudios"]) > 1:
-                pacientes_dict[pid]["estudios_anteriores"].append(estudio)
 
         pacientes_agrupados = list(pacientes_dict.values())
-        paginador = Paginator(pacientes_agrupados, 12)
-        pagina = paginador.get_page(self.request.GET.get("page"))
+
+        if paciente_seleccionado:
+            paginador = Paginator(estudios_paciente, 12)
+            pagina = paginador.get_page(self.request.GET.get("page"))
+        elif vista == "todos":
+            paginador = Paginator(estudios, 24)
+            pagina = paginador.get_page(self.request.GET.get("page"))
+        else:
+            paginador = Paginator(pacientes_agrupados, 12)
+            pagina = paginador.get_page(self.request.GET.get("page"))
 
         context.update({
-            "pacientes": pagina.object_list,
+            "pacientes": pagina.object_list if (not paciente_seleccionado and vista != "todos") else pacientes_agrupados,
+            "estudios_paciente": pagina.object_list if paciente_seleccionado else [],
+            "estudios_lista": pagina.object_list if vista == "todos" else [],
+            "paciente_seleccionado": paciente_seleccionado,
+            "vista": "carpeta" if paciente_seleccionado else vista,
             "estudios": estudios,  # Mantener queryset por compatibilidad de tests
             "page_obj": pagina,
             "total_estudios": total_estudios,

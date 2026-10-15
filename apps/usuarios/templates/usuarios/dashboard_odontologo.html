@@ -84,8 +84,12 @@
         </div>
 
         <!-- Barra de Búsqueda y Filtros -->
-        <div class="pro-search-bar" id="tour-target-search" style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; margin-bottom: 2rem; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
+        <div class="pro-search-bar" id="tour-target-search" style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
             <form method="get" action="{% url 'dashboard_odontologo' %}" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr 1fr auto auto; gap: 0.75rem; align-items: end;">
+                <input type="hidden" name="vista" value="{{ vista }}">
+                {% if paciente_seleccionado %}
+                <input type="hidden" name="paciente" value="{{ paciente_seleccionado.pk }}">
+                {% endif %}
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151;">Buscar Paciente</label>
                     <input type="text" name="q" value="{{ filtro_q }}" placeholder="Nombre, apellido o DNI..." 
@@ -122,15 +126,213 @@
 
                 {% if hay_filtros %}
                 <div>
-                    <a href="{% url 'dashboard_odontologo' %}" class="button button-secondary" style="padding: 0.6rem 1rem; font-size: 0.85rem;" title="Limpiar todos los filtros">
+                    <a href="{% url 'dashboard_odontologo' %}{% if paciente_seleccionado %}?paciente={{ paciente_seleccionado.pk }}{% elif vista == 'todos' %}?vista=todos{% endif %}" class="button button-secondary" style="padding: 0.6rem 1rem; font-size: 0.85rem;" title="Limpiar todos los filtros">
                         Limpiar
                     </a>
                 </div>
                 {% endif %}
             </form>
         </div>
-        
-        <!-- Listado de Pacientes y sus Estudios Autorizados -->
+
+        {% if not paciente_seleccionado %}
+        <!-- Pestañas de Navegación (Estilo Explorador) -->
+        <div style="display: flex; gap: 1.5rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; padding-bottom: 0;">
+            <a href="{% url 'dashboard_odontologo' %}?vista=pacientes{% if filtro_q %}&q={{ filtro_q }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}" 
+               style="text-decoration: none; padding-bottom: 0.75rem; font-size: 0.95rem; font-weight: {% if vista != 'todos' %}700{% else %}500{% endif %}; color: {% if vista != 'todos' %}#007788{% else %}#64748b{% endif %}; border-bottom: 3px solid {% if vista != 'todos' %}#007788{% else %}transparent{% endif %}; margin-bottom: -2px; display: inline-flex; align-items: center; gap: 0.45rem;">
+                {% include 'core/includes/icon.html' with name='folder' %} Por Paciente (Carpetas)
+            </a>
+            <a href="{% url 'dashboard_odontologo' %}?vista=todos{% if filtro_q %}&q={{ filtro_q }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}" 
+               style="text-decoration: none; padding-bottom: 0.75rem; font-size: 0.95rem; font-weight: {% if vista == 'todos' %}700{% else %}500{% endif %}; color: {% if vista == 'todos' %}#007788{% else %}#64748b{% endif %}; border-bottom: 3px solid {% if vista == 'todos' %}#007788{% else %}transparent{% endif %}; margin-bottom: -2px; display: inline-flex; align-items: center; gap: 0.45rem;">
+                {% include 'core/includes/icon.html' with name='grid' %} Todos los estudios
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- CASO 1: VISTA DE CARPETA DE PACIENTE SELECCIONADO -->
+        {% if paciente_seleccionado %}
+        <div style="margin-bottom: 1.5rem;">
+            <!-- Enlace de regreso -->
+            <div style="margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+                <a href="{% url 'dashboard_odontologo' %}?vista=pacientes" class="button button-secondary button-small" style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.5rem 0.85rem; font-weight: 600;">
+                    &larr; Volver a todos los pacientes
+                </a>
+                <span style="font-size: 0.85rem; color: #64748b;">
+                    Consultorio Virtual &rsaquo; Carpeta clínica
+                </span>
+            </div>
+
+            <!-- Ficha Cabecera del Paciente -->
+            <div style="background: white; border: 1px solid #cbd5e1; border-left: 5px solid #007788; border-radius: 14px; padding: 1.35rem 1.6rem; box-shadow: 0 4px 14px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span style="width: 52px; height: 52px; border-radius: 12px; background: #e6f4f6; color: #007788; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;">
+                        {% include 'core/includes/icon.html' with name='folder' %}
+                    </span>
+                    <div>
+                        <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #007788; font-weight: 700;">
+                            Carpeta Clínica de Paciente
+                        </span>
+                        <h1 style="font-size: 1.4rem; font-weight: 700; margin: 0.15rem 0; color: #0f172a;">
+                            {{ paciente_seleccionado.apellido }}, {{ paciente_seleccionado.nombre }}
+                        </h1>
+                        <p style="font-size: 0.85rem; color: #475569; margin: 0;">
+                            <strong>DNI:</strong> {{ paciente_seleccionado.dni }}
+                            {% if paciente_seleccionado.obra_social %} &middot; <strong>Obra Social:</strong> {{ paciente_seleccionado.obra_social }}{% endif %}
+                        </p>
+                    </div>
+                </div>
+                <span style="font-size: 0.85rem; font-weight: 700; padding: 6px 14px; border-radius: 16px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                    {{ estudios_paciente|length }} estudio{{ estudios_paciente|length|pluralize }} disponible{{ estudios_paciente|length|pluralize }}
+                </span>
+            </div>
+        </div>
+
+        {% if estudios_paciente %}
+        <div class="patient-study-grid" style="grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem;">
+            {% for estudio in estudios_paciente %}
+            <article class="patient-study-card" style="background: white; border: 1px solid var(--line); border-radius: 14px; padding: 1.4rem; box-shadow: 0 4px 14px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; min-height: 250px;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <span class="patient-study-date" style="font-size: 0.85rem; font-weight: 700; color: #007788;">
+                            {{ estudio.fecha_estudio|date:'d/m/Y' }}
+                        </span>
+                        <span style="font-size: 0.75rem; background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 10px;">
+                            Autorizado
+                        </span>
+                    </div>
+
+                    <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0 0 0.35rem 0; color: #111827;">
+                        {{ estudio.tipo }}
+                    </h2>
+
+                    <p style="font-size: 0.82rem; color: #64748b; margin: 0 0 0.75rem 0;">
+                        {{ estudio.cantidad_archivos }} archivo{{ estudio.cantidad_archivos|pluralize }} disponible{{ estudio.cantidad_archivos|pluralize }}
+                    </p>
+
+                    {% if estudio.observaciones %}
+                    <p style="font-size: 0.8rem; color: #6b7280; line-height: 1.5; margin: 0 0 0.85rem 0; background: #f9fafb; padding: 0.5rem 0.75rem; border-radius: 6px; border-left: 3px solid #cbd5e1;">
+                        {{ estudio.observaciones|truncatechars:120 }}
+                    </p>
+                    {% endif %}
+
+                    <!-- Formatos disponibles -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem;">
+                        {% for arch in estudio.archivos_resumen %}
+                        <span style="font-size: 0.68rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb;">
+                            {{ arch.formato }}
+                        </span>
+                        {% empty %}
+                        <span style="font-size: 0.72rem; color: #9ca3af;">Sin archivos cargados</span>
+                        {% endfor %}
+                        {% if estudio.cantidad_archivos > 4 %}
+                        <span style="font-size: 0.68rem; color: #6b7280; padding: 1px 4px;">+{{ estudio.cantidad_archivos|add:"-4" }} más</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #f3f4f6; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <a href="{% url 'visor_estudio' estudio.pk %}" {% if forloop.first %}id="tour-target-visor"{% endif %} class="button button-small" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.75rem; background: #007788; color: white; font-weight: 600;" title="Abrir visor interactivo 3D y cortes tomográficos">
+                        {% include 'core/includes/icon.html' with name='cube' %} Visor 3D y Cortes
+                    </a>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{% url 'estudio_ver' estudio.pk %}" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;">
+                            {% include 'core/includes/icon.html' with name='eye' %} Ver estudio
+                        </a>
+                        <a href="{% url 'estudio_descargar_completo' estudio.pk %}" {% if forloop.first %}id="tour-target-download"{% endif %} class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Descargar la carpeta completa del estudio">
+                            {% include 'core/includes/icon.html' with name='download' %} Descargar ZIP
+                        </a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <section class="patient-empty" style="background: white; border: 1px solid var(--line); border-radius: 14px; padding: 3rem 2rem; text-align: center;">
+            <p style="color: #64748b;">No hay estudios que coincidan con los filtros para este paciente.</p>
+        </section>
+        {% endif %}
+
+        <!-- CASO 2: VISTA TODOS LOS ESTUDIOS (LISTADO PLANO) -->
+        {% elif vista == 'todos' %}
+        {% if estudios_lista %}
+        <div style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <p style="font-size: 0.92rem; color: var(--muted); margin: 0;">
+                Mostrando <strong>{{ estudios_lista|length }}</strong> estudio{{ estudios_lista|length|pluralize }} de <strong>{{ total_estudios }}</strong> en total
+                {% if hay_filtros %}<span style="color: var(--teal); font-weight: 600;">(con filtros aplicados)</span>{% endif %}
+            </p>
+        </div>
+
+        <div class="patient-study-grid" style="grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.25rem;">
+            {% for estudio in estudios_lista %}
+            <article class="patient-study-card" style="display: flex; flex-direction: column; justify-content: space-between; min-height: 250px; padding: 1.5rem; border-radius: 14px; background: white; border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,0.02);">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <span class="patient-study-date" style="font-size: 0.82rem; font-weight: 700; color: #007788;">
+                            {{ estudio.fecha_estudio|date:'d/m/Y' }}
+                        </span>
+                        <span style="font-size: 0.75rem; background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 10px;">
+                            Autorizado
+                        </span>
+                    </div>
+
+                    <h2 style="font-size: 1.2rem; font-weight: 700; margin: 0 0 0.35rem 0; color: #111827;">
+                        {{ estudio.paciente.apellido }}, {{ estudio.paciente.nombre }}
+                    </h2>
+                    
+                    <p style="font-size: 0.85rem; color: #4b5563; margin: 0 0 0.45rem 0;">
+                        <strong>DNI:</strong> {{ estudio.paciente.dni }} &middot; <strong>Estudio:</strong> {{ estudio.tipo }}
+                    </p>
+
+                    <div style="margin-bottom: 0.75rem;">
+                        <a href="?paciente={{ estudio.paciente.pk }}" style="font-size: 0.78rem; color: #007788; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;">
+                            {% include 'core/includes/icon.html' with name='folder' %} Ver carpeta del paciente &rarr;
+                        </a>
+                    </div>
+
+                    {% if estudio.observaciones %}
+                    <p style="font-size: 0.8rem; color: #6b7280; line-height: 1.5; margin: 0 0 0.85rem 0; background: #f9fafb; padding: 0.5rem 0.75rem; border-radius: 6px; border-left: 3px solid #cbd5e1;">
+                        {{ estudio.observaciones|truncatechars:120 }}
+                    </p>
+                    {% endif %}
+
+                    <!-- Formatos disponibles en el estudio -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem;">
+                        {% for arch in estudio.archivos_resumen %}
+                        <span style="font-size: 0.68rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb;">
+                            {{ arch.formato }}
+                        </span>
+                        {% empty %}
+                        <span style="font-size: 0.72rem; color: #9ca3af;">Sin archivos cargados</span>
+                        {% endfor %}
+                        {% if estudio.cantidad_archivos > 4 %}
+                        <span style="font-size: 0.68rem; color: #6b7280; padding: 1px 4px;">+{{ estudio.cantidad_archivos|add:"-4" }} más</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #f3f4f6; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <a href="{% url 'visor_estudio' estudio.pk %}" {% if forloop.first %}id="tour-target-visor"{% endif %} class="button button-small" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.75rem; background: #007788; color: white; font-weight: 600;" title="Abrir visor interactivo 3D y cortes tomográficos">
+                        {% include 'core/includes/icon.html' with name='cube' %} Visor 3D y Cortes
+                    </a>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{% url 'estudio_ver' estudio.pk %}" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;">
+                            {% include 'core/includes/icon.html' with name='eye' %} Ver estudio
+                        </a>
+                        <a href="{% url 'estudio_descargar_completo' estudio.pk %}" {% if forloop.first %}id="tour-target-download"{% endif %} class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Descargar la carpeta completa del estudio">
+                            {% include 'core/includes/icon.html' with name='download' %} Descargar ZIP
+                        </a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <section class="patient-empty" style="background: white; border: 1px solid var(--line); border-radius: 14px; padding: 3.5rem 2rem; text-align: center;">
+            <p style="color: #64748b;">No se encontraron estudios con los filtros seleccionados.</p>
+        </section>
+        {% endif %}
+
+        <!-- CASO 3: VISTA POR PACIENTE (CARPETAS CLÍNICAS) - DEFAULT -->
+        {% else %}
         {% if pacientes %}
         <div style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
             <p style="font-size: 0.92rem; color: var(--muted); margin: 0;">
@@ -141,49 +343,45 @@
 
         <div class="patient-study-grid" style="grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.5rem;">
             {% for p in pacientes %}
-            <article class="patient-card" style="background: white; border: 1px solid var(--line); border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 16px rgba(0,0,0,0.03); transition: transform 0.2s, box-shadow 0.2s;">
+            <article class="patient-card" style="background: white; border: 1px solid var(--line); border-radius: 16px; padding: 1.4rem; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 16px rgba(0,0,0,0.03); transition: transform 0.2s, box-shadow 0.2s;">
                 <div>
                     <!-- Cabecera de la Ficha del Paciente -->
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.85rem; gap: 0.5rem;">
-                        <div>
-                            <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #007788; display: block; margin-bottom: 0.2rem;">
-                                Paciente derivado
+                        <div style="display: flex; align-items: center; gap: 0.65rem;">
+                            <span style="width: 40px; height: 40px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+                                {% include 'core/includes/icon.html' with name='folder' %}
                             </span>
-                            <h2 style="font-size: 1.3rem; font-weight: 700; margin: 0; color: #111827; line-height: 1.25;">
-                                {{ p.paciente.apellido }}, {{ p.paciente.nombre }}
-                            </h2>
-                            <p style="font-size: 0.84rem; color: #4b5563; margin: 0.25rem 0 0 0;">
-                                <strong>DNI:</strong> {{ p.paciente.dni }}
-                            </p>
+                            <div>
+                                <h2 style="font-size: 1.2rem; font-weight: 700; margin: 0; color: #111827; line-height: 1.25;">
+                                    {{ p.paciente.apellido }}, {{ p.paciente.nombre }}
+                                </h2>
+                                <p style="font-size: 0.82rem; color: #4b5563; margin: 0.2rem 0 0 0;">
+                                    <strong>DNI:</strong> {{ p.paciente.dni }}
+                                </p>
+                            </div>
                         </div>
-                        <span style="font-size: 0.76rem; font-weight: 700; padding: 4px 10px; border-radius: 12px; white-space: nowrap; {% if p.total_estudios > 1 %}background: #e0f2fe; color: #0284c7;{% else %}background: #e8f5e9; color: #2e7d32;{% endif %}">
+                        <span style="font-size: 0.76rem; font-weight: 700; padding: 4px 10px; border-radius: 12px; white-space: nowrap; {% if p.total_estudios > 1 %}background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;{% else %}background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;{% endif %}">
                             {{ p.total_estudios }} estudio{{ p.total_estudios|pluralize }}
                         </span>
                     </div>
 
-                    <!-- Caja del Estudio Más Reciente (Destacado) -->
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem 1.15rem; margin-top: 0.75rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                            <span style="font-size: 0.75rem; font-weight: 700; color: #007788; text-transform: uppercase; letter-spacing: 0.03em;">
-                                {% if p.total_estudios > 1 %}Último estudio{% else %}Estudio radiológico{% endif %}
+                    <!-- Resumen del Último Estudio -->
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.9rem 1.1rem; margin-top: 0.65rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                            <span style="font-size: 0.72rem; font-weight: 700; color: #007788; text-transform: uppercase; letter-spacing: 0.04em;">
+                                Último estudio
                             </span>
                             <span style="font-size: 0.8rem; font-weight: 600; color: #475569;">
                                 {{ p.ultimo_estudio.fecha_estudio|date:'d/m/Y' }}
                             </span>
                         </div>
 
-                        <div style="font-size: 1.05rem; font-weight: 700; color: #1e293b; margin-bottom: 0.4rem;">
+                        <div style="font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.4rem;">
                             {{ p.ultimo_estudio.tipo }}
                         </div>
 
-                        {% if p.ultimo_estudio.observaciones %}
-                        <p style="font-size: 0.8rem; color: #64748b; line-height: 1.45; margin: 0 0 0.65rem 0; background: #ffffff; padding: 0.45rem 0.65rem; border-radius: 6px; border-left: 3px solid #cbd5e1;">
-                            {{ p.ultimo_estudio.observaciones|truncatechars:100 }}
-                        </p>
-                        {% endif %}
-
                         <!-- Formatos disponibles -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.85rem;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
                             {% for arch in p.ultimo_estudio.archivos_resumen %}
                             <span style="font-size: 0.68rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #ffffff; color: #374151; border: 1px solid #cbd5e1;">
                                 {{ arch.formato }}
@@ -195,60 +393,29 @@
                             <span style="font-size: 0.68rem; color: #6b7280; padding: 1px 4px;">+{{ p.ultimo_estudio.cantidad_archivos|add:"-4" }} más</span>
                             {% endif %}
                         </div>
-
-                        <!-- Botones de Acción del Estudio Reciente -->
-                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                            <a href="{% url 'visor_estudio' p.ultimo_estudio.pk %}" {% if forloop.first %}id="tour-target-visor"{% endif %} class="button button-small" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.75rem; background: #007788; color: white; font-weight: 600;" title="Abrir visor interactivo 3D y cortes tomográficos">
-                                {% include 'core/includes/icon.html' with name='cube' %} Visor 3D y Cortes
-                            </a>
-                            <div style="display: flex; gap: 0.5rem;">
-                                <a href="{% url 'estudio_ver' p.ultimo_estudio.pk %}" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;">
-                                    {% include 'core/includes/icon.html' with name='eye' %} Ver estudio
-                                </a>
-                                <a href="{% url 'estudio_descargar_completo' p.ultimo_estudio.pk %}" {% if forloop.first %}id="tour-target-download"{% endif %} class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Descargar la carpeta completa del estudio">
-                                    {% include 'core/includes/icon.html' with name='download' %} Descargar ZIP
-                                </a>
-                            </div>
-                        </div>
                     </div>
+                </div>
 
-                    <!-- Acordeón Desplegable si el Paciente tiene Más Estudios -->
-                    {% if p.estudios_anteriores %}
-                    <details class="patient-history-accordion" style="margin-top: 1rem; border-top: 1px solid #f1f5f9; padding-top: 0.75rem;">
-                        <summary style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600; color: #007788; user-select: none; padding: 0.35rem 0;">
-                            <span style="display: flex; align-items: center; gap: 0.45rem;">
-                                {% include 'core/includes/icon.html' with name='folder' %}
-                                Ver historial ({{ p.estudios_anteriores|length }} estudio{{ p.estudios_anteriores|length|pluralize }} más)
-                            </span>
-                            <span class="disclosure-arrow" style="font-size: 0.85rem; color: #64748b; transition: transform 0.2s;">▾</span>
-                        </summary>
-
-                        <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem;">
-                            {% for est in p.estudios_anteriores %}
-                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem 0.9rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                <div>
-                                    <div style="display: flex; align-items: center; gap: 0.45rem;">
-                                        <span style="font-size: 0.75rem; font-weight: 700; color: #007788;">{{ est.fecha_estudio|date:'d/m/Y' }}</span>
-                                        <span style="font-size: 0.82rem; font-weight: 700; color: #1e293b;">{{ est.tipo }}</span>
-                                    </div>
-                                    <span style="font-size: 0.72rem; color: #64748b;">{{ est.cantidad_archivos }} archivo{{ est.cantidad_archivos|pluralize }}</span>
-                                </div>
-                                <div style="display: flex; gap: 0.35rem;">
-                                    <a href="{% url 'visor_estudio' est.pk %}" class="button button-small" style="padding: 0.35rem 0.65rem; font-size: 0.78rem; background: #007788; color: white;" title="Abrir visor 3D">
-                                        Visor 3D
-                                    </a>
-                                    <a href="{% url 'estudio_ver' est.pk %}" class="button button-small button-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Ver archivos">
-                                        Ver
-                                    </a>
-                                    <a href="{% url 'estudio_descargar_completo' est.pk %}" class="button button-small button-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Descargar ZIP">
-                                        ZIP
-                                    </a>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </details>
-                    {% endif %}
+                <!-- Botones de Acción de la Ficha -->
+                <div style="margin-top: 1.15rem; padding-top: 0.85rem; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <!-- Botón Principal: Abrir Carpeta Clínica -->
+                    <a href="?paciente={{ p.paciente.pk }}" class="button" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.6rem 0.85rem; background: #007788; color: white; font-weight: 600;" title="Abrir carpeta clínica y ver todos los estudios del paciente">
+                        {% include 'core/includes/icon.html' with name='folder' %}
+                        {% if p.total_estudios > 1 %}
+                        Abrir carpeta ({{ p.total_estudios }} estudios) &rarr;
+                        {% else %}
+                        Abrir carpeta clínica &rarr;
+                        {% endif %}
+                    </a>
+                    <!-- Accesos Rápidos al Último Estudio -->
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{% url 'visor_estudio' p.ultimo_estudio.pk %}" {% if forloop.first %}id="tour-target-visor"{% endif %} class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Abrir visor interactivo 3D del último estudio">
+                            {% include 'core/includes/icon.html' with name='cube' %} Visor 3D
+                        </a>
+                        <a href="{% url 'estudio_descargar_completo' p.ultimo_estudio.pk %}" {% if forloop.first %}id="tour-target-download"{% endif %} class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Descargar ZIP del último estudio">
+                            {% include 'core/includes/icon.html' with name='download' %} Descargar ZIP
+                        </a>
+                    </div>
                 </div>
             </article>
             {% endfor %}
@@ -273,6 +440,7 @@
             </p>
             {% endif %}
         </section>
+        {% endif %}
         {% endif %}
     </div>
 
