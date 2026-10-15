@@ -69,7 +69,7 @@
             background: #ffffff;
             transform: rotate(45deg);
             border: 1px solid rgba(0, 0, 0, 0.08);
-            transition: left 0.25s ease;
+            transition: left 0.25s ease, top 0.25s ease;
         }
         .tour-beak.beak-top {
             top: -7px;
@@ -79,6 +79,16 @@
         .tour-beak.beak-bottom {
             bottom: -7px;
             border-top: none;
+            border-left: none;
+        }
+        .tour-beak.beak-left {
+            left: -7px;
+            border-top: none;
+            border-right: none;
+        }
+        .tour-beak.beak-right {
+            right: -7px;
+            border-bottom: none;
             border-left: none;
         }
         .tour-bubble-header {
@@ -632,45 +642,85 @@
             popover.style.width = popW + "px";
             const popH = popover.offsetHeight || 250;
 
+            const isSidebarItem = targetEl.closest && !!targetEl.closest(".admin-sidebar");
+            const isGeneralTour = (activeTour && activeTour.key === "general");
+            const spaceRight = window.innerWidth - (x + w);
             const spaceBelow = window.innerHeight - (y + h);
             const spaceAbove = y;
 
-            // Determinar si colocamos arriba o abajo
-            let placeBelow;
-            if (spaceBelow >= popH + 24) {
-                placeBelow = true;
-            } else if (spaceAbove >= popH + 24) {
-                placeBelow = false;
-            } else {
-                placeBelow = (spaceBelow >= spaceAbove);
-            }
+            let popTop, popLeft;
 
-            let popTop;
-            if (placeBelow) {
-                popTop = y + h + 14;
-                if (beak) beak.className = "tour-beak beak-top";
-            } else {
-                popTop = y - popH - 14;
-                if (beak) beak.className = "tour-beak beak-bottom";
-            }
+            // Para el tutorial general o cualquier elemento en la barra lateral izquierda:
+            // Ajustar exactamente en el margen derecho de las secciones para nunca tapar el menú enfocado
+            const placeOnRight = (isGeneralTour || isSidebarItem) && (spaceRight >= popW + 20);
 
-            // AJUSTE CRÍTICO: Clamping seguro para que NUNCA desborde el fondo de pantalla
-            // Deja al menos 24px sobre la barra de tareas de Windows
-            const minTop = 16;
-            const maxTop = Math.max(minTop, window.innerHeight - popH - 24);
-            popTop = Math.max(minTop, Math.min(popTop, maxTop));
+            if (placeOnRight) {
+                // Margen derecho exacto con respecto al elemento enfocado
+                popLeft = x + w + 18;
+                // Centrado vertical respecto al elemento enfocado
+                popTop = (y + (h / 2)) - (popH / 2);
 
-            let popLeft = (x + (w / 2)) - (popW / 2);
-            popLeft = Math.max(16, Math.min(popLeft, window.innerWidth - popW - 16));
+                // Clamping vertical estricto para no desbordar ni arriba ni abajo (barra de tareas)
+                const minTop = 16;
+                const maxTop = Math.max(minTop, window.innerHeight - popH - 24);
+                popTop = Math.max(minTop, Math.min(popTop, maxTop));
 
-            if (beak) {
-                const overlapsY = (popTop < y + h) && (popTop + popH > y);
-                if (overlapsY) {
-                    beak.style.display = "none";
-                } else {
+                if (beak) {
                     beak.style.display = "block";
-                    const beakX = (x + (w / 2)) - popLeft - 7;
-                    beak.style.left = Math.max(16, Math.min(beakX, popW - 28)) + "px";
+                    beak.className = "tour-beak beak-left";
+                    beak.style.left = "-7px";
+                    beak.style.right = "auto";
+                    beak.style.bottom = "auto";
+                    const beakY = (y + (h / 2)) - popTop - 7;
+                    beak.style.top = Math.max(16, Math.min(beakY, popH - 28)) + "px";
+                }
+            } else {
+                // Determinar si colocamos arriba o abajo
+                let placeBelow;
+                if (spaceBelow >= popH + 24) {
+                    placeBelow = true;
+                } else if (spaceAbove >= popH + 24) {
+                    placeBelow = false;
+                } else {
+                    placeBelow = (spaceBelow >= spaceAbove);
+                }
+
+                if (placeBelow) {
+                    popTop = y + h + 14;
+                    if (beak) {
+                        beak.className = "tour-beak beak-top";
+                        beak.style.top = "-7px";
+                        beak.style.bottom = "auto";
+                        beak.style.right = "auto";
+                    }
+                } else {
+                    popTop = y - popH - 14;
+                    if (beak) {
+                        beak.className = "tour-beak beak-bottom";
+                        beak.style.bottom = "-7px";
+                        beak.style.top = "auto";
+                        beak.style.right = "auto";
+                    }
+                }
+
+                // AJUSTE CRÍTICO: Clamping seguro para que NUNCA desborde el fondo de pantalla
+                // Deja al menos 24px sobre la barra de tareas de Windows
+                const minTop = 16;
+                const maxTop = Math.max(minTop, window.innerHeight - popH - 24);
+                popTop = Math.max(minTop, Math.min(popTop, maxTop));
+
+                popLeft = (x + (w / 2)) - (popW / 2);
+                popLeft = Math.max(16, Math.min(popLeft, window.innerWidth - popW - 16));
+
+                if (beak) {
+                    const overlapsY = (popTop < y + h) && (popTop + popH > y);
+                    if (overlapsY) {
+                        beak.style.display = "none";
+                    } else {
+                        beak.style.display = "block";
+                        const beakX = (x + (w / 2)) - popLeft - 7;
+                        beak.style.left = Math.max(16, Math.min(beakX, popW - 28)) + "px";
+                    }
                 }
             }
 
@@ -744,17 +794,21 @@
 
         const targetEl = getTargetElement(step);
         if (targetEl) {
-            // Scroll inteligente: alinea la parte superior del elemento en el 25% superior de la pantalla
-            // para garantizar espacio suficiente debajo sin que el botón siguiente choque con la barra de tareas
-            const targetRect = targetEl.getBoundingClientRect();
-            const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
-            const targetTopAbsolute = currentScrollY + targetRect.top;
-            const idealScrollTop = Math.max(0, targetTopAbsolute - Math.min(130, window.innerHeight * 0.22));
+            const isSidebar = targetEl.closest && !!targetEl.closest(".admin-sidebar");
+            if (!isSidebar) {
+                // Scroll inteligente para contenido principal
+                const targetRect = targetEl.getBoundingClientRect();
+                const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+                const targetTopAbsolute = currentScrollY + targetRect.top;
+                const idealScrollTop = Math.max(0, targetTopAbsolute - Math.min(130, window.innerHeight * 0.22));
 
-            window.scrollTo({
-                top: idealScrollTop,
-                behavior: "smooth"
-            });
+                window.scrollTo({
+                    top: idealScrollTop,
+                    behavior: "smooth"
+                });
+            } else {
+                targetEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
         }
 
         positionSpotlight(targetEl);
