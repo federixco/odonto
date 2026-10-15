@@ -231,3 +231,66 @@ class CargaExpressDocumentosTests(TestCase):
         self.assertEqual(nuevo_paciente.apellido, "Romero")
         estudio.refresh_from_db()
         self.assertEqual(estudio.paciente, nuevo_paciente)
+
+    def test_registrar_paciente_detectado_sin_dni_genera_temp(self):
+        """Si el administrador no ingresa DNI para un archivo detectado (ej. STL), se genera TEMP-."""
+        self.client.force_login(self.admin)
+        lote = ImportacionEstudio.objects.create(
+            iniciada_por=self.admin,
+            nombre_carpeta="Mandibula_Alineador.stl",
+            cantidad_archivos=1,
+            tamano_total=1024,
+            estado=EstadoImportacion.PENDIENTE_CONFIRMACION,
+            datos_detectados={"nombre_paciente": "Gomez Martin", "formato": "STL"},
+        )
+        url = reverse("importacion_registrar_paciente", args=[lote.pk])
+        resp = self.client.post(
+            url,
+            data={
+                "nombre": "Martin",
+                "apellido": "Gomez",
+                "dni": "",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        lote.refresh_from_db()
+        self.assertIsNotNone(lote.paciente_sugerido)
+        self.assertEqual(lote.paciente_sugerido.nombre, "Martin")
+        self.assertEqual(lote.paciente_sugerido.apellido, "Gomez")
+        self.assertTrue(lote.paciente_sugerido.dni.startswith("TEMP-"))
+
+    def test_confirmar_express_preserva_nombre_detectado_stl(self):
+        """En confirmación express con STL, el paciente provisional adopta el nombre detectado."""
+        self.client.force_login(self.admin)
+        lote = ImportacionEstudio.objects.create(
+            iniciada_por=self.admin,
+            nombre_carpeta="Gomez_Martin_Maxilar.stl",
+            cantidad_archivos=1,
+            tamano_total=2048,
+            estado=EstadoImportacion.PENDIENTE_CONFIRMACION,
+            datos_detectados={"nombre_paciente": "Gomez Martin", "formato": "STL"},
+        )
+        Archivo.objects.create(
+            importacion=lote,
+            nombre_archivo="Gomez_Martin_Maxilar.stl",
+            ruta_relativa="Gomez_Martin_Maxilar.stl",
+            ruta_almacenamiento=f"importaciones/{lote.pk}/archivos/stl1.stl",
+            tamano=2048,
+            formato=FormatoArchivo.STL,
+            categoria=CategoriaArchivo.MODELO_3D,
+            estado=EstadoArchivo.COMPLETO,
+        )
+        url = reverse("importacion_confirmar_express", args=[lote.pk])
+        resp = self.client.post(
+            url,
+            data=json.dumps({"odontologo_id": self.odontologo.pk}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        lote.refresh_from_db()
+        estudio = lote.estudio
+        self.assertIsNotNone(estudio)
+        self.assertEqual(estudio.paciente.apellido, "Gomez")
+        self.assertEqual(estudio.paciente.nombre, "Martin")
+        self.assertTrue(estudio.paciente.dni.startswith("TEMP-"))
+

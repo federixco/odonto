@@ -724,10 +724,18 @@ class ConfirmarExpressImportacionView(AdminRequeridoMixin, View):
             es_provisional = False
             if not paciente:
                 es_provisional = True
-                nombre_base = PurePosixPath(lote.nombre_carpeta).stem.replace("_", " ").strip() or "Documento"
+                nombre_detectado = (lote.datos_detectados or {}).get("nombre_paciente", "").strip()
+                if nombre_detectado:
+                    partes = nombre_detectado.split()
+                    apellido = partes[0] if len(partes) > 1 else "Sin clasificar"
+                    nombre = " ".join(partes[1:]) if len(partes) > 1 else partes[0]
+                else:
+                    nombre_base = PurePosixPath(lote.nombre_carpeta).stem.replace("_", " ").strip() or "Documento"
+                    nombre = nombre_base[:100]
+                    apellido = "Sin clasificar"
                 paciente = Paciente.objects.create(
-                    nombre=nombre_base[:100],
-                    apellido="Sin clasificar",
+                    nombre=nombre[:100],
+                    apellido=apellido[:100],
                     dni=f"TEMP-{uuid.uuid4().hex[:8].upper()}",
                 )
 

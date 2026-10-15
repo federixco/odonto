@@ -1,3 +1,4 @@
+import uuid
 from django import forms
 from django.utils import timezone
 from apps.pacientes.models import Paciente
@@ -65,6 +66,8 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
 
     def __init__(self, *args, importacion=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["dni"].required = False
+        self.fields["apellido"].required = False
         if importacion and not self.is_bound:
             datos = importacion.datos_detectados or {}
             partes = datos.get("nombre_paciente", "").strip().split()
@@ -84,6 +87,16 @@ class RegistrarPacienteDetectadoForm(forms.ModelForm):
         if dni_sugerido:
             self.fields["dni"].help_text = "Dato sugerido por el archivo. Verificá que sea el DNI real antes de guardar."
         else:
-            self.fields["dni"].help_text = "Ingresá el DNI del paciente."
+            self.fields["dni"].help_text = "Opcional. Si lo dejás en blanco, se generará un identificador provisional automático (TEMP-)."
+
+    def clean_dni(self):
+        dni = (self.cleaned_data.get("dni") or "").strip()
+        if not dni:
+            return f"TEMP-{uuid.uuid4().hex[:8].upper()}"
+        return dni
+
+    def clean_apellido(self):
+        apellido = (self.cleaned_data.get("apellido") or "").strip()
+        return apellido or "Sin clasificar"
 
 
