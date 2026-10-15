@@ -1,4 +1,5 @@
 from django import forms
+from django.utils import timezone
 from apps.pacientes.models import Paciente
 from apps.usuarios.models import Odontologo
 from .models import Estudio
@@ -44,7 +45,7 @@ class ConfirmarImportacionForm(EstudioForm):
                 {
                     "paciente": importacion.paciente_sugerido_id,
                     "tipo": datos.get("formato", ""),
-                    "fecha_estudio": datos.get("fecha_estudio", ""),
+                    "fecha_estudio": datos.get("fecha_estudio") or timezone.now().date().isoformat(),
                     "observaciones": datos.get("descripcion", ""),
                 }
             )

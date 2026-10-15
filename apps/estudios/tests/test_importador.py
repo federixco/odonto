@@ -249,3 +249,79 @@ class ImportadorTests(TestCase):
         self.assertNotIn("identificador_paciente", datos)
         self.assertIn("nombre de la carpeta", datos["advertencias"][0])
         self.assertIsNone(self.importacion.paciente_sugerido)
+
+    @patch("apps.estudios.services.importador.leer_objeto")
+    def test_pdf_suelto_detecta_formato_y_sugiere_paciente_por_dni_en_nombre(self, leer_objeto):
+        leer_objeto.return_value = b"%PDF-1.7 ..."
+        archivo = self.importacion.archivos.get()
+        archivo.nombre_archivo = "30111222_informe_clinico.pdf"
+        archivo.ruta_relativa = "30111222_informe_clinico.pdf"
+        archivo.formato = FormatoArchivo.PDF
+        archivo.categoria = CategoriaArchivo.IMAGEN_DOCUMENTO
+        archivo.save(update_fields=["nombre_archivo", "ruta_relativa", "formato", "categoria", "updated_at"])
+        self.importacion.nombre_carpeta = "30111222_informe_clinico.pdf"
+        self.importacion.save(update_fields=["nombre_carpeta", "updated_at"])
+        self.importacion.marcar_procesando()
+
+        analizar_importacion(self.importacion)
+        self.importacion.refresh_from_db()
+
+        datos = self.importacion.datos_detectados
+        self.assertEqual(datos["formato"], "PDF")
+        self.assertEqual(datos["software_origen"], "Documento PDF")
+        self.assertEqual(datos["identificador_paciente"], "30111222")
+        self.assertEqual(self.importacion.paciente_sugerido, self.paciente)
+
+    @patch("apps.estudios.services.importador.leer_objeto")
+    def test_imagen_suelta_detecta_formato_radiografia(self, leer_objeto):
+        leer_objeto.return_value = b"\xff\xd8\xff\xe0"
+        archivo = self.importacion.archivos.get()
+        archivo.nombre_archivo = "panoramica.jpg"
+        archivo.ruta_relativa = "panoramica.jpg"
+        archivo.formato = FormatoArchivo.JPG
+        archivo.categoria = CategoriaArchivo.IMAGEN_DOCUMENTO
+        archivo.save(update_fields=["nombre_archivo", "ruta_relativa", "formato", "categoria", "updated_at"])
+        self.importacion.nombre_carpeta = "panoramica.jpg"
+        self.importacion.save(update_fields=["nombre_carpeta", "updated_at"])
+        self.importacion.marcar_procesando()
+
+        analizar_importacion(self.importacion)
+        self.importacion.refresh_from_db()
+
+        datos = self.importacion.datos_detectados
+        self.assertEqual(datos["formato"], "RADIOGRAFIA")
+        self.assertEqual(datos["software_origen"], "Radiografía digital")
+
+    @patch("apps.estudios.services.importador.leer_objeto")
+    def test_documento_mixto_pdf_e_imagenes_detecta_formato_documento(self, leer_objeto):
+        leer_objeto.return_value = b"contenido"
+        archivo1 = self.importacion.archivos.get()
+        archivo1.nombre_archivo = "informe.pdf"
+        archivo1.ruta_relativa = "informe.pdf"
+        archivo1.formato = FormatoArchivo.PDF
+        archivo1.categoria = CategoriaArchivo.IMAGEN_DOCUMENTO
+        archivo1.save(update_fields=["nombre_archivo", "ruta_relativa", "formato", "categoria", "updated_at"])
+
+        Archivo.objects.create(
+            importacion=self.importacion,
+            nombre_archivo="foto1.jpg",
+            ruta_relativa="foto1.jpg",
+            ruta_almacenamiento="pruebas/foto1.jpg",
+            formato=FormatoArchivo.JPG,
+            categoria=CategoriaArchivo.IMAGEN_DOCUMENTO,
+            tamano=1024,
+            content_type="image/jpeg",
+            estado=EstadoArchivo.COMPLETO,
+        )
+        self.importacion.cantidad_archivos = 2
+        self.importacion.tamano_total = 1536
+        self.importacion.nombre_carpeta = "Archivos_2"
+        self.importacion.save(update_fields=["cantidad_archivos", "tamano_total", "nombre_carpeta", "updated_at"])
+        self.importacion.marcar_procesando()
+
+        analizar_importacion(self.importacion)
+        self.importacion.refresh_from_db()
+
+        datos = self.importacion.datos_detectados
+        self.assertEqual(datos["formato"], "DOCUMENTO")
+        self.assertEqual(datos["software_origen"], "Documento / Imagen")
