@@ -16,6 +16,7 @@ data/visor/
 .env
 .env.*
 !.env.example
+ngrok*.yml
 
 # Django
 db.sqlite3*
