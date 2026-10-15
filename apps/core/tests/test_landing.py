@@ -24,11 +24,41 @@ class LandingPublicaTests(SimpleTestCase):
     def test_archivos_estaticos_disponibles(self):
         for path in (
             "core/css/public.css", "core/js/public.js",
+            "core/css/landing.css", "core/fonts/Manrope-variable.ttf",
+            "core/fonts/Manrope-OFL.txt",
+            "core/images/landing/doc-equipo-original.jpg",
+            "core/images/landing/doc-radiografias.jpg",
+            "core/images/landing/doc-planificacion.png",
             "core/images/doc-isotipo.svg", "core/images/doc-equipo-original.jpg",
             "core/images/doc-radiografias.jpg", "core/images/doc-planificacion.png",
         ):
             with self.subTest(path=path):
                 self.assertIsNotNone(finders.find(path))
+
+    def test_presenta_profesionales_y_contacto_real(self):
+        response = self.client.get(reverse("core:landing"))
+        for text in (
+            'id="profesionales"', "Dra. María Luisa", "Stechina",
+            "Dr. Pedro Eduardo", "Morales", "Mitre 479",
+            'href="tel:+543704422272"', 'href="mailto:doc.imagenes@gmail.com"',
+        ):
+            with self.subTest(text=text):
+                self.assertContains(response, text)
+
+    def test_acceso_a_estudios_no_depende_del_menu(self):
+        response = self.client.get(reverse("core:landing"))
+        html = response.content.decode()
+        header = html.split('<header class="site-header landing-header">', 1)[1].split("</header>", 1)[0]
+        navigation, account = header.split("</nav>", 1)
+        self.assertNotIn("landing-account", navigation)
+        self.assertIn('class="button landing-account"', account)
+        self.assertIn(f'href="{reverse("login")}"', account)
+
+    def test_guia_de_acceso_conserva_habilitacion_del_centro(self):
+        response = self.client.get(reverse("core:landing"))
+        self.assertContains(response, "Quedará pendiente hasta que el centro la habilite.")
+        self.assertContains(response, f'href="{reverse("odontologo_autoregistro")}"')
+        self.assertContains(response, "cuenta vinculada a tus estudios")
 
     def test_portada_no_publica_archivos_clinicos(self):
         response = self.client.get(reverse("core:landing"))
