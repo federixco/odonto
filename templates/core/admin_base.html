@@ -21,7 +21,10 @@
                 {% include 'core/includes/brand.html' %}
                 <span class="admin-header-caption">Plataforma de estudios<br><strong>Administración del centro</strong></span>
             </div>
-            <div class="admin-account">
+            <div class="admin-account" id="tour-admin-account">
+                <button type="button" class="button button-secondary button-small btn-abrir-tutorial-admin" id="btn-abrir-tutorial-admin" style="display: flex; align-items: center; gap: 0.4rem;" title="Abrir guía interactiva de administración">
+                    {% include 'core/includes/icon.html' with name='info' %} <span>Guía de administración</span>
+                </button>
                 {% if odontologos_pendientes_count > 0 %}
                 <a href="{% url 'odontologo_lista' %}" class="admin-notification-badge" title="{{ odontologos_pendientes_count }} solicitud{{ odontologos_pendientes_count|pluralize }} pendiente{{ odontologos_pendientes_count|pluralize }} de habilitación">
                     <span class="badge-dot" aria-hidden="true"></span>
@@ -43,19 +46,19 @@
                 <div>
                     <p class="admin-sidebar-label">Gestión del centro</p>
                     <nav class="admin-sidebar-nav" aria-label="Administración del centro">
-                        <a class="admin-sidebar-link admin-sidebar-primary" href="{% url 'importacion_crear' %}" {% if request.resolver_match.url_name|slice:':11' == 'importacion' %}aria-current="page"{% endif %}>
+                        <a class="admin-sidebar-link admin-sidebar-primary" id="tour-admin-upload" href="{% url 'importacion_crear' %}" {% if request.resolver_match.url_name|slice:':11' == 'importacion' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='scan' %}
                             <span><strong>Cargar estudio</strong><small>Seleccionar una carpeta</small></span>
                         </a>
-                        <a class="admin-sidebar-link" href="{% url 'estudio_lista' %}" {% if request.resolver_match.url_name|slice:':7' == 'estudio' %}aria-current="page"{% endif %}>
+                        <a class="admin-sidebar-link" id="tour-admin-studies" href="{% url 'estudio_lista' %}" {% if request.resolver_match.url_name|slice:':7' == 'estudio' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='cube' %}
                             <span><strong>Estudios</strong><small>Historial del centro</small></span>
                         </a>
-                        <a class="admin-sidebar-link" href="{% url 'paciente_lista' %}" {% if request.resolver_match.url_name|slice:':8' == 'paciente' %}aria-current="page"{% endif %}>
+                        <a class="admin-sidebar-link" id="tour-admin-patients" href="{% url 'paciente_lista' %}" {% if request.resolver_match.url_name|slice:':8' == 'paciente' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='people' %}
                             <span><strong>Pacientes</strong><small>Fichas clínicas</small></span>
                         </a>
-                        <a class="admin-sidebar-link" href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}aria-current="page"{% endif %}>
+                        <a class="admin-sidebar-link" id="tour-admin-dentists" href="{% url 'odontologo_lista' %}" {% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}aria-current="page"{% endif %}>
                             {% include 'core/includes/icon.html' with name='tooth' %}
                             <span><strong>Odontólogos derivantes</strong><small>Cuentas profesionales</small></span>
                             {% if odontologos_pendientes_count > 0 %}
@@ -79,6 +82,7 @@
             <footer class="admin-container admin-footer"><span>D.O.C. · Diagnóstico Odontológico Computado</span><span>{% include 'core/includes/icon.html' with name='lock' %} Espacio de administración</span></footer>
         </div>
     </div>
+    {% include 'core/includes/modal_tutorial_admin.html' %}
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

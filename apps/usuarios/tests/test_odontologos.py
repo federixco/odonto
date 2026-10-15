@@ -245,3 +245,19 @@ class GestionOdontologosTestCase(TestCase):
         self.client.login(username="admin_test", password=self.password)
         response = self.client.get(reverse("dashboard_admin"), follow=True)
         self.assertContains(response, reverse("odontologo_lista"))
+
+    def test_admin_incluye_tutorial_interactivo_admin(self):
+        """El administrador cuenta con el tutorial propio de administración y no el de derivantes."""
+        self.client.login(username="admin_test", password=self.password)
+        response = self.client.get(reverse("odontologo_lista"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="btn-abrir-tutorial-admin"')
+        self.assertContains(response, 'id="modal-tutorial-admin"')
+        self.assertContains(response, "Guía de administración")
+        self.assertContains(response, "Carga de Estudios e Importación")
+        self.assertContains(response, "Odontólogos Derivantes y Solicitudes")
+        self.assertContains(response, "Explorador Central de Estudios")
+        self.assertContains(response, "Directorio Central de Pacientes")
+        self.assertNotContains(response, 'id="modal-tutorial-derivante"')
+        self.assertNotContains(response, "Guía para derivantes")
+

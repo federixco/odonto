@@ -12,8 +12,8 @@
         <p>Administrá las cuentas profesionales y cargá estudios para un derivante.</p>
     </div>
     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-        <button type="button" class="button button-secondary" id="btn-abrir-tutorial" style="display: flex; align-items: center; gap: 0.5rem;">
-            {% include 'core/includes/icon.html' with name='info' %} Guía para derivantes
+        <button type="button" class="button button-secondary btn-abrir-tutorial-admin" id="btn-abrir-tutorial" style="display: flex; align-items: center; gap: 0.5rem;">
+            {% include 'core/includes/icon.html' with name='info' %} Guía de administración
         </button>
         <a class="button" href="{% url 'odontologo_crear' %}">
             {% include 'core/includes/icon.html' with name='plus' %} Registrar odontólogo
@@ -82,6 +82,5 @@
     <p class="dentist-note">{% include 'core/includes/icon.html' with name='lock' %} Las cuentas pendientes requieren la habilitación del centro para iniciar sesión y recibir estudios.</p>
     <noscript><p class="dentist-note">Para cargar desde esta lista, activá JavaScript. Podés continuar desde <a href="{% url 'importacion_crear' %}">Carga de estudios</a>.</p></noscript>
 </section>
-{% include 'usuarios/includes/modal_tutorial_derivante.html' %}
 {% endblock %}
 {% block extra_scripts %}<script src="{% static 'core/js/file_view.js' %}?v=revision-20261003" defer></script><script src="{% static 'core/js/importacion.js' %}?v=20261015-express-drop" defer></script><script src="{% static 'core/js/odontologo_carga.js' %}?v=20261015-express-drop-2" defer></script>{% endblock %}

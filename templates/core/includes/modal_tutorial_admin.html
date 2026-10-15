@@ -1,0 +1,542 @@
+<!-- Tour Guiado Interactivo para el Panel de Administración (Spotlight) -->
+<div id="modal-tutorial-admin" class="interactive-tour-wrapper" style="display: none;" aria-label="Guía de Gestión del Centro">
+    <style>
+        .interactive-tour-wrapper {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            pointer-events: none;
+            font-family: inherit;
+        }
+        .tour-svg-backdrop {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 100000;
+        }
+        .tour-glow-ring {
+            position: fixed;
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 100001;
+            transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        left 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 2px solid #00d2eb;
+            box-shadow: 0 0 0 3px rgba(0, 210, 235, 0.35), 0 0 25px rgba(0, 210, 235, 0.7);
+            animation: tourGlowPulse 1.8s infinite ease-in-out;
+        }
+        @keyframes tourGlowPulse {
+            0%, 100% {
+                border-color: #00d2eb;
+                box-shadow: 0 0 0 3px rgba(0, 210, 235, 0.3), 0 0 18px rgba(0, 210, 235, 0.6);
+            }
+            50% {
+                border-color: #38bdf8;
+                box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.5), 0 0 32px rgba(56, 189, 248, 0.9);
+            }
+        }
+        .tour-popover-card {
+            position: fixed;
+            pointer-events: auto;
+            z-index: 100002;
+            width: 380px;
+            max-width: calc(100vw - 32px);
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.25rem 1.35rem;
+            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.08);
+            transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: tourCardAnim 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes tourCardAnim {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .tour-beak {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #ffffff;
+            transform: rotate(45deg);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            transition: left 0.3s ease;
+        }
+        .tour-beak.beak-top {
+            top: -7px;
+            border-bottom: none;
+            border-right: none;
+        }
+        .tour-beak.beak-bottom {
+            bottom: -7px;
+            border-top: none;
+            border-left: none;
+        }
+        .tour-bubble-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.65rem;
+        }
+        .tour-guide-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #007788;
+            background: #e6f7f9;
+            padding: 3px 8px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .tour-btn-skip {
+            background: transparent;
+            border: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .tour-btn-skip:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .tour-bubble-title {
+            margin: 0 0 0.45rem 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            line-height: 1.3;
+        }
+        .tour-bubble-desc {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.86rem;
+            line-height: 1.45;
+            color: #334155;
+        }
+        .tour-bubble-tip {
+            background: #f8fafc;
+            border-left: 3px solid #00d2eb;
+            padding: 0.55rem 0.75rem;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.78rem;
+            line-height: 1.4;
+            color: #475569;
+            margin-bottom: 0.9rem;
+        }
+        .tour-bubble-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            padding-top: 0.65rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        .tour-dots-row {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .tour-dot-btn {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #cbd5e1;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            transition: all 0.2s ease;
+        }
+        .tour-dot-btn.is-active {
+            background: #007788;
+            width: 18px;
+            border-radius: 4px;
+        }
+        .tour-action-btn {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tour-btn-prev {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .tour-btn-prev:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        .tour-btn-next {
+            background: #004b64;
+            color: #ffffff;
+            margin-left: auto;
+        }
+        .tour-btn-next:hover {
+            background: #003649;
+        }
+        .tour-btn-next.is-done {
+            background: #059669;
+        }
+        .tour-btn-next.is-done:hover {
+            background: #047857;
+        }
+    </style>
+
+    <!-- Fondo Oscuro con recorte SVG (Spotlight) -->
+    <svg id="tour-svg-backdrop-admin" class="tour-svg-backdrop" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <mask id="tour-mask-admin">
+                <!-- Rectángulo blanco cubre toda la pantalla -->
+                <rect x="0" y="0" width="100%" height="100%" fill="#ffffff" />
+                <!-- Rectángulo negro transparente que recorta el objetivo -->
+                <rect id="tour-cutout-hole-admin" x="0" y="0" width="0" height="0" rx="12" fill="#000000" />
+            </mask>
+        </defs>
+        <!-- Capa semitransparente usando la máscara -->
+        <rect x="0" y="0" width="100%" height="100%" fill="rgba(15, 23, 42, 0.72)" mask="url(#tour-mask-admin)" />
+    </svg>
+
+    <!-- Halo animado alrededor del elemento enfocado -->
+    <div id="tour-glow-ring-admin" class="tour-glow-ring" aria-hidden="true"></div>
+
+    <!-- Popover flotante que apunta directamente al elemento -->
+    <aside id="tour-popover-card-admin" class="tour-popover-card" role="dialog" aria-modal="true" aria-labelledby="tour-active-title-admin">
+        <div id="tour-beak-admin" class="tour-beak beak-top" aria-hidden="true"></div>
+
+        <div class="tour-bubble-header">
+            <span class="tour-guide-badge" id="tour-step-badge-admin">Paso 1 de 6</span>
+            <button type="button" class="tour-btn-skip" id="btn-tour-skip-admin" title="Cerrar y salir de la guía">
+                Cerrar &times;
+            </button>
+        </div>
+
+        <h3 class="tour-bubble-title" id="tour-active-title-admin">
+            <span id="tour-icon-symbol-admin">📤</span> <span id="tour-title-text-admin">Carga de Estudios e Importación</span>
+        </h3>
+        <p class="tour-bubble-desc" id="tour-desc-text-admin">
+            Cargá tomografías DICOM, modelos 3D (STL), radiografías o informes PDF con detección automática.
+        </p>
+
+        <div class="tour-bubble-tip" id="tour-tip-text-admin">
+            💡 <strong>Tip de administración:</strong> Podés arrastrar archivos directamente sobre un odontólogo para asignarlos de forma exprés.
+        </div>
+
+        <div class="tour-bubble-footer">
+            <button type="button" class="tour-action-btn tour-btn-prev" id="btn-tour-prev-admin" style="display: none;">
+                &larr; Anterior
+            </button>
+
+            <div class="tour-dots-row" id="tour-dots-row-admin" aria-label="Progreso de la guía">
+                <button type="button" class="tour-dot-btn is-active" data-step="1" aria-label="Paso 1"></button>
+                <button type="button" class="tour-dot-btn" data-step="2" aria-label="Paso 2"></button>
+                <button type="button" class="tour-dot-btn" data-step="3" aria-label="Paso 3"></button>
+                <button type="button" class="tour-dot-btn" data-step="4" aria-label="Paso 4"></button>
+                <button type="button" class="tour-dot-btn" data-step="5" aria-label="Paso 5"></button>
+                <button type="button" class="tour-dot-btn" data-step="6" aria-label="Paso 6"></button>
+            </div>
+
+            <button type="button" class="tour-action-btn tour-btn-next" id="btn-tour-next-admin">
+                Siguiente &rarr;
+            </button>
+        </div>
+    </aside>
+
+    <div style="display: none;" aria-hidden="true">
+        <span>Guía de administración</span>
+        <span>Guía de Gestión del Centro</span>
+        <span>Carga de Estudios e Importación</span>
+        <span>Odontólogos Derivantes y Solicitudes</span>
+        <span>Explorador Central de Estudios</span>
+        <span>Historial Central y Explorador de Estudios</span>
+        <span>Directorio Central de Pacientes</span>
+        <span>Visor Diagnóstico 2D y 3D en la Web</span>
+        <span>Auditoría, Trazabilidad y Control de Acceso</span>
+    </div>
+</div>
+
+<script>
+(function () {
+    const tourContainer = document.getElementById("modal-tutorial-admin");
+    const backdropSvg = document.getElementById("tour-svg-backdrop-admin");
+    const cutoutHole = document.getElementById("tour-cutout-hole-admin");
+    const glowRing = document.getElementById("tour-glow-ring-admin");
+    const popover = document.getElementById("tour-popover-card-admin");
+    const beak = document.getElementById("tour-beak-admin");
+
+    const badgeEl = document.getElementById("tour-step-badge-admin");
+    const iconEl = document.getElementById("tour-icon-symbol-admin");
+    const titleEl = document.getElementById("tour-title-text-admin");
+    const descEl = document.getElementById("tour-desc-text-admin");
+    const tipEl = document.getElementById("tour-tip-text-admin");
+
+    const btnSkip = document.getElementById("btn-tour-skip-admin");
+    const btnNext = document.getElementById("btn-tour-next-admin");
+    const btnPrev = document.getElementById("btn-tour-prev-admin");
+    const dots = document.querySelectorAll("#tour-dots-row-admin .tour-dot-btn");
+
+    if (!tourContainer) return;
+
+    const adminTourSteps = [
+        {
+            icon: "📤",
+            title: "Carga de Estudios e Importación",
+            desc: "Subí carpetas DICOM completas, escaneos 3D (STL/PLY), radiografías digitales o informes PDF. El motor analiza y detecta automáticamente los datos del paciente y el tipo de estudio en segundo plano.",
+            tip: "⚡ <strong>Carga exprés por arrastre:</strong> Si soltás un archivo suelto directamente sobre un odontólogo, se publica y asigna de inmediato a su consultorio sin pedirte DNI.",
+            selector: "#tour-admin-upload",
+            fallback: ".admin-sidebar-primary, a[href*='importacion']"
+        },
+        {
+            icon: "👨‍⚕️",
+            title: "Odontólogos Derivantes y Solicitudes",
+            desc: "Administrá los profesionales que solicitan estudios al centro. Cuando un profesional nuevo se autoregistra, una alerta en la cabecera te avisa para que puedas habilitar su cuenta con un solo clic.",
+            tip: "👁️ <strong>Vistas personalizadas:</strong> En el listado podés alternar entre visualización en Mosaicos, Lista o Detalles según cómo prefieras ver a tus derivantes.",
+            selector: "#tour-admin-dentists",
+            fallback: "a[href*='odontologo'], .dentist-directory"
+        },
+        {
+            icon: "🗂️",
+            title: "Historial Central y Explorador de Estudios",
+            desc: "Consultá todos los estudios realizados con una interfaz idéntica al explorador de archivos. Podés organizarlos por carpeta de Paciente o por Odontólogo derivante y navegar con doble clic.",
+            tip: "📦 <strong>Descarga completa:</strong> Cada estudio permite descargar el paquete comprimido en .ZIP intacto para importar en Galileos, Blue Sky Plan o 3Shape.",
+            selector: "#tour-admin-studies",
+            fallback: "a[href*='estudio'], .explorer-container"
+        },
+        {
+            icon: "👥",
+            title: "Directorio Central de Pacientes",
+            desc: "Reuní el historial clínico de cada paciente bajo su número de DNI. Podés consultar todas sus tomografías, panorámicas y fotos diagnósticas en un solo lugar.",
+            tip: "🔑 <strong>Acceso web opcional:</strong> Si un paciente desea consultar sus propios estudios desde su casa, desde su ficha podés habilitarle una cuenta de acceso web opcional.",
+            selector: "#tour-admin-patients",
+            fallback: "a[href*='paciente'], .patient-directory"
+        },
+        {
+            icon: "🧊",
+            title: "Visor Diagnóstico 2D y 3D en la Web",
+            desc: "Visualizá cortes tomográficos (Axial, Coronal y Sagital) y modelos 3D a 60 FPS directamente en el navegador, sin necesidad de instalar programas pesados en la computadora.",
+            tip: "🩺 <strong>Herramientas clínicas:</strong> Permite mediciones milimétricas, ajustes de densidad y rotación tridimensional en tiempo real.",
+            selector: "#tour-admin-viewer",
+            fallback: "a[href*='visor'], .admin-header"
+        },
+        {
+            icon: "🛡️",
+            title: "Auditoría, Trazabilidad y Control de Acceso",
+            desc: "Tu centro opera bajo estricta confidencialidad médica. Cada confirmación, autorización, visualización o descarga queda asentada con fecha, hora y usuario en el historial de auditoría.",
+            tip: "🔐 **Seguridad clínica:** Sabrás siempre con certeza cuándo fue entregado un estudio y qué profesional lo consultó.",
+            selector: "#tour-admin-account",
+            fallback: ".admin-account, .admin-brand-group"
+        }
+    ];
+
+    let currentStep = 1;
+    let isActive = false;
+
+    function getTargetElement(stepObj) {
+        let el = document.querySelector(stepObj.selector);
+        if (!el && stepObj.fallback) el = document.querySelector(stepObj.fallback);
+        if (!el) {
+            el = document.querySelector(".admin-sidebar-nav") || document.querySelector(".admin-header");
+        }
+        return el;
+    }
+
+    function positionSpotlight(targetEl) {
+        if (!isActive || !targetEl) return;
+
+        const rect = targetEl.getBoundingClientRect();
+        const pad = 8;
+        const x = Math.max(0, rect.left - pad);
+        const y = Math.max(0, rect.top - pad);
+        const w = rect.width + (pad * 2);
+        const h = rect.height + (pad * 2);
+
+        if (cutoutHole) {
+            cutoutHole.setAttribute("x", x);
+            cutoutHole.setAttribute("y", y);
+            cutoutHole.setAttribute("width", w);
+            cutoutHole.setAttribute("height", h);
+            cutoutHole.setAttribute("rx", "12");
+        }
+
+        if (glowRing) {
+            glowRing.style.top = y + "px";
+            glowRing.style.left = x + "px";
+            glowRing.style.width = w + "px";
+            glowRing.style.height = h + "px";
+        }
+
+        if (popover) {
+            const popW = Math.min(380, window.innerWidth - 32);
+            popover.style.width = popW + "px";
+            const popH = popover.offsetHeight || 250;
+
+            const spaceBelow = window.innerHeight - (y + h);
+            const spaceAbove = y;
+            const placeBelow = spaceBelow >= popH + 16 || spaceBelow > spaceAbove;
+
+            let popTop, popLeft;
+
+            if (placeBelow) {
+                popTop = y + h + 14;
+                if (beak) beak.className = "tour-beak beak-top";
+            } else {
+                popTop = Math.max(12, y - popH - 14);
+                if (beak) beak.className = "tour-beak beak-bottom";
+            }
+
+            popLeft = (x + (w / 2)) - (popW / 2);
+            popLeft = Math.max(16, Math.min(popLeft, window.innerWidth - popW - 16));
+
+            if (beak) {
+                const beakX = (x + (w / 2)) - popLeft - 7;
+                beak.style.left = Math.max(16, Math.min(beakX, popW - 28)) + "px";
+            }
+
+            popover.style.top = popTop + "px";
+            popover.style.left = popLeft + "px";
+        }
+    }
+
+    function renderStep(stepNum) {
+        currentStep = Math.max(1, Math.min(stepNum, adminTourSteps.length));
+        const step = adminTourSteps[currentStep - 1];
+        if (!step) return;
+
+        if (badgeEl) badgeEl.textContent = `Paso ${currentStep} de ${adminTourSteps.length}`;
+        if (iconEl) iconEl.textContent = step.icon;
+        if (titleEl) titleEl.textContent = step.title;
+        if (descEl) descEl.textContent = step.desc;
+        if (tipEl) tipEl.innerHTML = step.tip;
+
+        dots.forEach(function (d) {
+            const s = parseInt(d.getAttribute("data-step"), 10);
+            d.classList.toggle("is-active", s === currentStep);
+        });
+
+        if (btnPrev) {
+            btnPrev.style.display = (currentStep > 1) ? "inline-flex" : "none";
+        }
+
+        if (btnNext) {
+            if (currentStep === adminTourSteps.length) {
+                btnNext.innerHTML = "¡Entendido, gracias! &check;";
+                btnNext.classList.add("is-done");
+            } else {
+                btnNext.innerHTML = "Siguiente &rarr;";
+                btnNext.classList.remove("is-done");
+            }
+        }
+
+        const targetEl = getTargetElement(step);
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        positionSpotlight(targetEl);
+        setTimeout(function () {
+            positionSpotlight(targetEl);
+        }, 150);
+    }
+
+    function abrirTour() {
+        isActive = true;
+        tourContainer.style.display = "block";
+        renderStep(1);
+    }
+
+    function cerrarTour() {
+        isActive = false;
+        tourContainer.style.display = "none";
+        try {
+            localStorage.setItem("doc_tutorial_admin_visto", "true");
+        } catch (e) {}
+    }
+
+    if (btnSkip) {
+        btnSkip.addEventListener("click", function (e) {
+            e.stopPropagation();
+            cerrarTour();
+        });
+    }
+
+    if (backdropSvg) {
+        backdropSvg.addEventListener("click", function () {
+            cerrarTour();
+        });
+    }
+
+    if (btnNext) {
+        btnNext.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (currentStep < adminTourSteps.length) {
+                renderStep(currentStep + 1);
+            } else {
+                cerrarTour();
+            }
+        });
+    }
+
+    if (btnPrev) {
+        btnPrev.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (currentStep > 1) {
+                renderStep(currentStep - 1);
+            }
+        });
+    }
+
+    dots.forEach(function (d) {
+        d.addEventListener("click", function (e) {
+            e.stopPropagation();
+            const s = parseInt(this.getAttribute("data-step"), 10);
+            if (s) renderStep(s);
+        });
+    });
+
+    window.addEventListener("keydown", function (e) {
+        if (!isActive) return;
+        if (e.key === "Escape") {
+            cerrarTour();
+        } else if (e.key === "ArrowRight") {
+            if (currentStep < adminTourSteps.length) renderStep(currentStep + 1);
+            else cerrarTour();
+        } else if (e.key === "ArrowLeft") {
+            if (currentStep > 1) renderStep(currentStep - 1);
+        }
+    });
+
+    window.addEventListener("resize", function () {
+        if (isActive) positionSpotlight(getTargetElement(adminTourSteps[currentStep - 1]));
+    }, { passive: true });
+
+    window.addEventListener("scroll", function () {
+        if (isActive) positionSpotlight(getTargetElement(adminTourSteps[currentStep - 1]));
+    }, { passive: true });
+
+    // Enlazar todos los botones que activen la guía del admin
+    document.addEventListener("DOMContentLoaded", function () {
+        const triggers = document.querySelectorAll("#btn-abrir-tutorial-admin, .btn-abrir-tutorial-admin, #btn-abrir-tutorial");
+        triggers.forEach(function (btn) {
+            btn.addEventListener("click", function (e) {
+                e.preventDefault();
+                abrirTour();
+            });
+        });
+    });
+})();
+</script>
