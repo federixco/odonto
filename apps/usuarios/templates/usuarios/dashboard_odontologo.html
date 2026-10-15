@@ -283,7 +283,7 @@
                     </p>
 
                     <div style="margin-bottom: 0.75rem;">
-                        <a href="?paciente={{ estudio.paciente.pk }}" style="font-size: 0.78rem; color: #007788; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;">
+                        <a href="?paciente={{ estudio.paciente.pk }}" {% if forloop.first %}id="tour-target-folder"{% endif %} style="font-size: 0.78rem; color: #007788; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;">
                             {% include 'core/includes/icon.html' with name='folder' %} Ver carpeta del paciente &rarr;
                         </a>
                     </div>
@@ -399,7 +399,7 @@
                 <!-- Botones de Acción de la Ficha -->
                 <div style="margin-top: 1.15rem; padding-top: 0.85rem; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 0.5rem;">
                     <!-- Botón Principal: Abrir Carpeta Clínica -->
-                    <a href="?paciente={{ p.paciente.pk }}" class="button" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.6rem 0.85rem; background: #007788; color: white; font-weight: 600;" title="Abrir carpeta clínica y ver todos los estudios del paciente">
+                    <a href="?paciente={{ p.paciente.pk }}" {% if forloop.first %}id="tour-target-folder"{% endif %} class="button" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.6rem 0.85rem; background: #007788; color: white; font-weight: 600;" title="Abrir carpeta clínica y ver todos los estudios del paciente">
                         {% include 'core/includes/icon.html' with name='folder' %}
                         {% if p.total_estudios > 1 %}
                         Abrir carpeta ({{ p.total_estudios }} estudios) &rarr;

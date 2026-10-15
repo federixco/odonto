@@ -342,12 +342,12 @@
         {
             icon: "📁",
             title: "Carpetas Clínicas por Paciente",
-            desc: "Tus pacientes ahora se organizan en carpetas clínicas para que sus estudios no queden desparramados. Hacé clic en «Abrir carpeta clínica» para ver su historial completo con sus tarjetas, o alterná a «Todos los estudios» para ver el listado continuo.",
+            desc: "Hacé clic en este botón para abrir la carpeta clínica del paciente. Podrás consultar todos sus estudios reunidos en fichas individuales con su Visor 3D y descargas, o alternar con la pestaña superior para ver el listado continuo.",
             tip: "📂 <strong>Historial ordenado:</strong> Cada paciente reúne todas sus tomografías, panorámicas y modelos 3D en un único espacio.",
-            selector: ".patient-card, [href*='vista=pacientes']",
-            fallback: ".patient-empty",
-            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa de la carpeta clínica:</span><div class="tour-demo-btn tour-demo-btn-primary">📁 Abrir carpeta clínica (2 estudios) &rarr;</div></div>',
-            adaptiveTipIfEmpty: "ℹ️ <strong>Consultorio en preparación:</strong> Cuando el centro D.O.C. cargue tus primeros pacientes derivados, se agruparán automáticamente en sus carpetas clínicas."
+            selector: "#tour-target-folder",
+            fallback: "a[href*='paciente='], .patient-card, .patient-empty",
+            demoHtml: '<div class="tour-demo-preview"><span class="tour-demo-label">Vista previa del botón en cada paciente:</span><div class="tour-demo-btn tour-demo-btn-primary">📁 Abrir carpeta clínica (2 estudios) &rarr;</div></div>',
+            adaptiveTipIfEmpty: "ℹ️ <strong>Consultorio en preparación:</strong> Cuando el centro D.O.C. cargue tus primeros pacientes derivados, este botón estará disponible en sus tarjetas para abrir la carpeta."
         },
         {
             icon: "🧊",
