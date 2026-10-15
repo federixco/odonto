@@ -22,10 +22,23 @@
                 <span class="admin-header-caption">Plataforma de estudios<br><strong>Administración del centro</strong></span>
             </div>
             <div class="admin-account" id="tour-admin-account">
+                {% if request.resolver_match.url_name == 'odontologo_lista' %}
                 <button type="button" class="button button-secondary button-small btn-abrir-tutorial-admin" id="btn-abrir-tutorial-admin" style="display: flex; align-items: center; gap: 0.4rem;" title="Abrir guía interactiva">
-                    {% include 'core/includes/icon.html' with name='info' %}
-                    <span>{% if request.resolver_match.url_name|slice:':10' == 'odontologo' %}Guía: Odontólogos{% elif request.resolver_match.url_name|slice:':11' == 'importacion' %}Guía: Carga de estudios{% elif request.resolver_match.url_name|slice:':7' == 'estudio' %}Guía: Historial{% elif request.resolver_match.url_name|slice:':8' == 'paciente' %}Guía: Pacientes{% else %}Guía de administración{% endif %}</span>
+                    {% include 'core/includes/icon.html' with name='info' %} <span>Guía: Odontólogos</span>
                 </button>
+                {% elif request.resolver_match.url_name == 'importacion_crear' %}
+                <button type="button" class="button button-secondary button-small btn-abrir-tutorial-admin" id="btn-abrir-tutorial-admin" style="display: flex; align-items: center; gap: 0.4rem;" title="Abrir guía interactiva">
+                    {% include 'core/includes/icon.html' with name='info' %} <span>Guía: Carga de estudios</span>
+                </button>
+                {% elif request.resolver_match.url_name == 'estudio_lista' %}
+                <button type="button" class="button button-secondary button-small btn-abrir-tutorial-admin" id="btn-abrir-tutorial-admin" style="display: flex; align-items: center; gap: 0.4rem;" title="Abrir guía interactiva">
+                    {% include 'core/includes/icon.html' with name='info' %} <span>Guía: Historial</span>
+                </button>
+                {% elif request.resolver_match.url_name == 'paciente_lista' %}
+                <button type="button" class="button button-secondary button-small btn-abrir-tutorial-admin" id="btn-abrir-tutorial-admin" style="display: flex; align-items: center; gap: 0.4rem;" title="Abrir guía interactiva">
+                    {% include 'core/includes/icon.html' with name='info' %} <span>Guía: Pacientes</span>
+                </button>
+                {% endif %}
                 {% if odontologos_pendientes_count > 0 %}
                 <a href="{% url 'odontologo_lista' %}" class="admin-notification-badge" title="{{ odontologos_pendientes_count }} solicitud{{ odontologos_pendientes_count|pluralize }} pendiente{{ odontologos_pendientes_count|pluralize }} de habilitación">
                     <span class="badge-dot" aria-hidden="true"></span>
@@ -83,7 +96,9 @@
             <footer class="admin-container admin-footer"><span>D.O.C. · Diagnóstico Odontológico Computado</span><span>{% include 'core/includes/icon.html' with name='lock' %} Espacio de administración</span></footer>
         </div>
     </div>
+    {% if request.resolver_match.url_name == 'odontologo_lista' or request.resolver_match.url_name == 'importacion_crear' or request.resolver_match.url_name == 'estudio_lista' or request.resolver_match.url_name == 'paciente_lista' %}
     {% include 'core/includes/modal_tutorial_admin.html' %}
+    {% endif %}
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

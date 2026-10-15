@@ -292,4 +292,21 @@ class GestionOdontologosTestCase(TestCase):
         self.assertContains(resp_pacientes, "Guía: Pacientes")
         self.assertContains(resp_pacientes, 'id="modal-tutorial-admin"')
 
+    def test_admin_tutorial_no_disponible_en_subsecciones(self):
+        """Verifica que el tutorial NO esté disponible en subsecciones (ej: registrar odontólogo o paciente)."""
+        self.client.login(username="admin_test", password=self.password)
+
+        # Subsección: Crear odontólogo
+        resp_crear_odonto = self.client.get(reverse("odontologo_crear"))
+        self.assertEqual(resp_crear_odonto.status_code, 200)
+        self.assertNotContains(resp_crear_odonto, 'id="btn-abrir-tutorial-admin"')
+        self.assertNotContains(resp_crear_odonto, 'id="modal-tutorial-admin"')
+
+        # Subsección: Crear paciente
+        resp_crear_paciente = self.client.get(reverse("paciente_crear"))
+        self.assertEqual(resp_crear_paciente.status_code, 200)
+        self.assertNotContains(resp_crear_paciente, 'id="btn-abrir-tutorial-admin"')
+        self.assertNotContains(resp_crear_paciente, 'id="modal-tutorial-admin"')
+
+
 

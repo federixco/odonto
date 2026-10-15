@@ -589,11 +589,11 @@
     };
 
     function detectCurrentSection() {
-        const path = window.location.pathname.toLowerCase();
-        if (path.includes("/odontologo")) return "odontologos";
-        if (path.includes("/importacion") || path.includes("/cargar") || path.includes("/importar")) return "carga";
-        if (path.includes("/estudio")) return "estudios";
-        if (path.includes("/paciente")) return "pacientes";
+        const path = window.location.pathname.toLowerCase().replace(/\/+$/, "") + "/";
+        if (path === "/odontologos/") return "odontologos";
+        if (path === "/estudios/importar/" || path === "/estudios/importaciones/crear/") return "carga";
+        if (path === "/estudios/") return "estudios";
+        if (path === "/pacientes/") return "pacientes";
         return "general";
     }
 
