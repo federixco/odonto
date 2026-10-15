@@ -2,7 +2,7 @@ from django.urls import path
 from . import visor_views
 from .views_cargas import EstadoImportacionView, CancelarImportacionView, SelectorView
 from .views import (AgregarAccesoEstudioView, AnalizarImportacionView,
-                    CompletarArchivoImportadoView, ConfirmarImportacionView, CrearEstudioView,
+                    CompletarArchivoImportadoView, ConfirmarImportacionView, ConfirmarExpressImportacionView, CrearEstudioView,
                     CrearImportacionView, DescargarEstudioCompletoView, DetalleEstudioView,
                     DetalleImportacionView, IniciarArchivoImportadoView,
                     EliminarEstudioView, IniciarImportacionView, ListaEstudiosView,
@@ -32,6 +32,7 @@ urlpatterns = [
     path("importaciones/<int:pk>/", DetalleImportacionView.as_view(), name="importacion_detalle"),
     path("importaciones/<int:importacion_id>/registrar-paciente/", RegistrarPacienteDetectadoView.as_view(), name="importacion_registrar_paciente"),
     path("importaciones/<int:importacion_id>/confirmar/", ConfirmarImportacionView.as_view(), name="importacion_confirmar"),
+    path("importaciones/<int:importacion_id>/confirmar_express/", ConfirmarExpressImportacionView.as_view(), name="importacion_confirmar_express"),
     path("<int:pk>/publicar/", PublicarEstudioView.as_view(), name="estudio_publicar"),
     path("<int:pk>/eliminar/", EliminarEstudioView.as_view(), name="estudio_eliminar"),
     path("<int:pk>/purgar/", PurgarEstudioView.as_view(), name="estudio_purgar"),

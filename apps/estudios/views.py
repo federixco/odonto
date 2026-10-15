@@ -13,6 +13,7 @@ import shutil
 import zipfile
 from django.conf import settings
 from django.contrib import messages
+from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db import transaction, IntegrityError
 from django.db.models import Q
@@ -681,6 +682,92 @@ class ConfirmarImportacionView(AdminRequeridoMixin, View):
                 "La carpeta fue confirmada y el estudio quedó guardado como borrador sin odontólogo derivante.",
             )
         return redirect("estudio_detalle", pk=estudio.pk)
+
+
+class ConfirmarExpressImportacionView(AdminRequeridoMixin, View):
+    """Confirmación inmediata para cargas arrastradas directamente sobre un odontólogo.
+
+    Crea el estudio publicado y autorizado para el odontólogo sin exigir datos manuales
+    al administrador. Si no se detectó paciente con DNI, crea un paciente provisional
+    clasificado como 'DOCUMENTO_PRIVADO' para que el odontólogo lo organice en su consultorio.
+    """
+
+    def post(self, request, importacion_id):
+        data = _leer_json(request) or {}
+        odontologo_id = data.get("odontologo_id")
+        if not odontologo_id:
+            return JsonResponse({"error": "Debe especificar el odontólogo destinatario."}, status=400)
+
+        odontologo = get_object_or_404(Odontologo, pk=odontologo_id)
+
+        with transaction.atomic():
+            lote = get_object_or_404(
+                ImportacionEstudio.objects.select_for_update(),
+                pk=importacion_id,
+                iniciada_por=request.user,
+            )
+
+            if lote.estudio_id or lote.estado == EstadoImportacion.CONFIRMADA:
+                return JsonResponse({"status": "ok", "estudio_id": lote.estudio_id})
+
+            if not lote.esta_completa():
+                return JsonResponse({"error": "La carga aún tiene archivos pendientes de completar."}, status=409)
+
+            if lote.estado in {EstadoImportacion.CARGANDO, EstadoImportacion.PROCESANDO}:
+                if lote.estado == EstadoImportacion.CARGANDO:
+                    lote.marcar_procesando()
+                from .services.importador import analizar_importacion
+                analizar_importacion(lote)
+                lote.refresh_from_db()
+
+            paciente = lote.paciente_sugerido
+            es_provisional = False
+            if not paciente:
+                es_provisional = True
+                nombre_base = PurePosixPath(lote.nombre_carpeta).stem.replace("_", " ").strip() or "Documento"
+                paciente = Paciente.objects.create(
+                    nombre=nombre_base[:100],
+                    apellido="Sin clasificar",
+                    dni=f"TEMP-{uuid.uuid4().hex[:8].upper()}",
+                )
+
+            datos = lote.datos_detectados or {}
+            formato = datos.get("formato", "DOCUMENTO")
+            tipo_estudio = "DOCUMENTO_PRIVADO" if es_provisional else formato
+
+            estudio = Estudio.objects.create(
+                paciente=paciente,
+                tipo=tipo_estudio,
+                fecha_estudio=timezone.now().date(),
+                observaciones=f"[PRIVADO] Documento asignado directamente para {odontologo}.",
+                estado=EstadoEstudio.BORRADOR,
+            )
+
+            lote.confirmar(estudio, estudios_revisados=True)
+            Autorizacion.objects.create(
+                estudio=estudio,
+                odontologo=odontologo,
+                estado_acceso=EstadoAcceso.VIGENTE,
+            )
+            try:
+                estudio.publicar()
+            except ValidationError:
+                pass
+
+            LogActividad.objects.create(
+                usuario=request.user,
+                estudio=estudio,
+                tipo_evento=TipoEvento.IMPORTACION_CONFIRMADA,
+                resultado="Estudio express confirmado",
+                detalles=f"Importación {lote.pk} confirmada directamente para {odontologo}.",
+            )
+
+        return JsonResponse({
+            "status": "ok",
+            "estudio_id": estudio.pk,
+            "paciente_id": paciente.pk,
+            "mensaje": f"El documento fue cargado y asignado exitosamente a {odontologo}.",
+        })
 
 
 class EliminarEstudioView(AdminRequeridoMixin, View):

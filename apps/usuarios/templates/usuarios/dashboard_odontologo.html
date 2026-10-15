@@ -83,6 +83,65 @@
             </div>
         </div>
 
+        {% if estudios_sin_clasificar and not paciente_seleccionado %}
+        <!-- Banner de Documentos Sin Clasificar Recibidos Directamente -->
+        <div class="unclassified-docs-banner" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #fde68a; border-radius: 14px; padding: 1.35rem 1.6rem; margin-bottom: 2rem; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.15rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="width: 44px; height: 44px; border-radius: 12px; background: #fef08a; color: #b45309; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
+                        {% include 'core/includes/icon.html' with name='file-text' %}
+                    </span>
+                    <div>
+                        <h3 style="font-size: 1.15rem; font-weight: 700; color: #92400e; margin: 0 0 0.2rem 0;">
+                            Documentos recibidos sin clasificar ({{ estudios_sin_clasificar|length }})
+                        </h3>
+                        <p style="font-size: 0.85rem; color: #78350f; margin: 0;">
+                            El centro D.O.C. te envió estos archivos directos. Podés revisarlos y moverlos a la carpeta de cualquiera de tus pacientes con un solo clic.
+                        </p>
+                    </div>
+                </div>
+                <span style="font-size: 0.78rem; font-weight: 700; background: #fef9c3; color: #854d0e; padding: 4px 12px; border-radius: 16px; border: 1px solid #fef08a;">
+                    Bandeja de Entrada Rápida
+                </span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;">
+                {% for doc in estudios_sin_clasificar %}
+                <div style="background: white; border: 1px solid #fef3c7; border-radius: 12px; padding: 1.1rem 1.25rem; box-shadow: 0 2px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #b45309;">
+                                {{ doc.fecha_estudio|date:'d/m/Y' }}
+                            </span>
+                            <span style="font-size: 0.7rem; font-weight: 600; background: #fef3c7; color: #92400e; padding: 2px 7px; border-radius: 6px;">
+                                {% if doc.archivos_completos %}{{ doc.archivos_completos.0.formato|default:'ARCHIVO' }}{% else %}DOCUMENTO{% endif %}
+                            </span>
+                        </div>
+                        <h4 style="font-size: 1.05rem; font-weight: 700; margin: 0 0 0.25rem 0; color: #1e293b; line-height: 1.3;">
+                            {{ doc.paciente.nombre|default:'Documento suelto' }}
+                        </h4>
+                        <p style="font-size: 0.8rem; color: #64748b; margin: 0;">
+                            {{ doc.cantidad_archivos }} archivo{{ doc.cantidad_archivos|pluralize }} &middot; Recibido recientemente
+                        </p>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="button" onclick="abrirModalMoverDocumento('{{ doc.pk }}', '{{ doc.paciente.nombre|escapejs }}')" class="button button-small" style="flex: 2; padding: 0.5rem 0.75rem; font-size: 0.82rem; background: #007788; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; font-weight: 600;">
+                            {% include 'core/includes/icon.html' with name='folder' %} Mover a paciente...
+                        </button>
+                        <a href="{% url 'estudio_ver' doc.pk %}" class="button button-small button-secondary" style="flex: 1; padding: 0.5rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;" title="Ver contenido del documento">
+                            {% include 'core/includes/icon.html' with name='eye' %} Ver
+                        </a>
+                        <a href="{% url 'estudio_descargar_completo' doc.pk %}" class="button button-small button-secondary" style="padding: 0.5rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; justify-content: center;" title="Descargar archivo">
+                            {% include 'core/includes/icon.html' with name='download' %}
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Barra de Búsqueda y Filtros -->
         <div class="pro-search-bar" id="tour-target-search" style="background: white; border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.03);">
             <form method="get" action="{% url 'dashboard_odontologo' %}" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr 1fr auto auto; gap: 0.75rem; align-items: end;">
@@ -195,9 +254,15 @@
                         <span class="patient-study-date" style="font-size: 0.85rem; font-weight: 700; color: #007788;">
                             {{ estudio.fecha_estudio|date:'d/m/Y' }}
                         </span>
+                        {% if estudio.tipo == 'DOCUMENTO_PRIVADO' or '[PRIVADO]' in estudio.observaciones %}
+                        <span style="font-size: 0.74rem; background: #fef3c7; color: #92400e; font-weight: 700; padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            🔒 Documento Privado
+                        </span>
+                        {% else %}
                         <span style="font-size: 0.75rem; background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 10px;">
                             Autorizado
                         </span>
+                        {% endif %}
                     </div>
 
                     <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0 0 0.35rem 0; color: #111827;">
@@ -230,6 +295,19 @@
                 </div>
 
                 <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #f3f4f6; display: flex; flex-direction: column; gap: 0.5rem;">
+                    {% if estudio.tipo == 'DOCUMENTO_PRIVADO' or '[PRIVADO]' in estudio.observaciones %}
+                    <a href="{% url 'estudio_ver' estudio.pk %}" class="button button-small" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.75rem; background: #007788; color: white; font-weight: 600;" title="Ver contenido del documento">
+                        {% include 'core/includes/icon.html' with name='eye' %} Ver documento
+                    </a>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Descargar documento">
+                            {% include 'core/includes/icon.html' with name='download' %} Descargar
+                        </a>
+                        <button type="button" onclick="abrirModalMoverDocumento('{{ estudio.pk }}', '{{ estudio.paciente.nombre|escapejs }}')" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Reasignar a otro paciente">
+                            {% include 'core/includes/icon.html' with name='folder' %} Reasignar
+                        </button>
+                    </div>
+                    {% else %}
                     <a href="{% url 'visor_estudio' estudio.pk %}" {% if forloop.first %}id="tour-target-visor"{% endif %} class="button button-small" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.75rem; background: #007788; color: white; font-weight: 600;" title="Abrir visor interactivo 3D y cortes tomográficos">
                         {% include 'core/includes/icon.html' with name='cube' %} Visor 3D y Cortes
                     </a>
@@ -241,6 +319,7 @@
                             {% include 'core/includes/icon.html' with name='download' %} Descargar ZIP
                         </a>
                     </div>
+                    {% endif %}
                 </div>
             </article>
             {% endfor %}
@@ -269,9 +348,15 @@
                         <span class="patient-study-date" style="font-size: 0.82rem; font-weight: 700; color: #007788;">
                             {{ estudio.fecha_estudio|date:'d/m/Y' }}
                         </span>
+                        {% if estudio.tipo == 'DOCUMENTO_PRIVADO' or '[PRIVADO]' in estudio.observaciones %}
+                        <span style="font-size: 0.74rem; background: #fef3c7; color: #92400e; font-weight: 700; padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 0.25rem;">
+                            🔒 Documento Privado
+                        </span>
+                        {% else %}
                         <span style="font-size: 0.75rem; background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 10px;">
                             Autorizado
                         </span>
+                        {% endif %}
                     </div>
 
                     <h2 style="font-size: 1.2rem; font-weight: 700; margin: 0 0 0.35rem 0; color: #111827;">
@@ -310,6 +395,19 @@
                 </div>
 
                 <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #f3f4f6; display: flex; flex-direction: column; gap: 0.5rem;">
+                    {% if estudio.tipo == 'DOCUMENTO_PRIVADO' or '[PRIVADO]' in estudio.observaciones %}
+                    <a href="{% url 'estudio_ver' estudio.pk %}" class="button button-small" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.75rem; background: #007788; color: white; font-weight: 600;" title="Ver contenido del documento">
+                        {% include 'core/includes/icon.html' with name='eye' %} Ver documento
+                    </a>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{% url 'estudio_descargar_completo' estudio.pk %}" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Descargar documento">
+                            {% include 'core/includes/icon.html' with name='download' %} Descargar
+                        </a>
+                        <button type="button" onclick="abrirModalMoverDocumento('{{ estudio.pk }}', '{{ estudio.paciente.nombre|escapejs }}')" class="button button-small button-secondary" style="flex: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.45rem 0.65rem;" title="Reasignar a otro paciente">
+                            {% include 'core/includes/icon.html' with name='folder' %} Reasignar
+                        </button>
+                    </div>
+                    {% else %}
                     <a href="{% url 'visor_estudio' estudio.pk %}" {% if forloop.first %}id="tour-target-visor"{% endif %} class="button button-small" style="width: 100%; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.55rem 0.75rem; background: #007788; color: white; font-weight: 600;" title="Abrir visor interactivo 3D y cortes tomográficos">
                         {% include 'core/includes/icon.html' with name='cube' %} Visor 3D y Cortes
                     </a>
@@ -321,6 +419,7 @@
                             {% include 'core/includes/icon.html' with name='download' %} Descargar ZIP
                         </a>
                     </div>
+                    {% endif %}
                 </div>
             </article>
             {% endfor %}
@@ -445,6 +544,149 @@
     </div>
 
     {% include 'usuarios/includes/modal_tutorial_derivante.html' %}
+
+    <!-- Modal: Mover Documento a Carpeta de Paciente -->
+    <dialog id="modal-mover-documento" style="border: none; border-radius: 16px; padding: 0; max-width: 480px; width: 90vw; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); background: white;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                <span style="width: 38px; height: 38px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center;">
+                    {% include 'core/includes/icon.html' with name='folder' %}
+                </span>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Mover a carpeta de paciente</h3>
+                    <p id="modal-mover-doc-nombre" style="margin: 0.15rem 0 0 0; font-size: 0.8rem; color: #64748b;"></p>
+                </div>
+            </div>
+            <button type="button" onclick="document.getElementById('modal-mover-documento').close()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8; line-height: 1;" aria-label="Cerrar">&times;</button>
+        </div>
+        
+        <form id="form-mover-documento" method="post" action="" style="padding: 1.5rem;">
+            {% csrf_token %}
+            <p style="font-size: 0.85rem; color: #475569; margin-top: 0; margin-bottom: 1.25rem; line-height: 1.45;">
+                Asigná este documento a un paciente para organizar tu consultorio. Seguirá siendo un <strong>documento privado</strong> de tu uso profesional exclusivo (no visible para la cuenta web del paciente).
+            </p>
+
+            <!-- Pestañas de Selección de Modo -->
+            <div style="display: flex; gap: 0.5rem; background: #f1f5f9; padding: 4px; border-radius: 10px; margin-bottom: 1.25rem;">
+                <button type="button" id="btn-tab-existente" onclick="cambiarModoPaciente('existente')" style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 8px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    Paciente existente
+                </button>
+                <button type="button" id="btn-tab-nuevo" onclick="cambiarModoPaciente('nuevo')" style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 8px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; background: transparent; color: #64748b;">
+                    + Nueva carpeta
+                </button>
+            </div>
+            <input type="hidden" name="accion_paciente" id="input-accion-paciente" value="existente">
+
+            <!-- MODO 1: PACIENTE EXISTENTE -->
+            <div id="seccion-paciente-existente">
+                <label for="select-paciente-existente" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem; color: #334155;">Seleccionar paciente:</label>
+                <select name="paciente_id" id="select-paciente-existente" style="width: 100%; padding: 0.65rem 0.85rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; background: white; margin-bottom: 1rem;">
+                    <option value="">-- Seleccioná un paciente --</option>
+                    {% for p in todos_mis_pacientes %}
+                    <option value="{{ p.pk }}">{{ p.nombre }} {{ p.apellido }} (DNI: {{ p.dni }})</option>
+                    {% endfor %}
+                </select>
+                {% if not todos_mis_pacientes %}
+                <p style="font-size: 0.8rem; color: #64748b; margin-top: -0.5rem; margin-bottom: 1rem;">
+                    Todavía no tenés otros pacientes registrados. Hacé clic en <em>"+ Nueva carpeta"</em> para crear uno nuevo.
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- MODO 2: NUEVO PACIENTE -->
+            <div id="seccion-paciente-nuevo" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <div>
+                        <label for="input-nuevo-nombre" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; color: #334155;">Nombre</label>
+                        <input type="text" name="nuevo_nombre" id="input-nuevo-nombre" placeholder="Ej: Juan" style="width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem;">
+                    </div>
+                    <div>
+                        <label for="input-nuevo-apellido" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; color: #334155;">Apellido</label>
+                        <input type="text" name="nuevo_apellido" id="input-nuevo-apellido" placeholder="Ej: Pérez" style="width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <label for="input-nuevo-dni" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; color: #334155;">DNI / Identificación</label>
+                    <input type="text" name="nuevo_dni" id="input-nuevo-dni" placeholder="Ej: 38123456" style="width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.88rem;">
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="button" onclick="document.getElementById('modal-mover-documento').close()" class="button button-secondary" style="padding: 0.55rem 1rem; font-size: 0.88rem;">
+                    Cancelar
+                </button>
+                <button type="submit" class="button" style="padding: 0.55rem 1.25rem; font-size: 0.88rem; background: #007788; color: white; font-weight: 600;">
+                    Guardar en carpeta
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <script>
+        function abrirModalMoverDocumento(estudioId, estudioNombre) {
+            const dialog = document.getElementById('modal-mover-documento');
+            if (!dialog) return;
+            const form = document.getElementById('form-mover-documento');
+            form.action = `/mi-consultorio/estudios/${estudioId}/mover-paciente/`;
+            document.getElementById('modal-mover-doc-nombre').textContent = estudioNombre ? `Documento: ${estudioNombre}` : '';
+            cambiarModoPaciente('existente');
+            dialog.showModal();
+        }
+
+        function cambiarModoPaciente(modo) {
+            const btnExistente = document.getElementById('btn-tab-existente');
+            const btnNuevo = document.getElementById('btn-tab-nuevo');
+            const secExistente = document.getElementById('seccion-paciente-existente');
+            const secNuevo = document.getElementById('seccion-paciente-nuevo');
+            const inputAccion = document.getElementById('input-accion-paciente');
+            const selectExistente = document.getElementById('select-paciente-existente');
+            const inputNombre = document.getElementById('input-nuevo-nombre');
+            const inputApellido = document.getElementById('input-nuevo-apellido');
+            const inputDni = document.getElementById('input-nuevo-dni');
+
+            if (modo === 'nuevo') {
+                inputAccion.value = 'nuevo';
+                btnNuevo.style.background = 'white';
+                btnNuevo.style.color = '#0f172a';
+                btnNuevo.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                btnExistente.style.background = 'transparent';
+                btnExistente.style.color = '#64748b';
+                btnExistente.style.boxShadow = 'none';
+                secExistente.style.display = 'none';
+                secNuevo.style.display = 'block';
+                if (selectExistente) selectExistente.required = false;
+                if (inputNombre) inputNombre.required = true;
+                if (inputApellido) inputApellido.required = true;
+                if (inputDni) inputDni.required = true;
+            } else {
+                inputAccion.value = 'existente';
+                btnExistente.style.background = 'white';
+                btnExistente.style.color = '#0f172a';
+                btnExistente.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                btnNuevo.style.background = 'transparent';
+                btnNuevo.style.color = '#64748b';
+                btnNuevo.style.boxShadow = 'none';
+                secExistente.style.display = 'block';
+                secNuevo.style.display = 'none';
+                if (selectExistente) selectExistente.required = true;
+                if (inputNombre) inputNombre.required = false;
+                if (inputApellido) inputApellido.required = false;
+                if (inputDni) inputDni.required = false;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const dialogMover = document.getElementById('modal-mover-documento');
+            if (dialogMover) {
+                dialogMover.addEventListener('click', function(e) {
+                    const rect = dialogMover.getBoundingClientRect();
+                    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                        dialogMover.close();
+                    }
+                });
+            }
+        });
+    </script>
 </section>
 {% include 'core/includes/paginacion.html' %}
 {% endblock %}

@@ -303,6 +303,26 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             activarEtapa("analyze");
+            if (window.DOC_UPLOAD_EXPRESS_ODONTOLOGO) {
+                const nombreDestino = window.DOC_UPLOAD_EXPRESS_NOMBRE || "el odontólogo";
+                progressTitle.textContent = "Asignando documento";
+                progressText.textContent = `Guardando directamente en el consultorio de ${nombreDestino}…`;
+                const expressRes = await jsonPost(`/estudios/importaciones/${lote.importacion_id}/confirmar_express/`, {
+                    odontologo_id: window.DOC_UPLOAD_EXPRESS_ODONTOLOGO
+                });
+                progressBar.style.width = "100%";
+                progressTrack.setAttribute("aria-valuenow", "100");
+                activarEtapa("review");
+                progressTitle.textContent = "¡Carga completada!";
+                progressText.textContent = expressRes.mensaje || `El archivo ya está disponible en el consultorio de ${nombreDestino}.`;
+                window.DOC_UPLOAD_EXPRESS_ODONTOLOGO = null;
+                window.DOC_UPLOAD_EXPRESS_NOMBRE = null;
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1600);
+                return;
+            }
+
             progressTitle.textContent = "Detectando datos del paciente";
             progressText.textContent = "Leyendo la información de los archivos…";
             const analisis = await jsonPost(`/estudios/importaciones/${lote.importacion_id}/analizar/`, {});
@@ -406,10 +426,12 @@ document.addEventListener("DOMContentLoaded", () => {
             itemLabel = `${archivosFallback.length} archivos`;
         }
         
-        if (!window.confirm("¿Estás seguro que deseas cargar " + itemLabel + " y asignarlo para " + nombreOdontologo + "?")) {
+        if (!window.confirm("¿Cargar y enviar directamente " + itemLabel + " a " + nombreOdontologo + "? Se asignará de inmediato a su consultorio.")) {
             return;
         }
 
+        window.DOC_UPLOAD_EXPRESS_ODONTOLOGO = idOdontologo;
+        window.DOC_UPLOAD_EXPRESS_NOMBRE = nombreOdontologo;
         window.DOC_UPLOAD_REDIRECT_APPEND = "?derivante=" + idOdontologo;
         
         if (root.tagName === "DIALOG") {

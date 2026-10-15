@@ -9,6 +9,7 @@ urlpatterns = [
     # Acceso anterior del administrador (redirige al listado) y dashboards por rol.
     path("admin-centro/", views.DashboardAdminView.as_view(), name="dashboard_admin"),
     path("mi-consultorio/", views.DashboardOdontologoView.as_view(), name="dashboard_odontologo"),
+    path("mi-consultorio/estudios/<int:estudio_id>/mover-paciente/", views.MoverEstudioPacienteView.as_view(), name="estudio_mover_paciente"),
     path("mis-estudios/", views.DashboardPacienteView.as_view(), name="dashboard_paciente"),
 
     # Gestión de odontólogos (Admin)

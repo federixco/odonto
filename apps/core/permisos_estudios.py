@@ -17,5 +17,7 @@ def comprobar_acceso_estudio(usuario, estudio, *, descargar=False):
     ).exists():
         return
     if not descargar and usuario.rol == RolUsuario.PACIENTE and estudio.paciente.usuario_id == usuario.pk:
+        if estudio.tipo == "DOCUMENTO_PRIVADO" or "[PRIVADO]" in (estudio.observaciones or ""):
+            raise PermissionDenied("Este documento es de uso exclusivo del profesional.")
         return
     raise PermissionDenied("No tenés permiso para realizar esta acción sobre el estudio.")
