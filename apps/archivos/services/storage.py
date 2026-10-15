@@ -131,6 +131,24 @@ def iniciar_multipart_upload(clave_objeto, content_type="application/octet-strea
         cliente.close()
 
 
+def adaptar_url_almacenamiento(url):
+    """Adapta URLs locales hacia el proxy interno /storage-proxy/ si aplica.
+
+    Permite que navegadores remotos o que operan bajo HTTPS (como ngrok) se comuniquen
+    con MinIO sin ser bloqueados por Mixed Content o políticas CORS.
+    En producción (con AWS S3 real), la URL se mantiene sin cambios.
+    """
+    if not isinstance(url, str):
+        return url
+    endpoint = getattr(settings, "AWS_S3_ENDPOINT_URL", None)
+    if not endpoint:
+        return url
+    endpoint = endpoint.rstrip("/")
+    if url.startswith(endpoint):
+        return "/storage-proxy" + url[len(endpoint):]
+    return url
+
+
 def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
     """Genera permisos temporales de escritura para las partes esperadas."""
 
@@ -138,7 +156,7 @@ def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
     return [
         {
             "part_number": numero,
-            "url": s3.generate_presigned_url(
+            "url": adaptar_url_almacenamiento(s3.generate_presigned_url(
                 ClientMethod="upload_part",
                 Params={
                     "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
@@ -147,7 +165,7 @@ def generar_urls_prefirmadas(clave_objeto, upload_id, cantidad_partes):
                     "PartNumber": numero,
                 },
                 ExpiresIn=settings.AWS_S3_UPLOAD_EXPIRATION,
-            ),
+            )),
         }
         for numero in range(1, cantidad_partes + 1)
     ]
@@ -264,11 +282,12 @@ def generar_url_descarga(clave_objeto, nombre_archivo=None, expiracion=None):
     else:
         params["ResponseContentDisposition"] = "attachment"
 
-    return get_s3_client().generate_presigned_url(
+    url = get_s3_client().generate_presigned_url(
         ClientMethod="get_object",
         Params=params,
         ExpiresIn=expiracion,
     )
+    return adaptar_url_almacenamiento(url)
 
 
 def generar_url_previsualizacion(clave_objeto, content_type=None, expiracion=None):
@@ -283,9 +302,10 @@ def generar_url_previsualizacion(clave_objeto, content_type=None, expiracion=Non
     if content_type:
         params["ResponseContentType"] = content_type
 
-    return get_s3_client().generate_presigned_url(
+    url = get_s3_client().generate_presigned_url(
         ClientMethod="get_object",
         Params=params,
         ExpiresIn=expiracion,
     )
+    return adaptar_url_almacenamiento(url)
 
