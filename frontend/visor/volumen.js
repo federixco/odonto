@@ -1,4 +1,15 @@
 /** Plan de visualización y remuestreo; nunca modifica los archivos DICOM. */
+export function planParalelo(plan, budget, maxDimension, requested = 4) {
+  const overhead = 8 * 1024 * 1024;
+  const perImage = Math.max(1, plan.reserva_bytes - overhead);
+  // Reservar explícitamente los originales/decoders simultáneos antes de
+  // calcular el volumen. En equipos ajustados se reduce la concurrencia.
+  const concurrency = Math.max(1, Math.min(4, requested,
+    Math.floor((budget - overhead) / (perImage * 2))));
+  return { concurrency, plan: adaptarPlan({ ...plan,
+    reserva_bytes: overhead + perImage * concurrency }, budget, maxDimension) };
+}
+
 export function adaptarPlan(plan, budget, maxDimension = 512) {
   if (!plan || !Number.isFinite(budget) || !Number.isInteger(maxDimension) || maxDimension < 3) throw new Error('memoria');
   const source = plan.dimensiones_originales;

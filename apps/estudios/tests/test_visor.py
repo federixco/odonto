@@ -179,6 +179,19 @@ class VisorTests(TestCase):
 
 
 class DicomMetadataTests(SimpleTestCase):
+    def test_serie_informa_memoria_por_frame_sin_exponer_datos_del_paciente(self):
+        from types import SimpleNamespace
+        from apps.estudios.visor_views import serie as vista_serie
+
+        plan = agrupar([self.parsed(z) for z in range(3)])[0]
+        with patch('apps.estudios.visor_views.solicitar', return_value={'estado': 'listo', 'series': [plan]}):
+            # Contrato de serialización; no accede a BD ni sustituye las pruebas de permisos.
+            response = vista_serie.__wrapped__.__wrapped__(None, SimpleNamespace(pk=1), plan['id'])
+        data = json.loads(response.content)
+        for archivo, metadata in zip(data['archivos'], plan['archivos']):
+            self.assertEqual(archivo['decodedBytes'], metadata['rows'] * metadata['columns'] * 4)
+            self.assertEqual(set(archivo), {'id', 'frames', 'bytes', 'decodedBytes', 'url'})
+
     def parsed(self, z=0, **kwargs):
         content = dicom(z, **kwargs)
         return cabecera(content, z+1, len(content))[0]
