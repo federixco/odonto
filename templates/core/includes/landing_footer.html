@@ -1,0 +1,13 @@
+<footer class="landing-footer">
+    <div class="container landing-footer-main">
+        <div>{% include 'core/includes/brand.html' %}<p>Imágenes para acompañar<br>cada decisión odontológica.</p></div>
+        <nav aria-label="Navegación del pie de página"><strong>El centro</strong><a href="{% url 'core:landing' %}#servicios">Nuestros estudios</a><a href="{% url 'core:landing' %}#profesionales">Profesionales</a><a href="{% url 'core:landing' %}#contacto">Contacto y ubicación</a></nav>
+        <nav aria-label="Accesos a la plataforma"><strong>Estudios en línea</strong><a href="{% url 'redireccion_roles' %}">Ingresar a mi cuenta</a><a href="{% url 'odontologo_autoregistro' %}">Registro de odontólogos</a><a href="{% url 'password_reset' %}">Recuperar contraseña</a></nav>
+    </div>
+    <div class="container landing-footer-bottom doc-footer-bottom">
+        <span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span>
+        <a href="{% url 'core:privacy' %}" data-privacy-footer-link>Política de Privacidad</a>
+        <span>Formosa, Argentina</span>
+        {% include 'core/includes/team_credits.html' %}
+    </div>
+</footer>

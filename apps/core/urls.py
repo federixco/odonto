@@ -6,4 +6,7 @@ from . import views
 
 app_name = "core"
 
-urlpatterns = [path("", views.landing, name="landing")]
+urlpatterns = [
+    path("", views.landing, name="landing"),
+    path("politica-de-privacidad/", views.privacy_policy, name="privacy"),
+]

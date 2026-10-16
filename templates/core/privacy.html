@@ -1,0 +1,97 @@
+{% extends 'core/public_base.html' %}
+{% load static %}
+{% block title %}Política de Privacidad | D.O.C.{% endblock %}
+{% block body_class %}landing-page privacy-page{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{% static 'core/css/landing.css' %}?v=clinica-20261015">{% endblock %}
+{% block contact_strip %}{% endblock %}
+{% block public_header %}
+<header class="site-header landing-header privacy-header">
+    <div class="container header-inner">
+        {% include 'core/includes/brand.html' %}
+        <a class="privacy-back" href="{% url 'core:landing' %}">{% include 'core/includes/icon.html' with name='arrow' %} Volver al sitio</a>
+        {% if user.is_authenticated %}<a class="button landing-account" href="{% url 'redireccion_roles' %}">Ir a mi cuenta</a>{% else %}<a class="button landing-account" href="{% url 'login' %}">Acceder a estudios</a>{% endif %}
+    </div>
+</header>
+{% endblock %}
+{% block content %}
+<div class="container">
+    <header class="privacy-intro">
+        <h1>Política de Privacidad</h1>
+        <p class="privacy-date">Última actualización: <time datetime="{{ policy_updated|date:'Y-m-d' }}">{{ policy_updated|date:'j \d\e F \d\e Y' }}</time>.</p>
+    </header>
+    <div class="privacy-layout">
+        <nav class="privacy-index" aria-label="Índice de la Política de Privacidad">
+            <h2>En esta página</h2>
+            <ul>
+                <li><a href="#introduccion">Introducción</a></li>
+                <li><a href="#informacion">Información que recopilamos</a></li>
+                <li><a href="#finalidad">Cómo utilizamos la información</a></li>
+                <li><a href="#cuentas">Acceso a la información</a></li>
+                <li><a href="#estudios">Estudios y archivos clínicos</a></li>
+                <li><a href="#seguridad">Seguridad y confidencialidad</a></li>
+                <li><a href="#cookies-utilizadas">Cookies</a></li>
+                <li><a href="#conservacion">Conservación de información</a></li>
+                <li><a href="#contacto-privacidad">Contacto</a></li>
+            </ul>
+        </nav>
+        <article class="privacy-document" aria-label="Tratamiento de información en D.O.C.">
+            <section id="introduccion">
+                <h2>Introducción</h2>
+                <p>En D.O.C. Diagnóstico Odontológico Computado valoramos la privacidad y la confidencialidad de la información de pacientes y profesionales. Esta política explica qué información utilizamos, para qué la necesitamos y quiénes pueden acceder a ella al usar nuestra plataforma.</p>
+            </section>
+            <section id="informacion">
+                <h2>Información que recopilamos</h2>
+                <p>Según la atención recibida y las funciones que utilices, podemos registrar:</p>
+                <ul>
+                    <li><strong>Datos personales y de contacto:</strong> nombre, apellido, documento de identidad, fecha de nacimiento, obra social, correo electrónico o teléfono, cuando corresponda.</li>
+                    <li><strong>Datos profesionales y de cuenta:</strong> matrícula del odontólogo, nombre de usuario y datos necesarios para gestionar el acceso a la plataforma.</li>
+                    <li><strong>Información de los estudios:</strong> fecha, tipo de estudio, observaciones, imágenes y archivos clínicos asociados al paciente.</li>
+                </ul>
+            </section>
+            <section id="finalidad">
+                <h2>Cómo utilizamos la información</h2>
+                <p>Utilizamos la información para identificar correctamente a cada paciente, organizar sus estudios y facilitar su consulta por las personas autorizadas. También permite administrar cuentas, atender consultas, gestionar correcciones y ayudar a recuperar el acceso a la plataforma.</p>
+            </section>
+            <section id="cuentas">
+                <h2>Acceso a la información</h2>
+                <p>La información clínica no es pública. El acceso se limita según la función y la autorización de cada persona:</p>
+                <ul>
+                    <li><strong>Personal autorizado del centro:</strong> gestiona la información necesaria para la atención y la entrega de estudios.</li>
+                    <li><strong>Odontólogos derivantes:</strong> consultan los estudios de sus pacientes realizados en el centro.</li>
+                    <li><strong>Pacientes:</strong> cuando disponen de una cuenta habilitada, pueden consultar sus propios estudios disponibles.</li>
+                </ul>
+                <p>El centro puede modificar o retirar autorizaciones. Esto no elimina las copias que una persona ya haya descargado.</p>
+            </section>
+            <section id="estudios">
+                <h2>Estudios y archivos clínicos</h2>
+                <p>Los estudios pueden incluir imágenes, modelos tridimensionales y documentos con información sobre la salud y la identidad del paciente. Se utilizan para su atención y la consulta de los profesionales autorizados.</p>
+                <p>Si descargás o compartís un estudio, cuidá su confidencialidad y verificá que llegue únicamente a su destinatario.</p>
+            </section>
+            <section id="seguridad">
+                <h2>Seguridad y confidencialidad</h2>
+                <p>D.O.C. aplica medidas técnicas y organizativas destinadas a proteger la información y limitar el acceso a usuarios autorizados.</p>
+                <p>Ninguna medida ofrece seguridad absoluta. Para colaborar con el cuidado de tus datos, no compartas tu contraseña y cerrá la sesión al terminar, especialmente en equipos de uso compartido.</p>
+            </section>
+            <section id="cookies-utilizadas">
+                <h2>Cookies</h2>
+                <p>D.O.C. utiliza cookies técnicas necesarias para mantener la sesión y proteger el funcionamiento de la plataforma. También se recuerdan determinadas preferencias para facilitar la navegación.</p>
+                <p>Actualmente no se utilizan cookies publicitarias ni de seguimiento comercial. Podés gestionar las cookies desde tu navegador; bloquear las necesarias puede afectar el acceso o algunas funciones de la plataforma.</p>
+            </section>
+            <section id="conservacion">
+                <h2>Conservación de información</h2>
+                <p>La información se conserva para la atención de los pacientes y la gestión de sus estudios. Podés comunicarte con el centro para consultar sobre su conservación y solicitar la revisión, corrección o eliminación de tus datos. La respuesta dependerá de la información involucrada y de las necesidades de conservación de la documentación clínica.</p>
+            </section>
+            <section id="contacto-privacidad">
+                <h2>Contacto</h2>
+                <p>Si tenés preguntas sobre esta política o sobre tus datos personales, comunicate con D.O.C. Para proteger tu información, podemos necesitar verificar tu identidad antes de atender una solicitud.</p>
+                <address class="privacy-contact">
+                    <a href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a><br>
+                    <a href="tel:+543704422272">0370 442-2272 · interno 2</a><br>
+                    Mitre 479, Ciudad de Formosa, Argentina.
+                </address>
+            </section>
+        </article>
+    </div>
+</div>
+{% endblock %}
+{% block public_footer %}{% include 'core/includes/landing_footer.html' %}{% endblock %}
