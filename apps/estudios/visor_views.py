@@ -107,6 +107,7 @@ def serie(request, estudio, serie_id):
                          "memoria_estimada": seleccionada["memoria_estimada"],
                          "vista_3d": seleccionada["vista_3d"],
                          "archivos": [{"id": a["archivo"], "frames": a["frames"], "bytes": a["bytes"],
+                                       "decodedBytes": a["rows"] * a["columns"] * 4,
                                        "url": reverse("visor_contenido", args=[estudio.pk, a["archivo"]])}
                                       for a in seleccionada["archivos"]]})
 
