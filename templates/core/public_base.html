@@ -10,7 +10,9 @@
     {% block robots %}{% endblock %}
     <link rel="icon" href="{% static 'core/images/doc-isotipo.svg' %}" type="image/svg+xml">
     <link rel="stylesheet" href="{% static 'core/css/public.css' %}">
+    <link rel="stylesheet" href="{% static 'core/css/privacy.css' %}?v=20261016">
     <script src="{% static 'core/js/public.js' %}" defer></script>
+    <script src="{% static 'core/js/cookie_notice.js' %}?v=20261016" defer></script>
     {% block extra_styles %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -64,7 +66,8 @@
             </nav>
             <div class="footer-contact"><strong>Estamos para ayudarte</strong><a href="tel:+543704422272">0370 442-2272 · int. 2</a><a href="mailto:doc.imagenes@gmail.com">doc.imagenes@gmail.com</a><span>Mitre 479, Formosa</span></div>
         </div>
-        <div class="container footer-bottom"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span><span>Formosa, Argentina</span></div>
+        <div class="container footer-bottom"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span><a href="{% url 'core:privacy' %}" data-privacy-footer-link>Política de Privacidad</a><span>Formosa, Argentina</span></div>
     </footer>{% endblock %}
+    {% include 'core/includes/cookie_notice.html' %}
 </body>
 </html>

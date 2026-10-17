@@ -6,7 +6,7 @@ const config = JSON.parse($('visor-config').textContent);
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 let controller, viewer, items = [], selected, mode, generation = 0, polling, reportSent = false;
 let currentSlice = 1;
-let catalogController, selectionMade = false;
+let catalogController, selectionMade = false, accessTimer;
 const controls = ['reset', 'zoom-in', 'zoom-out', 'rotate'];
 const messages = {
   webgl: 'No se pudo iniciar la aceleración 3D. Probá otro navegador o equipo con WebGL 2.',
@@ -37,6 +37,7 @@ function error(code) {
 }
 function close() {
   generation++;
+  clearTimeout(accessTimer);
   controller?.abort(); viewer?.dispose(); viewer = null;
   $('lienzo').replaceChildren(); $('vacio').hidden = false; $('slice-controls').hidden = true;
   for (const id of controls) $(id).disabled = true;
@@ -77,6 +78,17 @@ async function open(newMode) {
     }
     if (gen !== generation) { next.dispose(); return; }
     viewer = next;
+    // La caché es temporal. Revalidar aunque no haya nuevas descargas.
+    const validateAccess = async () => {
+      if (signal.aborted || gen !== generation) return;
+      try {
+        await json(selected.url, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]) });
+        if (gen === generation) accessTimer = setTimeout(validateAccess, 30000);
+      } catch (e) {
+        if (!signal.aborted && gen === generation) { close(); error(e.message === 'sesion' ? 'sesion' : 'red'); }
+      }
+    };
+    if (mode === 'cortes' || mode === 'volumen') accessTimer = setTimeout(validateAccess, 30000);
     for (const id of controls) $(id).disabled = false;
     $('rotate').disabled = mode === 'cortes'; $('slice-controls').hidden = mode !== 'cortes';
     void report('renderizado');

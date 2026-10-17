@@ -10,7 +10,8 @@ export default defineConfig({
   workers: 1,
   globalTeardown: './frontend/visor/browser-tests/teardown.js',
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'chromium', use: { browserName: 'chromium',
+      ...(process.env.VISOR_BROWSER_CHANNEL ? { channel: process.env.VISOR_BROWSER_CHANNEL } : {}) } },
     ...(process.env.VISOR_BROWSER_MATRIX === '1' ? [
       { name:'chrome', use:{ browserName:'chromium', channel:'chrome' } },
       { name:'edge', use:{ browserName:'chromium', channel:'msedge' } },

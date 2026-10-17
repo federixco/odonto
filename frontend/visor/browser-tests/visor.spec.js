@@ -47,7 +47,7 @@ test('cancelar una serie que está cargando no monta una vista tardía', async (
   await page.goto('/');
   let started;
   const waiting = new Promise(resolve => { started=resolve; });
-  await page.route('**/archivos/100/contenido/', async route => {
+  await page.route('**/archivos/100/contenido/**', async route => {
     started();
     await new Promise(r => setTimeout(r,500));
     await route.continue().catch(()=>{});
@@ -64,7 +64,7 @@ test('cancelar una serie que está cargando no monta una vista tardía', async (
 
 test('red, cancelación y falta de WebGL muestran error controlado', async ({ page }) => {
   await page.goto('/');
-  await page.route('**/archivos/1/contenido/', route => route.fulfill({ status:503, body:'Temporalmente no disponible' }));
+  await page.route('**/archivos/1/contenido/**', route => route.fulfill({ status:503, body:'Temporalmente no disponible' }));
   await page.locator('#contenido-selector').selectOption('m-1');
   await expect(page.locator('#estado')).toContainText('No se pudo cargar');
   await page.unrouteAll();
@@ -101,16 +101,16 @@ test('tres aperturas de volumen liberan workers y no acumulan heap sin límite',
 
 test('el enlace directo DICOM abre su serie y el deslizador respeta el último corte', async ({ page }) => {
   const errors=[]; page.on('pageerror', e=>errors.push(e.message));
-  await page.goto('/?archivo=100');
-  await expect(page.locator('#contenido-selector')).toHaveValue('s-sintetica');
-  await expect(page.locator('#estado')).toContainText('Cortes listos');
   let started;
   const waiting = new Promise(resolve => { started=resolve; });
-  await page.route('**/archivos/101/contenido/', async route => {
+  await page.route('**/archivos/101/contenido/**', async route => {
     started();
     await new Promise(r=>setTimeout(r,500));
     await route.continue().catch(()=>{});
   });
+  await page.goto('/?archivo=100');
+  await expect(page.locator('#contenido-selector')).toHaveValue('s-sintetica');
+  await expect(page.locator('#estado')).toContainText('Cortes listos');
   await page.locator('#next').click();
   await waiting;
   await page.locator('#slice').evaluate(element=>{
@@ -161,16 +161,22 @@ test('actualizar catálogo retira una selección que ya no está disponible', as
 });
 
 test('permiso revocado durante la navegación cierra la imagen anterior', async ({ page }) => {
+  let revoke;
+  const revoked = new Promise(resolve => { revoke = resolve; });
+  await page.route('**/archivos/101/contenido/**', async route => {
+    await revoked;
+    await route.fulfill({ status:403, body:'No autorizado' }).catch(() => {});
+  });
   await page.goto('/?archivo=100');
   await expect(page.locator('#estado')).toContainText('Cortes listos');
-  await page.route('**/archivos/101/contenido/', route => route.fulfill({ status:403, body:'No autorizado' }));
   await page.locator('#next').click();
+  revoke();
   await expect(page.locator('#estado')).toContainText('permiso ya no están vigentes');
   await expect(page.locator('#lienzo canvas')).toHaveCount(0);
   await expect(page.locator('#reintentar')).toBeHidden();
 });
 
-test('serie pesada reconstruye 3D adaptado, descarga secuencial y vuelve a los cortes originales', async ({ page, request }, info) => {
+test('serie pesada reconstruye 3D adaptado, descarga paralela acotada y vuelve a cortes originales', async ({ page, request }, info) => {
   test.setTimeout(120000);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   let active = 0, peak = 0;
@@ -184,13 +190,16 @@ test('serie pesada reconstruye 3D adaptado, descarga secuencial y vuelve a los c
   const serie = await (await request.get('/estudios/1/visor/series/grande/')).json();
   expect(serie.vista_3d.reducida).toBe(true);
   expect(serie.vista_3d.memoria_estimada).toBeLessThanOrEqual(256 * 1024 * 1024);
+  await expect.poll(() => active).toBe(0);
+  peak = 0;
   await page.locator('#volumen').click();
   await expect(page.locator('#estado')).toContainText('Volumen listo', { timeout:90000 });
   await expect(page.locator('#compatibilidad')).toContainText('resolución adaptada');
   await expect(page.locator('#lienzo canvas')).toHaveCount(1);
   await page.locator('#rotate').click(); await page.locator('#zoom-in').click();
   await info.attach('volumen-grande-adaptado', { body:await page.locator('#lienzo').screenshot(), contentType:'image/png' });
-  expect(peak).toBeLessThanOrEqual(1);
+  expect(peak).toBeGreaterThan(1);
+  expect(peak).toBeLessThanOrEqual(4);
   await page.locator('#cortes').click();
   await expect(page.locator('#estado')).toContainText('Cortes listos', { timeout:30000 });
   await expect(page.locator('#slice-value')).toHaveText('1 / 80');
@@ -205,7 +214,7 @@ test('un fallo al construir la vista 3D no presenta un volumen incompleto', asyn
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/?archivo=100');
   await expect(page.locator('#estado')).toContainText('Cortes listos');
-  await page.route('**/archivos/105/contenido/', route => route.fulfill({ status:503, body:'Prueba de fallo' }));
+  await page.route('**/archivos/105/contenido/**', route => route.fulfill({ status:503, body:'Prueba de fallo' }));
   await page.locator('#volumen').click();
   await expect(page.locator('#estado')).toContainText('No se pudo cargar', { timeout:30000 });
   await expect(page.locator('#lienzo canvas')).toHaveCount(0);
@@ -213,5 +222,97 @@ test('un fallo al construir la vista 3D no presenta un volumen incompleto', asyn
   await page.unrouteAll();
   await page.locator('#reintentar').click();
   await expect(page.locator('#estado')).toContainText('Volumen listo', { timeout:30000 });
+  expect(errors).toEqual([]);
+});
+
+test('2D precarga la serie pequeña y volver a un corte no hace otra descarga', async ({ page }, info) => {
+  const reads = new Map(), errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('request', request => {
+    const match = new URL(request.url()).pathname.match(/\/archivos\/(1\d\d)\/contenido\//);
+    if (match) reads.set(match[1], (reads.get(match[1]) || 0) + 1);
+  });
+  await page.route('**/archivos/*/contenido/**', async route => {
+    await new Promise(resolve => setTimeout(resolve, 150));
+    await route.continue().catch(() => {});
+  });
+  await page.goto('/?archivo=100');
+  await expect(page.locator('#estado')).toContainText('Cortes listos');
+  await expect.poll(() => reads.size).toBe(16);
+  await page.locator('#slice').fill('12');
+  await expect(page.locator('#slice-value')).toHaveText('12 / 16');
+  await page.locator('#next').click();
+  await expect(page.locator('#slice-value')).toHaveText('13 / 16');
+  const started = Date.now();
+  await page.locator('#previous').click();
+  await expect(page.locator('#slice-value')).toHaveText('12 / 16');
+  await info.attach('cache-2d', { body: JSON.stringify({ volverMs: Date.now() - started, lecturas: Object.fromEntries(reads) }), contentType: 'application/json' });
+  expect([...reads.values()].every(count => count === 1)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('revocación se comprueba aun cuando toda la serie ya está en caché', async ({ page }) => {
+  await page.clock.install();
+  await page.goto('/?archivo=100');
+  await expect(page.locator('#estado')).toContainText('Cortes listos');
+  await page.route('**/series/sintetica/', route => route.fulfill({ status:403, body:'Revocado' }));
+  await page.clock.fastForward(31000);
+  await expect(page.locator('#estado')).toContainText('permiso ya no están vigentes');
+  await expect(page.locator('#lienzo canvas')).toHaveCount(0);
+});
+
+test('3D completa con latencia, carga en paralelo y cancelación corta nuevas solicitudes', async ({ page }, info) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  let active = 0, peak = 0, count = 0;
+  await page.route('**/archivos/*/contenido/**', async route => {
+    count++; active++; peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    active--;
+    await route.continue().catch(() => {});
+  });
+  await page.goto('/?archivo=100');
+  await expect(page.locator('#estado')).toContainText('Cortes listos');
+  await expect.poll(() => count).toBe(16);
+  await expect.poll(() => active).toBe(0);
+  peak = 0; count = 0;
+  const started = Date.now();
+  await page.locator('#volumen').click();
+  await expect(page.locator('#estado')).toContainText('Volumen listo', { timeout:30000 });
+  await info.attach('carga-3d-con-latencia', { body: JSON.stringify({ ms:Date.now()-started, peak, count }), contentType:'application/json' });
+  expect(peak).toBeGreaterThan(1);
+  expect(peak).toBeLessThanOrEqual(4);
+  expect(count).toBe(16);
+  await page.locator('#volumen').click();
+  await expect.poll(() => active).toBeGreaterThan(0);
+  await page.locator('#close').click();
+  const afterClose = count;
+  await expect.poll(() => page.workers().length).toBe(0);
+  await expect.poll(() => active).toBe(0);
+  expect(count).toBe(afterClose);
+  await expect(page.locator('#lienzo canvas')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('un corte 3D que no responde termina en error y permite reintentar', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/?archivo=100');
+  await expect(page.locator('#estado')).toContainText('Cortes listos');
+  await page.clock.install();
+  let unblock, started;
+  const stalled = new Promise(resolve => { started = resolve; });
+  const blocked = new Promise(resolve => { unblock = resolve; });
+  await page.route('**/archivos/105/contenido/**', async route => {
+    started(); await blocked; await route.continue().catch(() => {});
+  });
+  await page.locator('#volumen').click();
+  await stalled;
+  await page.clock.fastForward(61000);
+  await expect(page.locator('#estado')).toContainText('No se pudo cargar');
+  await expect(page.locator('#lienzo canvas')).toHaveCount(0);
+  await expect(page.locator('#reintentar')).toBeVisible();
+  unblock();
+  await page.unrouteAll({ behavior: 'wait' });
+  await page.locator('#reintentar').click();
+  await expect(page.locator('#estado')).toContainText('Volumen listo');
   expect(errors).toEqual([]);
 });

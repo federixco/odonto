@@ -15,7 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
-os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings.test'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings.test_mysql'
 import django
 django.setup()
 from django.template.loader import render_to_string
@@ -35,7 +35,8 @@ SERIES = {
 }
 for serie in SERIES.values():
     indice = agrupar([cabecera(FILES[pk], pk, len(FILES[pk]))[0] for pk in serie['archivos']])[0]
-    serie.update(vista_3d=indice['vista_3d'], motivo=indice['motivo'], volumen=indice['volumen'])
+    serie.update(vista_3d=indice['vista_3d'], motivo=indice['motivo'], volumen=indice['volumen'],
+                 decoded={a['archivo']: a['rows'] * a['columns'] * 4 for a in indice['archivos']})
 READS = []
 EVENTS = []
 PREFIX = '/estudios/1/visor/'
@@ -88,6 +89,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({'id':key,'frames':s['frames'],'volumen':s['volumen'],'motivo':s['motivo'],
                               'vista_3d':s['vista_3d'], 'memoria_estimada':s['vista_3d']['memoria_estimada'] if s['vista_3d'] else 0,
                               'archivos':[{'id':pk, 'frames':3 if pk==200 else 1, 'bytes':len(FILES[pk]),
+                                           'decodedBytes':s['decoded'][pk],
                                            'url':PREFIX+f'archivos/{pk}/contenido/'} for pk in s['archivos']]})
         match = re.fullmatch(PREFIX+r'archivos/(\d+)/contenido/', path)
         if match:

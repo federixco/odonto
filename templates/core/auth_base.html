@@ -30,5 +30,5 @@
 </section>
 {% endblock %}
 {% block public_footer %}
-<footer class="access-footer"><div class="container access-footer-inner"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span><a href="{% url 'redireccion_roles' %}">Ingresar a mi cuenta</a><span>Formosa, Argentina</span></div></footer>
+<footer class="access-footer"><div class="container access-footer-inner"><span>© {% now 'Y' %} D.O.C. Diagnóstico Odontológico Computado.</span>{% if request.resolver_match.url_name != 'login' %}<a href="{% url 'redireccion_roles' %}">Ingresar a mi cuenta</a>{% endif %}<a href="{% url 'core:privacy' %}" data-privacy-footer-link>Política de Privacidad</a><span>Formosa, Argentina</span></div></footer>
 {% endblock %}
